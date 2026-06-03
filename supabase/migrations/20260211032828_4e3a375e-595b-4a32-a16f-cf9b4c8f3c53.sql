@@ -1,0 +1,1 @@
+ALTER TABLE public.agent_shifts ADD COLUMN manual_deduction_minutes integer NOT NULL DEFAULT 0;

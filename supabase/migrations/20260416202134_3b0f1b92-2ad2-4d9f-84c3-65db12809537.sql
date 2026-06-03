@@ -1,0 +1,2 @@
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS partner_welcome_seen boolean NOT NULL DEFAULT false;
+ALTER TABLE public.white_label_clients ADD COLUMN IF NOT EXISTS welcome_seen boolean NOT NULL DEFAULT false;

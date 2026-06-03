@@ -1,0 +1,1 @@
+ALTER TABLE public.keyword_tracker ADD COLUMN sort_priority integer NOT NULL DEFAULT 0;

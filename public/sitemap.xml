@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Main sitemap -->
+  <sitemap>
+    <loc>https://24hv.io/sitemap-main.xml</loc>
+  </sitemap>
+  <!-- Location-based landing pages sitemap (600+ pages) -->
+  <sitemap>
+    <loc>https://24hv.io/sitemap-locations.xml</loc>
+  </sitemap>
+  <!-- Blog posts sitemap -->
+  <sitemap>
+    <loc>https://24hv.io/sitemap-blog.xml</loc>
+  </sitemap>
+</sitemapindex>

@@ -1,0 +1,283 @@
+import { MOCK_AGENT_ID, MOCK_CLIENTS, hoursAgo, minutesAgo } from './people';
+
+export interface MockConversation {
+  id: string;
+  status: 'active' | 'waiting' | 'closed' | 'queued' | 'new';
+  ai_state: 'inactive' | 'active' | 'handed_off';
+  ownership_mode: 'direct' | 'wl';
+  assigned_agent_id: string | null;
+  last_message_at: string;
+  unread_agent_count: number;
+  ai_summary: string;
+  direct_client_id: string | null;
+  wl_partner_id: string | null;
+  deployment_id: string;
+  channel: string;
+  created_at: string;
+  updated_at: string;
+  closed_at: string | null;
+  closed_by: string | null;
+  visitor_id: string;
+  wl_client_id: string | null;
+  chat_visitors: { name: string; email?: string | null; phone?: string | null };
+  chat_deployments?: { display_name: string; ownership_mode: 'direct' | 'wl' };
+}
+
+export const MOCK_CONVERSATIONS: MockConversation[] = [
+  {
+    id: 'conv-001',
+    status: 'active',
+    ai_state: 'inactive',
+    ownership_mode: 'direct',
+    assigned_agent_id: MOCK_AGENT_ID,
+    last_message_at: minutesAgo(2),
+    unread_agent_count: 2,
+    ai_summary: 'Patient wants to reschedule cleaning to next Tuesday afternoon.',
+    direct_client_id: MOCK_CLIENTS.riverside.id,
+    wl_partner_id: null,
+    deployment_id: 'dep-riverside',
+    channel: 'web',
+    created_at: minutesAgo(18),
+    updated_at: minutesAgo(2),
+    closed_at: null,
+    closed_by: null,
+    visitor_id: 'vis-001',
+    wl_client_id: null,
+    chat_visitors: { name: 'Amelia Rodriguez', email: 'amelia.r@gmail.com', phone: '+1 (415) 555-0184' },
+    chat_deployments: { display_name: 'Riverside Dental', ownership_mode: 'direct' },
+  },
+  {
+    id: 'conv-002',
+    status: 'active',
+    ai_state: 'inactive',
+    ownership_mode: 'wl',
+    assigned_agent_id: MOCK_AGENT_ID,
+    last_message_at: minutesAgo(1),
+    unread_agent_count: 4,
+    ai_summary: 'URGENT: Burst kitchen pipe, requesting emergency dispatch in next 30 min.',
+    direct_client_id: null,
+    wl_partner_id: 'partner-brightvoice',
+    deployment_id: 'dep-sterling',
+    channel: 'web',
+    created_at: minutesAgo(8),
+    updated_at: minutesAgo(1),
+    closed_at: null,
+    closed_by: null,
+    visitor_id: 'vis-002',
+    wl_client_id: 'wlc-sterling',
+    chat_visitors: { name: 'Marcus Hill', phone: '+1 (510) 555-0212' },
+    chat_deployments: { display_name: 'Sterling Plumbing', ownership_mode: 'wl' },
+  },
+  {
+    id: 'conv-003',
+    status: 'active',
+    ai_state: 'inactive',
+    ownership_mode: 'direct',
+    assigned_agent_id: MOCK_AGENT_ID,
+    last_message_at: minutesAgo(11),
+    unread_agent_count: 0,
+    ai_summary: 'Caller asking for probate consultation pricing and intake process.',
+    direct_client_id: MOCK_CLIENTS.hampton.id,
+    wl_partner_id: null,
+    deployment_id: 'dep-hampton',
+    channel: 'web',
+    created_at: minutesAgo(34),
+    updated_at: minutesAgo(11),
+    closed_at: null,
+    closed_by: null,
+    visitor_id: 'vis-003',
+    wl_client_id: null,
+    chat_visitors: { name: 'Janet Okafor', email: 'jokafor@yahoo.com', phone: '+1 (212) 555-0107' },
+    chat_deployments: { display_name: 'Hampton Legal Group', ownership_mode: 'direct' },
+  },
+  {
+    id: 'conv-004',
+    status: 'waiting',
+    ai_state: 'inactive',
+    ownership_mode: 'direct',
+    assigned_agent_id: null,
+    last_message_at: minutesAgo(4),
+    unread_agent_count: 1,
+    ai_summary: 'Asking about 412 Maple Ave listing — wants showing this weekend.',
+    direct_client_id: MOCK_CLIENTS.northstar.id,
+    wl_partner_id: null,
+    deployment_id: 'dep-northstar',
+    channel: 'web',
+    created_at: minutesAgo(4),
+    updated_at: minutesAgo(4),
+    closed_at: null,
+    closed_by: null,
+    visitor_id: 'vis-004',
+    wl_client_id: null,
+    chat_visitors: { name: 'David Cho', email: 'dcho.realestate@gmail.com' },
+    chat_deployments: { display_name: 'Northstar Realty', ownership_mode: 'direct' },
+  },
+  {
+    id: 'conv-005',
+    status: 'waiting',
+    ai_state: 'inactive',
+    ownership_mode: 'wl',
+    assigned_agent_id: null,
+    last_message_at: minutesAgo(7),
+    unread_agent_count: 1,
+    ai_summary: 'Requesting quote for monthly lawn maintenance service.',
+    direct_client_id: null,
+    wl_partner_id: 'partner-connectflow',
+    deployment_id: 'dep-greenleaf',
+    channel: 'web',
+    created_at: minutesAgo(7),
+    updated_at: minutesAgo(7),
+    closed_at: null,
+    closed_by: null,
+    visitor_id: 'vis-005',
+    wl_client_id: 'wlc-greenleaf',
+    chat_visitors: { name: 'Priya Shah', phone: '+1 (650) 555-0166' },
+    chat_deployments: { display_name: 'GreenLeaf Landscaping', ownership_mode: 'wl' },
+  },
+  {
+    id: 'conv-006',
+    status: 'active',
+    ai_state: 'handed_off',
+    ownership_mode: 'direct',
+    assigned_agent_id: MOCK_AGENT_ID,
+    last_message_at: minutesAgo(22),
+    unread_agent_count: 0,
+    ai_summary: 'AI completed VIN lookup, escalating: caller wants insurance pre-approval call.',
+    direct_client_id: MOCK_CLIENTS.apex.id,
+    wl_partner_id: null,
+    deployment_id: 'dep-apex',
+    channel: 'web',
+    created_at: hoursAgo(1),
+    updated_at: minutesAgo(22),
+    closed_at: null,
+    closed_by: null,
+    visitor_id: 'vis-006',
+    wl_client_id: null,
+    chat_visitors: { name: 'Tomás Reyes', phone: '+1 (213) 555-0143' },
+    chat_deployments: { display_name: 'Apex Auto Body', ownership_mode: 'direct' },
+  },
+  {
+    id: 'conv-007',
+    status: 'active',
+    ai_state: 'inactive',
+    ownership_mode: 'direct',
+    assigned_agent_id: MOCK_AGENT_ID,
+    last_message_at: minutesAgo(45),
+    unread_agent_count: 0,
+    ai_summary: 'Mother requesting callback at 3:15 PM about toddler vaccination schedule.',
+    direct_client_id: MOCK_CLIENTS.coastal.id,
+    wl_partner_id: null,
+    deployment_id: 'dep-coastal',
+    channel: 'web',
+    created_at: hoursAgo(2),
+    updated_at: minutesAgo(45),
+    closed_at: null,
+    closed_by: null,
+    visitor_id: 'vis-007',
+    wl_client_id: null,
+    chat_visitors: { name: 'Renée Beaumont', email: 'rbeaumont@hotmail.com', phone: '+1 (305) 555-0119' },
+    chat_deployments: { display_name: 'Coastal Pediatrics', ownership_mode: 'direct' },
+  },
+  {
+    id: 'conv-008',
+    status: 'active',
+    ai_state: 'inactive',
+    ownership_mode: 'direct',
+    assigned_agent_id: MOCK_AGENT_ID,
+    last_message_at: minutesAgo(60),
+    unread_agent_count: 0,
+    ai_summary: 'Probate intake started, ticket #4821 opened for full case review.',
+    direct_client_id: MOCK_CLIENTS.hampton.id,
+    wl_partner_id: null,
+    deployment_id: 'dep-hampton',
+    channel: 'web',
+    created_at: hoursAgo(3),
+    updated_at: minutesAgo(60),
+    closed_at: null,
+    closed_by: null,
+    visitor_id: 'vis-008',
+    wl_client_id: null,
+    chat_visitors: { name: 'Frank Delaney', email: 'fdelaney@msn.com', phone: '+1 (917) 555-0188' },
+    chat_deployments: { display_name: 'Hampton Legal Group', ownership_mode: 'direct' },
+  },
+  {
+    id: 'conv-009',
+    status: 'closed',
+    ai_state: 'inactive',
+    ownership_mode: 'direct',
+    assigned_agent_id: MOCK_AGENT_ID,
+    last_message_at: hoursAgo(2),
+    unread_agent_count: 0,
+    ai_summary: 'Booked annual checkup for golden retriever, May 8 at 10am. Resolved.',
+    direct_client_id: MOCK_CLIENTS.cedar.id,
+    wl_partner_id: null,
+    deployment_id: 'dep-cedar',
+    channel: 'web',
+    created_at: hoursAgo(3),
+    updated_at: hoursAgo(2),
+    closed_at: hoursAgo(2),
+    closed_by: MOCK_AGENT_ID,
+    visitor_id: 'vis-009',
+    wl_client_id: null,
+    chat_visitors: { name: 'Jin Park', email: 'jinpark88@gmail.com' },
+    chat_deployments: { display_name: 'Cedar Veterinary', ownership_mode: 'direct' },
+  },
+  {
+    id: 'conv-010',
+    status: 'queued',
+    ai_state: 'inactive',
+    ownership_mode: 'wl',
+    assigned_agent_id: null,
+    last_message_at: minutesAgo(3),
+    unread_agent_count: 2,
+    ai_summary: 'URGENT: AC out completely, 95°F outside, elderly resident in home.',
+    direct_client_id: null,
+    wl_partner_id: 'partner-brightvoice',
+    deployment_id: 'dep-vista',
+    channel: 'web',
+    created_at: minutesAgo(3),
+    updated_at: minutesAgo(3),
+    closed_at: null,
+    closed_by: null,
+    visitor_id: 'vis-010',
+    wl_client_id: 'wlc-vista',
+    chat_visitors: { name: 'Olivia Nguyen', phone: '+1 (480) 555-0177' },
+    chat_deployments: { display_name: 'Vista HVAC', ownership_mode: 'wl' },
+  },
+];
+
+export interface MockMessage {
+  id: string;
+  conversation_id: string;
+  sender_type: 'visitor' | 'agent' | 'ai' | 'system';
+  sender_name: string | null;
+  body: string;
+  created_at: string;
+  attachments: any[];
+  metadata: any;
+  sender_id: string | null;
+}
+
+export const MOCK_MESSAGES_BY_CONV: Record<string, MockMessage[]> = {
+  'conv-001': [
+    { id: 'm1-1', conversation_id: 'conv-001', sender_type: 'visitor', sender_name: 'Amelia Rodriguez', body: 'Hi! I need to reschedule my cleaning that was set for Friday.', created_at: minutesAgo(18), attachments: [], metadata: {}, sender_id: null },
+    { id: 'm1-2', conversation_id: 'conv-001', sender_type: 'agent', sender_name: 'Maya Patel', body: 'Of course Amelia — what day works better for you?', created_at: minutesAgo(15), attachments: [], metadata: {}, sender_id: MOCK_AGENT_ID },
+    { id: 'm1-3', conversation_id: 'conv-001', sender_type: 'visitor', sender_name: 'Amelia Rodriguez', body: 'Tuesday afternoon if there\'s anything available?', created_at: minutesAgo(12), attachments: [], metadata: {}, sender_id: null },
+    { id: 'm1-4', conversation_id: 'conv-001', sender_type: 'agent', sender_name: 'Maya Patel', body: 'I have 2:30 PM or 3:45 PM open on Tuesday. Which works?', created_at: minutesAgo(8), attachments: [], metadata: {}, sender_id: MOCK_AGENT_ID },
+    { id: 'm1-5', conversation_id: 'conv-001', sender_type: 'visitor', sender_name: 'Amelia Rodriguez', body: '2:30 is perfect, thank you!', created_at: minutesAgo(2), attachments: [], metadata: {}, sender_id: null },
+  ],
+  'conv-002': [
+    { id: 'm2-1', conversation_id: 'conv-002', sender_type: 'visitor', sender_name: 'Marcus Hill', body: 'EMERGENCY — pipe burst under kitchen sink, water everywhere', created_at: minutesAgo(8), attachments: [], metadata: {}, sender_id: null },
+    { id: 'm2-2', conversation_id: 'conv-002', sender_type: 'agent', sender_name: 'Maya Patel', body: 'Marcus — first, shut the main water valve if you can reach it safely. I\'m dispatching a tech now. Address?', created_at: minutesAgo(7), attachments: [], metadata: {}, sender_id: MOCK_AGENT_ID },
+    { id: 'm2-3', conversation_id: 'conv-002', sender_type: 'visitor', sender_name: 'Marcus Hill', body: '4421 Pine Hollow Rd, Oakland. Valve is shut.', created_at: minutesAgo(5), attachments: [], metadata: {}, sender_id: null },
+    { id: 'm2-4', conversation_id: 'conv-002', sender_type: 'visitor', sender_name: 'Marcus Hill', body: 'How long?', created_at: minutesAgo(3), attachments: [], metadata: {}, sender_id: null },
+    { id: 'm2-5', conversation_id: 'conv-002', sender_type: 'visitor', sender_name: 'Marcus Hill', body: 'Hello?', created_at: minutesAgo(1), attachments: [], metadata: {}, sender_id: null },
+  ],
+  'conv-006': [
+    { id: 'm6-1', conversation_id: 'conv-006', sender_type: 'visitor', sender_name: 'Tomás Reyes', body: 'Need quote for body work on 2019 Camry, rear bumper damage.', created_at: hoursAgo(1), attachments: [], metadata: {}, sender_id: null },
+    { id: 'm6-2', conversation_id: 'conv-006', sender_type: 'ai', sender_name: 'AI Assistant', body: 'Got it. Can you share your VIN so I can check service history?', created_at: hoursAgo(1), attachments: [], metadata: {}, sender_id: null },
+    { id: 'm6-3', conversation_id: 'conv-006', sender_type: 'visitor', sender_name: 'Tomás Reyes', body: '4T1B11HK5KU123456', created_at: minutesAgo(50), attachments: [], metadata: {}, sender_id: null },
+    { id: 'm6-4', conversation_id: 'conv-006', sender_type: 'system', sender_name: null, body: 'AI handed off to agent — caller needs insurance pre-approval call.', created_at: minutesAgo(48), attachments: [], metadata: {}, sender_id: null },
+    { id: 'm6-5', conversation_id: 'conv-006', sender_type: 'agent', sender_name: 'Maya Patel', body: 'Hi Tomás — I see your VIN. To get insurance pre-approval, can you tell me the carrier and claim number?', created_at: minutesAgo(22), attachments: [], metadata: {}, sender_id: MOCK_AGENT_ID },
+  ],
+};

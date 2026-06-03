@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "alloc_log_authenticated_insert" ON public.experiment_allocation_log;
