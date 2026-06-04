@@ -105,7 +105,6 @@ Last updated: 2026-06-03
 
 | Task | Priority | Notes |
 |------|----------|-------|
-| GitHub Actions CI pipeline | MEDIUM | test.yml ready, needs secrets + push post client approval |
 | [object Object] UUID error on WL dashboard | LOW | Pre-existing, originates in Edge Function server-side, not client code |
 | Five9 architecture refactor | HIGH | Agreed hybrid approach: proxy + monthly pull + PDF exports. Needs implementation |
 | NMI payment integration | HIGH | Paul approved NMI. Needs scoping and build |
@@ -130,6 +129,7 @@ Last updated: 2026-06-03
 ```
 Vitest RLS:  19/19  ✅
 Playwright:  78/78  ✅
+CI Pipeline:  green ✅
 Total:       97/97  ✅
 ```
 

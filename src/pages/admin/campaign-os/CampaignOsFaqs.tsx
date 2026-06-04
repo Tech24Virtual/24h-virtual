@@ -6,6 +6,7 @@ import {
   useApproveFaq,
   useArchiveFaq,
 } from '@/hooks/campaign-os/useCampaignMutations';
+import { KnowledgeVersionHistory } from '@/components/campaign-os/KnowledgeVersionHistory';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Check, Archive, Pencil } from 'lucide-react';
+import { Plus, Check, Archive, Pencil, History } from 'lucide-react';
 import { toast } from 'sonner';
 import type { CampaignScope } from '@/lib/campaign-os/types';
 
@@ -55,6 +56,8 @@ export default function CampaignOsFaqs() {
   const archive = useArchiveFaq();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<FaqFormState>(EMPTY_FORM);
+  const [historyId, setHistoryId] = useState<string | null>(null);
+  const [historyTitle, setHistoryTitle] = useState('');
 
   const openCreate = () => {
     setForm(EMPTY_FORM);
@@ -79,7 +82,9 @@ export default function CampaignOsFaqs() {
       await upsert.mutateAsync({
         id: form.id,
         scope: form.scope,
-        client_department_id: form.scope === 'department' ? departmentId : null,
+        // Always pass the selected call flow as context so the mutation can
+        // resolve the correct tenant identity for admin users on any scope.
+        client_department_id: departmentId,
         question: form.question,
         answer_md: form.answer_md,
         status: form.status,
@@ -126,6 +131,14 @@ export default function CampaignOsFaqs() {
           <Archive className="h-3.5 w-3.5 mr-1" /> Archive
         </Button>
       )}
+      <Button
+        size="sm"
+        variant="ghost"
+        data-testid="faq-history-btn"
+        onClick={() => { setHistoryId(row.id); setHistoryTitle(row.question); }}
+      >
+        <History className="h-3.5 w-3.5 mr-1" /> History
+      </Button>
     </div>
   );
 
@@ -216,6 +229,14 @@ export default function CampaignOsFaqs() {
           </TabsContent>
         </Tabs>
       )}
+
+      <KnowledgeVersionHistory
+        entity="faq"
+        entityId={historyId ?? ''}
+        title={historyTitle}
+        open={!!historyId}
+        onOpenChange={(o) => { if (!o) setHistoryId(null); }}
+      />
     </div>
   );
 }

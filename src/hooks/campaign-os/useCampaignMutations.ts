@@ -25,20 +25,88 @@ interface FaqInput {
   status?: 'draft' | 'approved' | 'archived';
 }
 
+async function insertKnowledgeSnapshot(
+  entity: 'faq' | 'policy',
+  record: any,
+  userId: string | null,
+) {
+  try {
+    await (supabase as any).from('campaign_knowledge_versions').insert({
+      entity,
+      entity_id: record.id,
+      version: record.version,
+      snapshot: record,
+      tenant_kind: record.tenant_kind ?? null,
+      wl_partner_id: record.wl_partner_id ?? null,
+      client_lead_id: record.client_lead_id ?? null,
+      wl_client_id: record.wl_client_id ?? null,
+      created_by: userId ?? null,
+    });
+  } catch {
+    // Snapshot is auxiliary — never surface this error to the user.
+  }
+}
+
 export function useUpsertFaq() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: FaqInput) => {
       const tenant = await resolveTenant();
-      const identity = input.scope === 'global'
-        ? { tenant_kind: null as any, wl_partner_id: null, wl_client_id: null, client_lead_id: null, client_department_id: null }
-        : {
-            tenant_kind: tenant?.tenant_kind ?? 'direct_24h',
-            wl_partner_id: tenant?.wl_partner_id ?? null,
-            wl_client_id: tenant?.wl_client_id ?? null,
-            client_lead_id: tenant?.client_lead_id ?? null,
-            client_department_id: input.scope === 'department' ? (input.client_department_id ?? null) : null,
-          };
+
+      // Build tenant identity based on scope:
+      //  global     → null identity (trigger ignores tenant_kind for global rows)
+      //  department → inherit from the client_departments row (admin users have no
+      //               own tenant identity, so resolveTenant() returns nulls which
+      //               the DB trigger rejects; reading from the dept is authoritative
+      //               and matches the pattern in useCreateCampaign)
+      //  client/tenant → use the caller's own resolved tenant identity
+      let identity: { tenant_kind: any; wl_partner_id: string | null; wl_client_id: string | null; client_lead_id: string | null; client_department_id: string | null };
+
+      if (input.scope === 'global') {
+        identity = { tenant_kind: 'direct_24h' as any, wl_partner_id: null, wl_client_id: null, client_lead_id: null, client_department_id: null };
+      } else if (input.scope === 'department' && input.client_department_id) {
+        const { data: dept, error: deptErr } = await (supabase as any)
+          .from('client_departments')
+          .select('tenant_kind, wl_partner_id, client_lead_id, wl_client_id')
+          .eq('id', input.client_department_id)
+          .single();
+        if (deptErr) throw deptErr;
+        identity = {
+          tenant_kind: dept.tenant_kind,
+          wl_partner_id: dept.wl_partner_id,
+          client_lead_id: dept.client_lead_id,
+          wl_client_id: dept.wl_client_id,
+          client_department_id: input.client_department_id,
+        };
+      } else if (
+        // scope='tenant' or 'client': admin users have no personal tenant identity,
+        // so we read it from the context department (selected call flow). Non-admin
+        // users (WL partners, direct leads) already have identity from resolveTenant().
+        tenant?.is_admin && !tenant.client_lead_id && !tenant.wl_client_id
+        && input.client_department_id
+      ) {
+        const { data: dept, error: deptErr } = await (supabase as any)
+          .from('client_departments')
+          .select('tenant_kind, wl_partner_id, client_lead_id, wl_client_id')
+          .eq('id', input.client_department_id)
+          .single();
+        if (deptErr) throw deptErr;
+        identity = {
+          tenant_kind: dept.tenant_kind,
+          wl_partner_id: dept.wl_partner_id,
+          client_lead_id: dept.client_lead_id,
+          wl_client_id: dept.wl_client_id,
+          client_department_id: null,  // tenant/client scope: no specific dept stored
+        };
+      } else {
+        identity = {
+          tenant_kind: tenant?.tenant_kind ?? 'direct_24h',
+          wl_partner_id: tenant?.wl_partner_id ?? null,
+          wl_client_id: tenant?.wl_client_id ?? null,
+          client_lead_id: tenant?.client_lead_id ?? null,
+          client_department_id: null,
+        };
+      }
       const payload = {
         ...identity,
         scope: input.scope,
@@ -47,10 +115,36 @@ export function useUpsertFaq() {
         tags: input.tags ?? [],
         status: input.status ?? 'draft',
       };
-      const { error } = input.id
-        ? await (supabase as any).from('campaign_faq_entries').update(payload).eq('id', input.id)
-        : await (supabase as any).from('campaign_faq_entries').insert(payload);
-      if (error) throw error;
+
+      let record: any;
+
+      if (input.id) {
+        // Fetch current version before update so we can increment it.
+        const { data: current, error: fetchErr } = await (supabase as any)
+          .from('campaign_faq_entries')
+          .select('version')
+          .eq('id', input.id)
+          .single();
+        if (fetchErr) throw fetchErr;
+        const { data, error } = await (supabase as any)
+          .from('campaign_faq_entries')
+          .update({ ...payload, version: (current?.version ?? 1) + 1 })
+          .eq('id', input.id)
+          .select('*')
+          .single();
+        if (error) throw error;
+        record = data;
+      } else {
+        const { data, error } = await (supabase as any)
+          .from('campaign_faq_entries')
+          .insert(payload)
+          .select('*')
+          .single();
+        if (error) throw error;
+        record = data;
+      }
+
+      await insertKnowledgeSnapshot('faq', record, tenant?.user_id ?? null);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['campaign-os', 'faqs-effective'] });
@@ -68,6 +162,8 @@ interface PolicyInput {
   body_md: string;
   tags?: string[];
   status?: 'draft' | 'approved' | 'archived';
+  effective_from?: string | null;
+  effective_to?: string | null;
 }
 
 export function useUpsertPolicy() {
@@ -75,15 +171,52 @@ export function useUpsertPolicy() {
   return useMutation({
     mutationFn: async (input: PolicyInput) => {
       const tenant = await resolveTenant();
-      const identity = input.scope === 'global'
-        ? { tenant_kind: null as any, wl_partner_id: null, wl_client_id: null, client_lead_id: null, client_department_id: null }
-        : {
-            tenant_kind: tenant?.tenant_kind ?? 'direct_24h',
-            wl_partner_id: tenant?.wl_partner_id ?? null,
-            wl_client_id: tenant?.wl_client_id ?? null,
-            client_lead_id: tenant?.client_lead_id ?? null,
-            client_department_id: input.scope === 'department' ? (input.client_department_id ?? null) : null,
-          };
+
+      // Same three-way identity resolution as useUpsertFaq — see comments there.
+      let identity: { tenant_kind: any; wl_partner_id: string | null; wl_client_id: string | null; client_lead_id: string | null; client_department_id: string | null };
+
+      if (input.scope === 'global') {
+        identity = { tenant_kind: 'direct_24h' as any, wl_partner_id: null, wl_client_id: null, client_lead_id: null, client_department_id: null };
+      } else if (input.scope === 'department' && input.client_department_id) {
+        const { data: dept, error: deptErr } = await (supabase as any)
+          .from('client_departments')
+          .select('tenant_kind, wl_partner_id, client_lead_id, wl_client_id')
+          .eq('id', input.client_department_id)
+          .single();
+        if (deptErr) throw deptErr;
+        identity = {
+          tenant_kind: dept.tenant_kind,
+          wl_partner_id: dept.wl_partner_id,
+          client_lead_id: dept.client_lead_id,
+          wl_client_id: dept.wl_client_id,
+          client_department_id: input.client_department_id,
+        };
+      } else if (
+        tenant?.is_admin && !tenant.client_lead_id && !tenant.wl_client_id
+        && input.client_department_id
+      ) {
+        const { data: dept, error: deptErr } = await (supabase as any)
+          .from('client_departments')
+          .select('tenant_kind, wl_partner_id, client_lead_id, wl_client_id')
+          .eq('id', input.client_department_id)
+          .single();
+        if (deptErr) throw deptErr;
+        identity = {
+          tenant_kind: dept.tenant_kind,
+          wl_partner_id: dept.wl_partner_id,
+          client_lead_id: dept.client_lead_id,
+          wl_client_id: dept.wl_client_id,
+          client_department_id: null,
+        };
+      } else {
+        identity = {
+          tenant_kind: tenant?.tenant_kind ?? 'direct_24h',
+          wl_partner_id: tenant?.wl_partner_id ?? null,
+          wl_client_id: tenant?.wl_client_id ?? null,
+          client_lead_id: tenant?.client_lead_id ?? null,
+          client_department_id: null,
+        };
+      }
       const payload = {
         ...identity,
         scope: input.scope,
@@ -92,11 +225,38 @@ export function useUpsertPolicy() {
         body_md: input.body_md,
         tags: input.tags ?? [],
         status: input.status ?? 'draft',
+        effective_from: input.effective_from ?? null,
+        effective_to: input.effective_to ?? null,
       };
-      const { error } = input.id
-        ? await (supabase as any).from('campaign_policy_blocks').update(payload).eq('id', input.id)
-        : await (supabase as any).from('campaign_policy_blocks').insert(payload);
-      if (error) throw error;
+
+      let record: any;
+
+      if (input.id) {
+        const { data: current, error: fetchErr } = await (supabase as any)
+          .from('campaign_policy_blocks')
+          .select('version')
+          .eq('id', input.id)
+          .single();
+        if (fetchErr) throw fetchErr;
+        const { data, error } = await (supabase as any)
+          .from('campaign_policy_blocks')
+          .update({ ...payload, version: (current?.version ?? 1) + 1 })
+          .eq('id', input.id)
+          .select('*')
+          .single();
+        if (error) throw error;
+        record = data;
+      } else {
+        const { data, error } = await (supabase as any)
+          .from('campaign_policy_blocks')
+          .insert(payload)
+          .select('*')
+          .single();
+        if (error) throw error;
+        record = data;
+      }
+
+      await insertKnowledgeSnapshot('policy', record, tenant?.user_id ?? null);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['campaign-os', 'policies-effective'] });

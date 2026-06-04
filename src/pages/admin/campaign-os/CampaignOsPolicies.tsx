@@ -6,6 +6,7 @@ import {
   useApprovePolicy,
   useArchivePolicy,
 } from '@/hooks/campaign-os/useCampaignMutations';
+import { KnowledgeVersionHistory } from '@/components/campaign-os/KnowledgeVersionHistory';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +16,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Check, Archive, Pencil } from 'lucide-react';
+import { Plus, Check, Archive, Pencil, History } from 'lucide-react';
+import { format } from 'date-fns';
 import { toast } from 'sonner';
 import type { CampaignScope } from '@/lib/campaign-os/types';
 
@@ -43,6 +45,8 @@ type PolicyFormState = {
   title: string;
   body_md: string;
   status: 'draft' | 'approved';
+  effective_from: string;
+  effective_to: string;
 };
 
 const EMPTY_FORM: PolicyFormState = {
@@ -51,6 +55,8 @@ const EMPTY_FORM: PolicyFormState = {
   title: '',
   body_md: '',
   status: 'draft',
+  effective_from: '',
+  effective_to: '',
 };
 
 export default function CampaignOsPolicies() {
@@ -63,6 +69,8 @@ export default function CampaignOsPolicies() {
   const archive = useArchivePolicy();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<PolicyFormState>(EMPTY_FORM);
+  const [historyId, setHistoryId] = useState<string | null>(null);
+  const [historyTitle, setHistoryTitle] = useState('');
 
   const openCreate = () => {
     setForm(EMPTY_FORM);
@@ -77,6 +85,8 @@ export default function CampaignOsPolicies() {
       title: row.title,
       body_md: row.body_md,
       status: row.status === 'approved' ? 'approved' : 'draft',
+      effective_from: row.effective_from ? row.effective_from.slice(0, 10) : '',
+      effective_to: row.effective_to ? row.effective_to.slice(0, 10) : '',
     });
     setOpen(true);
   };
@@ -88,11 +98,15 @@ export default function CampaignOsPolicies() {
       await upsert.mutateAsync({
         id: form.id,
         scope: form.scope,
-        client_department_id: form.scope === 'department' ? departmentId : null,
+        // Always pass the selected call flow as context so the mutation can
+        // resolve the correct tenant identity for admin users on any scope.
+        client_department_id: departmentId,
         policy_kind: form.policy_kind,
         title: form.title,
         body_md: form.body_md,
         status: form.status,
+        effective_from: form.effective_from || null,
+        effective_to: form.effective_to || null,
       });
       toast.success(form.id ? 'Policy updated' : 'Policy saved');
       setOpen(false);
@@ -136,6 +150,14 @@ export default function CampaignOsPolicies() {
           <Archive className="h-3.5 w-3.5 mr-1" /> Archive
         </Button>
       )}
+      <Button
+        size="sm"
+        variant="ghost"
+        data-testid="policy-history-btn"
+        onClick={() => { setHistoryId(row.id); setHistoryTitle(row.title); }}
+      >
+        <History className="h-3.5 w-3.5 mr-1" /> History
+      </Button>
     </div>
   );
 
@@ -179,6 +201,26 @@ export default function CampaignOsPolicies() {
                   <SelectContent><SelectItem value="draft">Draft</SelectItem><SelectItem value="approved">Approved</SelectItem></SelectContent>
                 </Select>
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Effective From (optional)</Label>
+                  <Input
+                    type="date"
+                    value={form.effective_from}
+                    data-testid="policy-effective-from"
+                    onChange={(e) => setForm({ ...form, effective_from: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Effective To (optional)</Label>
+                  <Input
+                    type="date"
+                    value={form.effective_to}
+                    data-testid="policy-effective-to"
+                    onChange={(e) => setForm({ ...form, effective_to: e.target.value })}
+                  />
+                </div>
+              </div>
             </div>
             <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={handleSave} disabled={upsert.isPending}>Save</Button></DialogFooter>
           </DialogContent>
@@ -188,7 +230,7 @@ export default function CampaignOsPolicies() {
       {!departmentId ? (
         <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">Select a call flow to see its policies.</CardContent></Card>
       ) : (
-        <Tabs defaultValue="effective">
+        <Tabs defaultValue="effective" data-testid="policies-tabs">
           <TabsList>
             <TabsTrigger value="effective">Effective ({effective.data?.length ?? 0})</TabsTrigger>
             <TabsTrigger value="candidates">Candidates ({candidates.data?.length ?? 0})</TabsTrigger>
@@ -199,10 +241,17 @@ export default function CampaignOsPolicies() {
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <CardTitle className="text-base">{p.title}</CardTitle>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Badge variant="outline">{p.policy_kind}</Badge>
                       <Badge variant="secondary">{SCOPE_LABELS[p.scope] ?? p.scope}</Badge>
                       <Badge variant="outline">{p.status}</Badge>
+                      {(p.effective_from || p.effective_to) && (
+                        <Badge variant="secondary" className="text-xs" data-testid="policy-effective-badge">
+                          Effective: {p.effective_from ? format(new Date(p.effective_from), 'MMM d, yyyy') : '—'}
+                          {' → '}
+                          {p.effective_to ? format(new Date(p.effective_to), 'MMM d, yyyy') : '—'}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </CardHeader>
@@ -219,10 +268,17 @@ export default function CampaignOsPolicies() {
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <CardTitle className="text-base">{p.title}</CardTitle>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Badge variant="outline">rank {p.precedence_rank}</Badge>
                       <Badge variant="secondary">{SCOPE_LABELS[p.scope] ?? p.scope}</Badge>
                       <Badge variant="outline">{p.status}</Badge>
+                      {(p.effective_from || p.effective_to) && (
+                        <Badge variant="secondary" className="text-xs" data-testid="policy-effective-badge">
+                          Effective: {p.effective_from ? format(new Date(p.effective_from), 'MMM d, yyyy') : '—'}
+                          {' → '}
+                          {p.effective_to ? format(new Date(p.effective_to), 'MMM d, yyyy') : '—'}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </CardHeader>
@@ -235,6 +291,14 @@ export default function CampaignOsPolicies() {
           </TabsContent>
         </Tabs>
       )}
+
+      <KnowledgeVersionHistory
+        entity="policy"
+        entityId={historyId ?? ''}
+        title={historyTitle}
+        open={!!historyId}
+        onOpenChange={(o) => { if (!o) setHistoryId(null); }}
+      />
     </div>
   );
 }

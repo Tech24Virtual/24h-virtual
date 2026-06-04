@@ -141,6 +141,8 @@ export interface CampaignPolicy extends TenantIdentity {
   tags: string[];
   status: 'draft' | 'approved' | 'archived';
   version: number;
+  effective_from: string | null;
+  effective_to: string | null;
   precedence_rank?: number;
 }
 
