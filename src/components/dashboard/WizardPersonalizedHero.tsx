@@ -77,14 +77,23 @@ function buildHighlights(opts: {
  * Hidden when the user never started the wizard. Replaces the generic welcome
  * the moment a user finishes any step.
  */
-export function WizardPersonalizedHero() {
+interface WizardPersonalizedHeroProps {
+  /** Handoff status from the parent — used to suppress the "Complete Setup" CTA once submitted. */
+  handoffStatus?: string | null;
+}
+
+export function WizardPersonalizedHero({ handoffStatus }: WizardPersonalizedHeroProps = {}) {
   const p = useWizardPersonalization();
 
   if (p.loading) return null;
 
   // Variant 1: account was activated by an admin via Convert Lead dialog —
-  // user never ran the wizard. Show "your account is live" CTA.
+  // user never ran the wizard. Show "your account is live" card.
   if (!p.hasSession && p.convertedViaAdmin) {
+    // Setup has been submitted if handoff is past collecting_info.
+    const setupSubmitted =
+      handoffStatus != null && handoffStatus !== 'collecting_info';
+
     return (
       <Card className="mb-6 overflow-hidden border border-primary/20 bg-gradient-to-br from-primary/5 via-card to-card">
         <CardContent className="p-6">
@@ -102,31 +111,34 @@ export function WizardPersonalizedHero() {
                 Your account is live
               </h2>
               <p className="text-sm text-muted-foreground mb-2">
-                Review your default campaign and complete your business profile so your account
-                team can finish onboarding.
+                {setupSubmitted
+                  ? 'Setup submitted — our team is reviewing your details.'
+                  : 'Review your default campaign and complete your business profile so your account team can finish onboarding.'}
               </p>
             </div>
-            <div className="flex flex-col gap-2 md:items-end">
-              <Button asChild>
-                <Link
-                  to="/client-dashboard/settings"
-                  onClick={() =>
-                    track.cta('wizard_personalized_hero', 'complete_setup_post_convert', 'client')
-                  }
-                >
-                  Complete Setup
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Link>
-              </Button>
-              <Button asChild variant="ghost" size="sm">
-                <Link
-                  to="/client-dashboard/calls/campaigns"
-                  onClick={() => track.cta('wizard_personalized_hero', 'view_campaigns_post_convert', 'client')}
-                >
-                  View Campaigns
-                </Link>
-              </Button>
-            </div>
+            {!setupSubmitted && (
+              <div className="flex flex-col gap-2 md:items-end">
+                <Button asChild>
+                  <Link
+                    to="/client-dashboard/setup"
+                    onClick={() =>
+                      track.cta('wizard_personalized_hero', 'complete_setup_post_convert', 'client')
+                    }
+                  >
+                    Complete Setup
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Link>
+                </Button>
+                <Button asChild variant="ghost" size="sm">
+                  <Link
+                    to="/client-dashboard/calls/campaigns"
+                    onClick={() => track.cta('wizard_personalized_hero', 'view_campaigns_post_convert', 'client')}
+                  >
+                    View Campaigns
+                  </Link>
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

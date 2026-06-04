@@ -76,7 +76,7 @@ export function deriveDirectClientPath(input: DirectClientActivationInputs): Act
       detail: "Provide business info, hours, contacts, and greeting preferences.",
       state: input.intakeChecklistComplete ? "complete" : input.serviceState ? "in_progress" : "pending",
       owner: "user_action",
-      drillRoute: "/client-dashboard/settings",
+      drillRoute: "/client-dashboard/setup",
     },
     {
       key: "script_published",

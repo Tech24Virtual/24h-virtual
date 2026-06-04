@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
+  ClipboardList,
   Phone,
   FileText,
   Calendar,
@@ -16,6 +17,7 @@ import logoBlue from '@/assets/logos/logo-blue.png';
 
 const links = [
   { name: 'Dashboard', href: '/client-dashboard', icon: LayoutDashboard },
+  { name: 'Account Setup', href: '/client-dashboard/setup', icon: ClipboardList },
   { name: 'Call Logs', href: '/client-dashboard/calls', icon: Phone },
   { name: 'Scripts', href: '/client-dashboard/scripts', icon: FileText },
   { name: 'Schedule', href: '/client-dashboard/schedule', icon: Calendar },

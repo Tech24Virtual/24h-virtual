@@ -155,14 +155,15 @@ function MilestoneRow({ m }: { m: ActivationMilestone }) {
         <p className="text-xs text-muted-foreground mt-1">{m.detail}</p>
       </div>
       {m.drillRoute && m.state !== "complete" && m.owner === "user_action" && (
-        <Button asChild size="sm" variant="ghost">
+        <Button asChild size="sm" variant={m.key === "intake_complete" ? "default" : "ghost"}>
           <Link
             to={m.drillRoute}
             onClick={() =>
               track.cta("client_activation", "milestone_open", "client", { milestone: m.key })
             }
           >
-            Open <ArrowRight className="h-3.5 w-3.5 ml-1" />
+            {m.key === "intake_complete" ? "Complete Setup" : "Open"}
+            <ArrowRight className="h-3.5 w-3.5 ml-1" />
           </Link>
         </Button>
       )}

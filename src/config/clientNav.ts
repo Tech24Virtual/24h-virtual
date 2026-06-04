@@ -1,5 +1,6 @@
 import {
   LayoutDashboard,
+  ClipboardList,
   Phone,
   FileText,
   Calendar,
@@ -21,6 +22,12 @@ export const clientNavGroups: NavGroup[] = [
     icon: LayoutDashboard,
     basePath: clientRoot,
     children: [{ name: 'Overview', href: clientRoot }],
+  },
+  {
+    name: 'Account Setup',
+    icon: ClipboardList,
+    basePath: `${clientRoot}/setup`,
+    children: [{ name: 'Account Setup', href: `${clientRoot}/setup` }],
   },
   {
     name: 'Calls',

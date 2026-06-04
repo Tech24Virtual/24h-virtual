@@ -19,6 +19,8 @@ import { ClientSuccessGuidanceCard } from '@/components/client-dashboard/ClientS
 import { ActivationPathCard } from '@/components/client-dashboard/ActivationPathCard';
 import { usePageView, track } from '@/lib/analytics';
 
+type HandoffStatus = string | null;
+
 interface CallLog {
   id: string;
   caller_name: string | null;
@@ -42,6 +44,7 @@ export default function ClientDashboard() {
       setShowOnboarding(!(profile as any)?.onboarding_completed);
     }
   }, [profile]);
+  const [handoffStatus, setHandoffStatus] = useState<HandoffStatus>(null);
   const [outboundDialogOpen, setOutboundDialogOpen] = useState(false);
   const [stats, setStats] = useState<Stats>({
     callsThisMonth: 0,
@@ -52,6 +55,17 @@ export default function ClientDashboard() {
   const [recentCalls, setRecentCalls] = useState<CallLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   usePageView('client_dashboard', 'client');
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('client_onboarding_handoffs')
+      .select('status')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setHandoffStatus(data?.status ?? null));
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -154,7 +168,24 @@ export default function ClientDashboard() {
       {showOnboarding && (
         <DashboardOnboarding dashboardContext="client" onComplete={() => setShowOnboarding(false)} />
       )}
-      <WizardPersonalizedHero />
+      {handoffStatus === 'collecting_info' && (
+        <Card className="mb-4 border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800" data-testid="setup-banner">
+          <CardContent className="flex items-center justify-between gap-4 p-4">
+            <div>
+              <p className="text-sm font-medium">Complete your account setup to go live</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Your service won't start until you submit your business details.
+              </p>
+            </div>
+            <Button asChild size="sm" className="shrink-0">
+              <Link to="/client-dashboard/setup">
+                Complete Setup <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+      <WizardPersonalizedHero handoffStatus={handoffStatus} />
       <div className="mb-6 grid gap-4 lg:grid-cols-2">
         <DeliveryStatusCard />
         <ReceptionistStatusCard />
