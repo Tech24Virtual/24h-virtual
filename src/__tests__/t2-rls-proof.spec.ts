@@ -45,14 +45,32 @@ describe("T-2 RLS Proof — Admin Cannot Read WL Private Tickets", () => {
     expect(nonEscalated).toHaveLength(0);
   });
 
-  it("🔴 BLOCKER: admin gets 0 rows from wl_client_ticket_replies", async () => {
+  it("🔴 BLOCKER: admin gets 0 rows from non-escalated wl_client_ticket_replies", async () => {
     const admin = await clientAs("qa-admin@24hv-test.com");
-    const { data, error } = await admin
+
+    // Admin is allowed to see replies on escalated tickets (admin_read_escalated_wl_replies_only
+    // policy). The blocker: admin must NEVER see replies for non-escalated (private) tickets.
+    const { data: replies, error } = await admin
       .from("wl_client_ticket_replies")
-      .select("*");
+      .select("ticket_id");
 
     expect(error).toBeNull();
-    expect(data).toHaveLength(0);
+
+    if ((replies ?? []).length === 0) return; // no visible replies — trivially passes
+
+    // For every reply the admin can see, verify the parent ticket is escalated.
+    // Admin can only query escalated wl_client_tickets (confirmed by the test above),
+    // so if any reply's ticket_id is absent from admin's ticket view the reply leaked.
+    const replyTicketIds = [...new Set((replies ?? []).map((r: any) => r.ticket_id))];
+    const { data: visibleTickets, error: tErr } = await admin
+      .from("wl_client_tickets")
+      .select("id")
+      .in("id", replyTicketIds);
+
+    expect(tErr).toBeNull();
+    const visibleIds = new Set((visibleTickets ?? []).map((t: any) => t.id));
+    const leaked = replyTicketIds.filter((id) => !visibleIds.has(id));
+    expect(leaked).toHaveLength(0); // admin must not see replies for hidden (non-escalated) tickets
   });
 
   it("✅ WL partner can read their own tickets", async () => {
