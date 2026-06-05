@@ -83,9 +83,10 @@ export function ScriptReviewDetail({ request, onBack }: ScriptReviewDetailProps)
 
       if (error) throw error;
 
-      // If approved, apply changes to the script
-      if (action === 'approved' && request.script_id) {
-        await applyChanges();
+      // If approved, apply changes to the script and bridge to Campaign OS
+      if (action === 'approved') {
+        if (request.script_id) await applyChanges();
+        await applyFaqBridge();
       }
 
       // Add a system comment
@@ -133,6 +134,92 @@ export function ScriptReviewDetail({ request, onBack }: ScriptReviewDetailProps)
         .from('client_scripts')
         .update(updateData as Record<string, Json>)
         .eq('id', request.script_id);
+    }
+  };
+
+  const applyFaqBridge = async () => {
+    const faqTypes = ['new_faq', 'faq_update', 'remove_faq'];
+    if (!faqTypes.includes(request.request_type)) return;
+
+    // Resolve the client's lead_id from their user_id
+    const { data: lead, error: leadErr } = await (supabase as any)
+      .from('leads')
+      .select('id')
+      .eq('user_id', request.client_id)
+      .maybeSingle();
+    if (leadErr || !lead) return;
+
+    const clientLeadId = lead.id as string;
+    const faq = request.proposed_changes.faq as { question?: string; answer?: string } | undefined;
+
+    if (request.request_type === 'new_faq' && faq?.question) {
+      await (supabase as any).from('campaign_faq_entries').insert({
+        tenant_kind: 'direct_24h',
+        wl_partner_id: null,
+        client_lead_id: clientLeadId,
+        wl_client_id: null,
+        scope: 'client',
+        question: faq.question,
+        answer_md: faq.answer ?? '',
+        tags: [],
+        status: 'approved',
+        published_at: new Date().toISOString(),
+      });
+      return;
+    }
+
+    if (request.request_type === 'faq_update' && faq?.question) {
+      // Try to update an existing row matched by question; insert if none found.
+      const { data: existing } = await (supabase as any)
+        .from('campaign_faq_entries')
+        .select('id, version')
+        .eq('client_lead_id', clientLeadId)
+        .ilike('question', faq.question)
+        .neq('status', 'archived')
+        .maybeSingle();
+
+      if (existing) {
+        await (supabase as any)
+          .from('campaign_faq_entries')
+          .update({
+            answer_md: faq.answer ?? '',
+            status: 'approved',
+            published_at: new Date().toISOString(),
+            version: (existing.version ?? 1) + 1,
+          })
+          .eq('id', existing.id);
+      } else {
+        await (supabase as any).from('campaign_faq_entries').insert({
+          tenant_kind: 'direct_24h',
+          wl_partner_id: null,
+          client_lead_id: clientLeadId,
+          wl_client_id: null,
+          scope: 'client',
+          question: faq.question,
+          answer_md: faq.answer ?? '',
+          tags: [],
+          status: 'approved',
+          published_at: new Date().toISOString(),
+        });
+      }
+      return;
+    }
+
+    if (request.request_type === 'remove_faq' && faq?.question) {
+      const { data: existing } = await (supabase as any)
+        .from('campaign_faq_entries')
+        .select('id')
+        .eq('client_lead_id', clientLeadId)
+        .ilike('question', faq.question)
+        .neq('status', 'archived')
+        .maybeSingle();
+
+      if (existing) {
+        await (supabase as any)
+          .from('campaign_faq_entries')
+          .update({ status: 'archived' })
+          .eq('id', existing.id);
+      }
     }
   };
 

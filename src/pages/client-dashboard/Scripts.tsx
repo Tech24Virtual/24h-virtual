@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Plus, FileText, Pencil, Trash2, MoreVertical, GitPullRequest } from 'lucide-react';
+import { Plus, FileText, Pencil, Trash2, MoreVertical, GitPullRequest, BookOpen, ChevronDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,6 +16,7 @@ import { LegacyMigratedBanner } from '@/components/campaign-os/LegacyMigratedBan
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
+import ReactMarkdown from 'react-markdown';
 
 export interface Script {
   id: string;
@@ -42,10 +44,18 @@ interface ChangeRequest {
   script_id: string | null;
 }
 
+interface ApprovedFaq {
+  id: string;
+  question: string;
+  answer_md: string;
+  published_at: string | null;
+}
+
 export default function Scripts() {
   const { user } = useAuth();
   const [scripts, setScripts] = useState<Script[]>([]);
   const [changeRequests, setChangeRequests] = useState<ChangeRequest[]>([]);
+  const [approvedFaqs, setApprovedFaqs] = useState<ApprovedFaq[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [changeDialogOpen, setChangeDialogOpen] = useState(false);
@@ -59,6 +69,7 @@ export default function Scripts() {
     if (user) {
       fetchScripts();
       fetchChangeRequests();
+      fetchApprovedFaqs();
     }
   }, [user]);
 
@@ -103,6 +114,22 @@ export default function Scripts() {
       })));
     } catch (error) {
       console.error('Error fetching change requests:', error);
+    }
+  };
+
+  const fetchApprovedFaqs = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await (supabase as any)
+        .from('campaign_faq_entries')
+        .select('id, question, answer_md, published_at')
+        .eq('status', 'approved')
+        .order('published_at', { ascending: false });
+
+      if (error) throw error;
+      setApprovedFaqs(data || []);
+    } catch (error) {
+      console.error('Error fetching approved FAQs:', error);
     }
   };
 
@@ -199,6 +226,15 @@ export default function Scripts() {
             {pendingCount > 0 && (
               <Badge variant="destructive" className="ml-1 h-5 px-1.5 text-[10px]">
                 {pendingCount}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="approved-faqs">
+            <BookOpen className="w-4 h-4 mr-1" />
+            Approved FAQs
+            {approvedFaqs.length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
+                {approvedFaqs.length}
               </Badge>
             )}
           </TabsTrigger>
@@ -344,6 +380,47 @@ export default function Scripts() {
                     </div>
                   ))}
                 </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Approved FAQs Tab */}
+        <TabsContent value="approved-faqs">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Approved FAQs</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {approvedFaqs.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p>Your approved FAQs will appear here once your account team reviews your requests.</p>
+                </div>
+              ) : (
+                <Accordion type="multiple" className="space-y-2" data-testid="approved-faqs-list">
+                  {approvedFaqs.map((faq) => (
+                    <AccordionItem
+                      key={faq.id}
+                      value={faq.id}
+                      className="border rounded-lg px-4"
+                    >
+                      <AccordionTrigger className="text-left font-medium hover:no-underline">
+                        {faq.question}
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="prose prose-sm max-w-none dark:prose-invert pb-2">
+                          <ReactMarkdown>{faq.answer_md}</ReactMarkdown>
+                        </div>
+                        {faq.published_at && (
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Approved {format(new Date(faq.published_at), 'MMM d, yyyy')}
+                          </p>
+                        )}
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
               )}
             </CardContent>
           </Card>
