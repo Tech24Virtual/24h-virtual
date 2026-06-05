@@ -76,18 +76,11 @@ test.describe.serial('Flow 15 — Script Approval Bridge', () => {
     const testQuestion = `QA Bridge Test FAQ ${ts}`;
     const testAnswer = `This is the answer for bridge test ${ts}.`;
 
-    await dialog.locator('input[placeholder="Title *"]').fill(`Bridge test FAQ request ${ts}`).catch(async () => {
-      // Try alternate selector
-      await dialog.locator('input').nth(0).fill(`Bridge test FAQ request ${ts}`);
-    });
+    await dialog.locator('input[placeholder="e.g., Update greeting for holiday hours"]').fill(`Bridge test FAQ request ${ts}`);
 
-    // Fill FAQ fields
-    await dialog.locator('input[placeholder="Question"]').fill(testQuestion).catch(async () => {
-      await dialog.locator('input').filter({ hasNot: page.locator('[type="hidden"]') }).last().fill(testQuestion);
-    });
-    await dialog.locator('textarea[placeholder="Answer"]').fill(testAnswer).catch(async () => {
-      await dialog.locator('textarea').last().fill(testAnswer);
-    });
+    // Fill FAQ fields (visible after "Add New FAQ" is selected)
+    await dialog.locator('input[placeholder="Question"]').fill(testQuestion);
+    await dialog.locator('textarea[placeholder="Answer"]').fill(testAnswer);
 
     await dialog.getByRole('button', { name: /submit request/i }).click();
     await page.waitForTimeout(2000);
