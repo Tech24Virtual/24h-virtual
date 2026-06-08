@@ -14,7 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
-import { Search, UserPlus, Users, AlertCircle, Briefcase } from 'lucide-react';
+import { Search, UserPlus, Users, AlertCircle, Briefcase, ShieldAlert } from 'lucide-react';
+import { useAgentPendingAckCounts } from '@/hooks/campaign-os/usePolicyAcknowledgments';
 
 export default function SupervisorClientAssignments() {
   const { user } = useAuth();
@@ -70,6 +71,9 @@ export default function SupervisorClientAssignments() {
 
   const profileMap = new Map(profiles.map(p => [p.id, p]));
   const agentMap = new Map(agents.map(a => [a.id, a]));
+
+  const { data: pendingAckCounts = [] } = useAgentPendingAckCounts();
+  const pendingAckMap = new Map(pendingAckCounts.map(c => [c.agent_user_id, c.pending_count]));
 
   // Clients that have no assignment
   const assignedClientIds = new Set(assignments.map(a => a.client_id));
@@ -260,17 +264,34 @@ export default function SupervisorClientAssignments() {
                     <TableRow>
                       <TableHead>Agent</TableHead>
                       <TableHead>Assigned Clients</TableHead>
+                      <TableHead>Pending Policy Acks</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {agentWorkload.map(a => (
-                      <TableRow key={a.id}>
-                        <TableCell className="font-medium">{a.full_name || 'Unknown'}</TableCell>
-                        <TableCell>
-                          <Badge variant={a.clientCount > 10 ? 'destructive' : 'secondary'}>{a.clientCount}</Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {agentWorkload.map(a => {
+                      const pendingAcks = pendingAckMap.get(a.id) ?? 0;
+                      return (
+                        <TableRow key={a.id} data-testid="agent-workload-row">
+                          <TableCell className="font-medium">{a.full_name || 'Unknown'}</TableCell>
+                          <TableCell>
+                            <Badge variant={a.clientCount > 10 ? 'destructive' : 'secondary'}>{a.clientCount}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            {pendingAcks > 0 ? (
+                              <Badge
+                                data-testid="pending-ack-badge"
+                                className="gap-1 bg-amber-500 text-white hover:bg-amber-500"
+                              >
+                                <ShieldAlert className="h-3 w-3" />
+                                {pendingAcks}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </CardContent>

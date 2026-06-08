@@ -12,6 +12,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { FileText, MessageSquare, Search, HelpCircle, Shield } from 'lucide-react';
 import { LegacyMigratedBanner } from '@/components/campaign-os/LegacyMigratedBanner';
+import { PolicyAcknowledgmentBanner } from '@/components/staff/PolicyAcknowledgmentBanner';
 
 const POLICY_KIND_LABELS: Record<string, string> = {
   service_rule:          'Service Rule',
@@ -133,6 +134,8 @@ export default function AgentScripts() {
           <h1 className="text-2xl font-bold">Client Scripts</h1>
           <p className="text-muted-foreground">Call handling scripts, FAQs, and policies for your assigned clients</p>
         </div>
+
+        <PolicyAcknowledgmentBanner />
 
         <LegacyMigratedBanner
           migratedCount={scripts.filter((s: any) => !!s.migrated_to_campaign_id).length}

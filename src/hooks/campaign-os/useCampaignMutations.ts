@@ -439,7 +439,11 @@ export function useApprovePolicy() {
         .eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => invalidatePolicies(qc),
+    onSuccess: () => {
+      invalidatePolicies(qc);
+      // Pending acks are created server-side by trigger — refresh the banner.
+      qc.invalidateQueries({ queryKey: ['policy-acknowledgments'] });
+    },
   });
 }
 
