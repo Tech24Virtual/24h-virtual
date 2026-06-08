@@ -21,6 +21,7 @@ import {
   GraduationCap,
   LifeBuoy,
   Share2,
+  ClipboardCheck,
 } from 'lucide-react';
 import type { NavGroup } from '@/components/navigation/types';
 
@@ -164,8 +165,11 @@ export function getStaffNav(role: StaffRole): NavGroup[] {
         {
           name: 'Training',
           icon: GraduationCap,
-          basePath: `${root}/training-signoffs`,
-          children: [{ name: 'Signoffs', href: `${root}/training-signoffs` }],
+          basePath: `${root}/training-group`,
+          children: [
+            { name: 'Signoffs', href: `${root}/training-signoffs` },
+            { name: 'Go-Live Approvals', href: `${root}/go-live` },
+          ],
         },
         {
           name: 'Fulfillment',

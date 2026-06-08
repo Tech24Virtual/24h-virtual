@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CheckCircle2, XCircle, GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
+import { StaffLayout } from '@/components/staff/StaffLayout';
 import { useCampaignCompletions, useDeleteCompletion, type TrainingCompletion } from '@/hooks/campaign-os/useTrainingCompletions';
 import { useSignoffs, useCreateSignoff } from '@/hooks/campaign-os/useTrainingSignoffs';
 import { useQuery } from '@tanstack/react-query';
@@ -112,7 +113,8 @@ export default function SupervisorTrainingSignoffs() {
   };
 
   return (
-    <div className="space-y-4">
+    <StaffLayout role="supervisor">
+      <div className="space-y-4">
       <div>
         <h1 className="text-xl font-bold flex items-center gap-2">
           <GraduationCap className="h-5 w-5" />
@@ -221,7 +223,8 @@ export default function SupervisorTrainingSignoffs() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </StaffLayout>
   );
 }
 

@@ -9,6 +9,7 @@ import {
   LifeBuoy,
   MessageSquare,
   Settings,
+  Rocket,
   X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -18,6 +19,7 @@ import logoBlue from '@/assets/logos/logo-blue.png';
 const links = [
   { name: 'Dashboard', href: '/client-dashboard', icon: LayoutDashboard },
   { name: 'Account Setup', href: '/client-dashboard/setup', icon: ClipboardList },
+  { name: 'Go-Live Readiness', href: '/client-dashboard/readiness', icon: Rocket },
   { name: 'Call Logs', href: '/client-dashboard/calls', icon: Phone },
   { name: 'Scripts', href: '/client-dashboard/scripts', icon: FileText },
   { name: 'Schedule', href: '/client-dashboard/schedule', icon: Calendar },

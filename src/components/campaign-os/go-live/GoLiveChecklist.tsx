@@ -10,6 +10,7 @@ import { CheckCircle2, XCircle, ArrowRight, Loader2, ShieldAlert, RefreshCw } fr
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { useGoLiveChecks, useForceActivateCampaign } from '@/hooks/campaign-os/useGoLiveChecks';
+import { useGoLiveSnapshot } from '@/hooks/campaign-os/useGoLiveSnapshot';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface Props {
@@ -19,6 +20,8 @@ interface Props {
 
 export function GoLiveChecklist({ campaignId, campaignStatus }: Props) {
   const { data, isLoading, isFetching, dataUpdatedAt, refetch, error, failureCount } = useGoLiveChecks(campaignId);
+  const snapshotQ = useGoLiveSnapshot(campaignId);
+  const snapshot = snapshotQ.data;
   const { isAdmin } = useAuth();
   const forceActivate = useForceActivateCampaign();
   const [forceOpen, setForceOpen] = useState(false);
@@ -69,7 +72,15 @@ export function GoLiveChecklist({ campaignId, campaignStatus }: Props) {
   }
   if (!data) return null;
 
-  const items = [
+  const items: Array<{
+    label: string;
+    description: string;
+    ok: boolean;
+    fixHref: string;
+    fixLabel: string;
+    detail?: string;
+    placeholder?: boolean;
+  }> = [
     {
       label: 'Publish a script',
       description: 'The campaign needs at least one published script version.',
@@ -102,6 +113,32 @@ export function GoLiveChecklist({ campaignId, campaignStatus }: Props) {
       fixHref: `/admin/campaign-os/campaigns/${campaignId}?tab=training`,
       fixLabel: 'Go to Training tab',
       detail: data.required_modules === 0 ? 'n/a' : `${data.required_signoffs}/${data.required_modules} signed off`,
+    },
+    {
+      label: 'Client confirmation',
+      description: snapshot?.client_confirmed
+        ? 'Client has confirmed they are ready to go live.'
+        : 'Waiting for the client to confirm readiness in their dashboard.',
+      ok: snapshot?.client_confirmed ?? false,
+      fixHref: `/client-dashboard/readiness`,
+      fixLabel: 'Client readiness page',
+    },
+    {
+      label: 'Supervisor sign-off',
+      description: snapshot?.supervisor_approved
+        ? 'Supervisor has approved this campaign for go-live.'
+        : 'Supervisor must approve after client confirms.',
+      ok: snapshot?.supervisor_approved ?? false,
+      fixHref: `/staff/supervisor/go-live`,
+      fixLabel: 'Go-Live Approvals',
+    },
+    {
+      label: 'Five9 configured',
+      description: 'Telephony configuration via Five9 (System 10 — coming soon).',
+      ok: false,
+      placeholder: true,
+      fixHref: `/admin/campaign-os/five9`,
+      fixLabel: 'Five9 mappings',
     },
   ];
 
@@ -169,10 +206,13 @@ export function GoLiveChecklist({ campaignId, campaignStatus }: Props) {
                   {it.detail && <div className="text-xs text-muted-foreground mt-0.5">{it.detail}</div>}
                 </div>
               </div>
-              {!it.ok && (
+              {!it.ok && !it.placeholder && (
                 <Button size="sm" variant="outline" asChild>
                   <Link to={it.fixHref}>{it.fixLabel}<ArrowRight className="h-3.5 w-3.5 ml-1" /></Link>
                 </Button>
+              )}
+              {!it.ok && it.placeholder && (
+                <Badge variant="outline" className="text-muted-foreground">Pending — team configuring</Badge>
               )}
             </div>
           ))}

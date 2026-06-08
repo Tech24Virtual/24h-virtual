@@ -92,6 +92,7 @@ export const adminNavGroups: AdminNavGroup[] = [
           { name: 'Call Flows', href: '/admin/campaign-os/call-flows' },
           { name: 'Drafts Review', href: '/admin/campaign-os/drafts' },
           { name: 'Defaults Catalog', href: '/admin/campaign-os/defaults' },
+          { name: 'Readiness', href: '/admin/campaign-os/readiness' },
         ],
       },
       {

@@ -8,6 +8,12 @@ export interface GoLiveSnapshot {
   policies_ok: boolean;
   training_ok: boolean;
   script_published: boolean;
+  supervisor_approved: boolean;
+  supervisor_approved_at: string | null;
+  supervisor_approved_by: string | null;
+  client_confirmed: boolean;
+  client_confirmed_at: string | null;
+  five9_ok: boolean;
   last_evaluated_at: string;
 }
 

@@ -72,6 +72,7 @@ const CampaignsLocations = lazy(() => import("@/pages/admin/campaign-os/Location
 const CampaignsLocationDetail = lazy(() => import("@/pages/admin/campaign-os/LocationDetail"));
 const CampaignsCallFlows = lazy(() => import("@/pages/admin/campaign-os/CallFlows"));
 const CampaignsCallFlowDetail = lazy(() => import("@/pages/admin/campaign-os/CallFlowDetail"));
+const CampaignOsReadiness = lazy(() => import("@/pages/admin/campaign-os/CampaignOsReadiness"));
 
 export const AdminRoutes = (
   <>
@@ -149,6 +150,7 @@ export const AdminRoutes = (
         <Route path="defaults" element={<LazyRoute><CampaignOsDefaults /></LazyRoute>} />
         <Route path="drafts" element={<LazyRoute><CampaignOsDrafts /></LazyRoute>} />
         <Route path="reporting" element={<LazyRoute><CampaignOsReporting /></LazyRoute>} />
+        <Route path="readiness" element={<LazyRoute><CampaignOsReadiness /></LazyRoute>} />
       </Route>
       {/*
         CANONICAL: /admin/campaign-os/* (above) is the source of truth for Campaigns

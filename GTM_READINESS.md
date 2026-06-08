@@ -112,7 +112,7 @@ Last updated: 2026-06-03
 | System 9 — Client account setup wizard | HIGH | Structured intake wizard for new clients post-activation. Not built |
 | System 10 — Five9 campaign mapping validation | MEDIUM | Block go-live if campaign mappings incomplete or have drift |
 | System 11 — Script / FAQ / policy management | MEDIUM | Versioning + approval workflow for scripts. Not built |
-| System 12 — QA & go-live checklist | MEDIUM | Blocking checklist logic before client goes live. Not built |
+| System 12 — QA & go-live checklist | MEDIUM | **BUILT (2026-06-08)** — snapshot triggers, regression notifier, client confirm, supervisor approve, admin readiness dashboard, E2E flow18 |
 | System 26 — Usage reconciliation | MEDIUM | Variance queue on top of edge function. Not built |
 | System 27 — Direct billing | HIGH | Invoice engine based on Five9 call volume. Not built |
 | index.html branding — favicon + Cloudflare Workers | HIGH | Per-tenant subdomain or Cloudflare Worker needed for full WL isolation |

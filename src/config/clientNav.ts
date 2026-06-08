@@ -11,6 +11,7 @@ import {
   Gift,
   MessageSquare,
   Layers,
+  Rocket,
 } from 'lucide-react';
 import type { NavGroup } from '@/components/navigation/types';
 
@@ -28,6 +29,12 @@ export const clientNavGroups: NavGroup[] = [
     icon: ClipboardList,
     basePath: `${clientRoot}/setup`,
     children: [{ name: 'Account Setup', href: `${clientRoot}/setup` }],
+  },
+  {
+    name: 'Go-Live Readiness',
+    icon: Rocket,
+    basePath: `${clientRoot}/readiness`,
+    children: [{ name: 'Go-Live Readiness', href: `${clientRoot}/readiness` }],
   },
   {
     name: 'Calls',

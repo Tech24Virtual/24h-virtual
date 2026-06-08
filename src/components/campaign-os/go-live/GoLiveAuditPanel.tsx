@@ -250,11 +250,14 @@ export function GoLiveAuditPanel({ campaignId }: Props) {
                   {new Date(snapshot.last_evaluated_at).toLocaleString()}
                 </span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <SnapshotPill label="Script" ok={snapshot.script_published} />
                 <SnapshotPill label="FAQs" ok={snapshot.faqs_ok} />
                 <SnapshotPill label="Policies" ok={snapshot.policies_ok} />
                 <SnapshotPill label="Training" ok={snapshot.training_ok} />
+                <SnapshotPill label="Client" ok={(snapshot as any).client_confirmed ?? false} />
+                <SnapshotPill label="Supervisor" ok={(snapshot as any).supervisor_approved ?? false} />
+                <SnapshotPill label="Five9" ok={false} placeholder />
                 <SnapshotPill label="All OK" ok={snapshot.all_ok} emphasised />
               </div>
             </div>
@@ -341,11 +344,21 @@ function SnapshotPill({
   label,
   ok,
   emphasised = false,
+  placeholder = false,
 }: {
   label: string;
   ok: boolean;
   emphasised?: boolean;
+  placeholder?: boolean;
 }) {
+  if (placeholder) {
+    return (
+      <div className="flex items-center gap-2 rounded-md border p-2 text-sm bg-muted/30">
+        <AlertTriangle className="h-4 w-4 text-muted-foreground shrink-0" />
+        <span className="truncate text-muted-foreground">{label}</span>
+      </div>
+    );
+  }
   return (
     <div
       className={`flex items-center gap-2 rounded-md border p-2 text-sm ${
