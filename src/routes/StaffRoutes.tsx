@@ -60,6 +60,7 @@ const BillingPaymentIssues = lazy(() => import("@/pages/staff/BillingPaymentIssu
 const BillingCommissions = lazy(() => import("@/pages/staff/BillingCommissions"));
 const BillingClientLookup = lazy(() => import("@/pages/staff/BillingClientLookup"));
 const BillingWLPartners = lazy(() => import("@/pages/staff/BillingWLPartners"));
+const BillingReconciliation = lazy(() => import("@/pages/staff/BillingReconciliation"));
 
 // Tech
 const TechDashboard = lazy(() => import("@/pages/staff/TechDashboard"));
@@ -152,6 +153,7 @@ export const StaffRoutes = (
     <Route path="/staff/billing/commissions" element={guard("billing", <BillingCommissions />)} />
     <Route path="/staff/billing/client-lookup" element={guard("billing", <BillingClientLookup />)} />
     <Route path="/staff/billing/wl-partners" element={guard("billing", <BillingWLPartners />)} />
+    <Route path="/staff/billing/reconciliation" element={guard("billing", <BillingReconciliation />)} />
     <Route path="/staff/billing/settings" element={guard("billing", <StaffSettings />)} />
     <Route path="/staff/billing/support" element={guard("billing", <StaffSupport role="billing" />)} />
     <Route path="/staff/billing/feedback" element={guard("billing", <StaffFeedback role="billing" />)} />

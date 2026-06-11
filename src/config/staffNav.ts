@@ -22,6 +22,7 @@ import {
   LifeBuoy,
   Share2,
   ClipboardCheck,
+  GitCompare,
 } from 'lucide-react';
 import type { NavGroup } from '@/components/navigation/types';
 
@@ -230,6 +231,12 @@ export function getStaffNav(role: StaffRole): NavGroup[] {
             { name: 'Client Lookup', href: `${root}/client-lookup` },
             { name: 'WL partners',   href: `${root}/wl-partners`, icon: Share2 },
           ],
+        },
+        {
+          name: 'Reconciliation',
+          icon: GitCompare,
+          basePath: `${root}/reconciliation`,
+          children: [{ name: 'Reconciliation', href: `${root}/reconciliation` }],
         },
         {
           name: 'Support',
