@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Calendar, Video, ExternalLink, Clock, User, Search, CheckCircle, XCircle, LayoutGrid, List } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { format, isToday, isTomorrow, isPast, startOfDay, endOfDay, startOfWeek, endOfWeek } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { StaffLayout } from '@/components/staff/StaffLayout';
@@ -33,13 +34,15 @@ export default function SalesMeetings() {
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data: meetings = [], isLoading } = useQuery({
-    queryKey: ['sales-meetings'],
+    queryKey: ['sales-meetings', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('meetings')
         .select('*, lead:leads(name, company)')
+        .eq('assigned_to', user!.id)
         .order('scheduled_at', { ascending: true });
 
       if (error) throw error;

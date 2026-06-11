@@ -63,7 +63,7 @@ export default function SalesProposals() {
       const { data } = await supabase
         .from('leads')
         .select('id, name, email, company, service_type, plan_minutes, billing_period, billing_currency')
-        .in('status', ['new', 'contacted', 'qualified', 'proposal'])
+        .in('pipeline_stage', ['new', 'contacted', 'qualified', 'proposal'])
         .order('name');
       return data || [];
     },

@@ -81,8 +81,8 @@ export default function SalesPerformance() {
     queryFn: async () => {
       const { data } = await supabase
         .from('leads')
-        .select('assigned_sales_rep, status')
-        .in('status', ['won', 'active'])
+        .select('assigned_sales_rep, pipeline_stage')
+        .in('pipeline_stage', ['won', 'active'])
         .gte('updated_at', monthStart);
       
       const repCounts: Record<string, number> = {};
