@@ -172,23 +172,61 @@ export function WLPortalProvider({ children, partnerIdOverride }: WLPortalProvid
     }
   };
 
-  // Apply branding CSS variables + Google Fonts
+  // Apply branding: document.title, favicon, theme-color, OG title, CSS vars, Google Fonts
   useEffect(() => {
     if (!branding) return;
     const root = document.documentElement;
 
+    // document.title
+    const previousTitle = document.title;
+    document.title = branding.company_name || 'Client Portal';
+
+    // Favicon (with restore)
+    let faviconLink = document.querySelector("link[rel~='icon']") as HTMLLinkElement | null;
+    const previousFaviconHref = faviconLink?.href ?? null;
+    const faviconCreated = !faviconLink && !!branding.favicon_url;
+    if (branding.favicon_url) {
+      if (!faviconLink) {
+        faviconLink = document.createElement('link');
+        faviconLink.rel = 'icon';
+        document.head.appendChild(faviconLink);
+      }
+      faviconLink.href = branding.favicon_url;
+    }
+
+    // theme-color (with restore)
+    let themeMeta = document.querySelector("meta[name='theme-color']") as HTMLMetaElement | null;
+    const previousThemeColor = themeMeta?.content ?? null;
+    const themeMetaCreated = !themeMeta && !!branding.primary_color;
     if (branding.primary_color) {
-      root.style.setProperty('--wl-primary', branding.primary_color);
+      if (!themeMeta) {
+        themeMeta = document.createElement('meta');
+        themeMeta.name = 'theme-color';
+        document.head.appendChild(themeMeta);
+      }
+      themeMeta.content = branding.primary_color;
     }
-    if (branding.secondary_color) {
-      root.style.setProperty('--wl-secondary', branding.secondary_color);
+
+    // og:title (create if react-helmet-async removed the static index.html element)
+    let ogTitleMeta = document.querySelector("meta[property='og:title']") as HTMLMetaElement | null;
+    const previousOgTitle = ogTitleMeta?.content ?? null;
+    const ogTitleCreated = !ogTitleMeta && !!branding.company_name;
+    if (branding.company_name) {
+      if (!ogTitleMeta) {
+        ogTitleMeta = document.createElement('meta');
+        ogTitleMeta.setAttribute('property', 'og:title');
+        document.head.appendChild(ogTitleMeta);
+      }
+      ogTitleMeta.content = branding.company_name;
     }
-    if (branding.accent_color) {
-      root.style.setProperty('--wl-accent', branding.accent_color);
-    }
+
+    // CSS variables
+    if (branding.primary_color) root.style.setProperty('--wl-primary', branding.primary_color);
+    if (branding.secondary_color) root.style.setProperty('--wl-secondary', branding.secondary_color);
+    if (branding.accent_color) root.style.setProperty('--wl-accent', branding.accent_color);
     root.style.setProperty('--wl-sidebar-style', branding.sidebar_style || 'light');
 
-    // Inject Google Fonts
+    // Google Fonts
     const fontLinks: HTMLLinkElement[] = [];
     const fonts = [branding.font_heading, branding.font_body].filter(Boolean) as string[];
     if (fonts.length > 0) {
@@ -199,25 +237,21 @@ export function WLPortalProvider({ children, partnerIdOverride }: WLPortalProvid
       document.head.appendChild(link);
       fontLinks.push(link);
     }
-    if (branding.font_heading) {
-      root.style.setProperty('--wl-font-heading', `'${branding.font_heading}', sans-serif`);
-    }
-    if (branding.font_body) {
-      root.style.setProperty('--wl-font-body', `'${branding.font_body}', sans-serif`);
-    }
-
-    // Favicon
-    if (branding.favicon_url) {
-      let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-      if (!link) {
-        link = document.createElement('link');
-        link.rel = 'icon';
-        document.head.appendChild(link);
-      }
-      link.href = branding.favicon_url;
-    }
+    if (branding.font_heading) root.style.setProperty('--wl-font-heading', `'${branding.font_heading}', sans-serif`);
+    if (branding.font_body) root.style.setProperty('--wl-font-body', `'${branding.font_body}', sans-serif`);
 
     return () => {
+      document.title = previousTitle;
+
+      if (faviconCreated) faviconLink?.remove();
+      else if (faviconLink && previousFaviconHref !== null) faviconLink.href = previousFaviconHref;
+
+      if (themeMetaCreated) themeMeta?.remove();
+      else if (themeMeta && previousThemeColor !== null) themeMeta.content = previousThemeColor;
+
+      if (ogTitleCreated) ogTitleMeta?.remove();
+      else if (ogTitleMeta && previousOgTitle !== null) ogTitleMeta.content = previousOgTitle;
+
       root.style.removeProperty('--wl-primary');
       root.style.removeProperty('--wl-secondary');
       root.style.removeProperty('--wl-accent');

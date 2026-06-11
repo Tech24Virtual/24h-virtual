@@ -50,8 +50,16 @@ const wrap = (el: React.ReactNode, requireModule?: WLModuleSlug) => (
 
 export const WLPortalRoutes = (
   <>
-    {/* Login is unprotected — auth happens here */}
-    <Route path="/portal/:slug/login" element={<LazyRoute><WLPortalLogin /></LazyRoute>} />
+    {/* Login is unprotected — auth happens here.
+        WLPortalProvider is included so branding (title, favicon, colours) loads
+        before the user signs in — the login page is the first brand touchpoint. */}
+    <Route path="/portal/:slug/login" element={
+      <LazyRoute>
+        <WLPortalProvider>
+          <WLPortalLogin />
+        </WLPortalProvider>
+      </LazyRoute>
+    } />
 
     {/* Dashboard is always accessible (the portal landing page) */}
     <Route path="/portal/:slug" element={wrap(<WLPortalDashboard />, 'dashboard')} />
