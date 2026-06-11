@@ -1,5 +1,5 @@
 # GTM Readiness
-Last updated: 2026-06-03
+Last updated: 2026-06-11
 
 ## 🔖 CONTEXT FOR NEW CHAT
 
@@ -13,15 +13,14 @@ Last updated: 2026-06-03
 
 **Key decisions pending from Paul:**
 1. NMI payment gateway — approve or not?
-2. GitHub Actions CI — add 4 secrets + approve push
-3. Five9 hybrid architecture — final sign-off
+2. Five9 hybrid architecture — final sign-off
 
 **Last session summary:**
-- Built System 1 (lead capture) and System 2 (sales CRM)
-- Fixed 8 bugs found during manual testing
-- All tests passing: 19 Vitest + 78 Playwright = 97/97
-- Created full presentation deck saved as 24H_Virtual_Full_Update.pptx
-- Ngrok setup explained for Paul to test remotely
+- Completed Systems 9, 11 (A–D), 12, 26 — all E2E tests passing
+- Fixed Sales portal (proposals/meetings/performance pages, 4 table grants, pipeline_stage bug)
+- Fixed WL portal (outbound requests/activity/reviews — 7 table grants, enabled activity+reviews modules for qa-wl-client1)
+- GitHub Actions CI green
+- All tests passing: 19 Vitest + 120 Playwright = 139/139
 
 **Key gotchas:**
 - `white_label_partners` uses `partner_slug` column (not `portal_slug`)
@@ -31,6 +30,7 @@ Last updated: 2026-06-03
 - `has_role()` function is SECURITY DEFINER — fixed in this session
 - `leads` table uses `pipeline_stage` not `status`
 - `campaign_tenant_kind` enum: `direct_24h | wl_partner`
+- `vite.config.ts` already has `allowedHosts: true` — ngrok works out of the box
 
 **When starting new chat say:**
 > "Continue 24H Virtual project. I am Suman. Read GTM_READINESS.md for full context. All passwords: QATestPass123!"
@@ -100,36 +100,36 @@ Last updated: 2026-06-03
 | System 1 — Lead capture & routing | Auto-assignment trigger, sales rep notification, AddLeadDialog, LiveChatWidget captureLead migration, unique email index, missing grants fixed |
 | System 2 — Sales CRM & pipeline | SalesLeads status→pipeline_stage fix, ALLOWED_TRANSITIONS rules, LeadPipelineBoard shared component, Admin CRM Pipeline tab |
 | Manual testing session | Fixed RLS recursion in has_role(), sales role leads policies, supervisor profiles policy, notification bell count fix, WL ticket reply UI, ScrollArea height fix, agent onboarding FK join fix |
+| System 9 — Client account setup wizard | 4-step wizard, RPC, dashboard banner, nav links, grants fixes | flow13-client-setup-wizard.spec.ts 4/4 |
+| System 11 Part A — FAQ/Policy versioning | Snapshots, history sheet, effective dates, grants fixes | flow14-faq-policy-versioning.spec.ts 4/4 |
+| System 11 Part B — Approval bridge + client FAQ view | Supervisor→CampaignOS link, client Approved FAQs tab, script table grants | flow15-script-approval-bridge.spec.ts 4/4 |
+| System 11 Part C — Agent in-call FAQ/Policy lookup | FAQs + Policies tabs on agent scripts page, agent assignment seed | flow16-agent-faq-lookup.spec.ts 7/7 |
+| System 11 Part D — Policy acknowledgment workflow | policy_acknowledgments table, DB trigger, agent banner, supervisor workload badge | flow17-policy-acknowledgment.spec.ts 7/7 |
+| System 12 — QA & go-live checklist | Snapshot triggers, regression notifier, client confirm, supervisor approve, admin readiness dashboard | flow18-go-live-checklist.spec.ts 12/12 |
+| System 26 — Usage reconciliation | variance_queue table, reconcile-usage edge function, billing reconciliation page | flow19-usage-reconciliation.spec.ts 5/5 |
+| Sales portal — Proposals, Meetings, Performance pages | Missing grants fixed on 4 tables, pipeline_stage bug fixes, meeting scope fix | — |
+| WL portal — Outbound requests, Activity, Reviews pages | Missing grants fixed on 7 tables, activity + reviews modules enabled for qa-wl-client1 | migration 20260611130000 |
+| Vite allowedHosts config for ngrok | Already set to `true` in vite.config.ts — no change needed | — |
+| CLAUDE.md | Project context file created for future sessions | — |
+| GitHub Actions CI | Green ✅ | — |
 
 ## 🔴 REMAINING
 
 | Task | Priority | Notes |
 |------|----------|-------|
 | [object Object] UUID error on WL dashboard | LOW | Pre-existing, originates in Edge Function server-side, not client code |
-| Five9 architecture refactor | HIGH | Agreed hybrid approach: proxy + monthly pull + PDF exports. Needs implementation |
-| NMI payment integration | HIGH | Paul approved NMI. Needs scoping and build |
+| Five9 architecture refactor | HIGH | Agreed hybrid approach: proxy + monthly pull + PDF exports. Needs implementation. Blocked on Paul credentials |
+| NMI payment integration | HIGH | Paul approved NMI. Needs scoping and build. Blocked on Paul |
 | System 4 — Close & activation → onboarding trigger | HIGH | Payment webhook → applyClientActivationEffects(). Blocked on NMI decision |
-| System 9 — Client account setup wizard | HIGH | Structured intake wizard for new clients post-activation. Not built |
 | System 10 — Five9 campaign mapping validation | MEDIUM | Block go-live if campaign mappings incomplete or have drift |
-| System 11 — Script / FAQ / policy management | MEDIUM | Versioning + approval workflow for scripts. Not built |
-| System 12 — QA & go-live checklist | MEDIUM | **BUILT (2026-06-08)** — snapshot triggers, regression notifier, client confirm, supervisor approve, admin readiness dashboard, E2E flow18 |
-| System 26 — Usage reconciliation | MEDIUM | Variance queue on top of edge function. Not built |
-| System 27 — Direct billing | HIGH | Invoice engine based on Five9 call volume. Not built |
+| System 27 — Direct billing | HIGH | Invoice engine based on Five9 call volume. Blocked on NMI + Five9 |
 | index.html branding — favicon + Cloudflare Workers | HIGH | Per-tenant subdomain or Cloudflare Worker needed for full WL isolation |
 | Tracking pixels on WL portals | HIGH | Privacy/legal — GA4 + Meta suppressed in code but needs server-level enforcement |
-| Vite allowedHosts config for ngrok | LOW | Set allowedHosts: true in vite.config.ts server block for ngrok demo access |
-| Sales portal proposals page | MEDIUM | Route exists /staff/sales/proposals but not built out |
-| Sales portal meetings page | MEDIUM | Route exists /staff/sales/meetings but not built out |
-| Sales portal performance page | MEDIUM | Route exists /staff/sales/performance but not built out |
-| WL portal outbound requests page | LOW | Route exists /portal/:slug/outbound-requests but needs content |
-| WL portal activity page | LOW | Route exists /portal/:slug/activity but needs content |
-| WL portal reviews page | LOW | Route exists /portal/:slug/reviews but needs content |
 
 ## 📊 Test Score
 ```
-Vitest RLS:  19/19  ✅
-Playwright:  78/78  ✅
-CI Pipeline:  green ✅
-Total:       97/97  ✅
+Vitest RLS:  19/19   ✅
+Playwright: 120/120  ✅
+CI Pipeline:   green ✅
+Total:       139/139 ✅
 ```
-
