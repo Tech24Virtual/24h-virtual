@@ -17,6 +17,7 @@ import { DynamicBillingPreview } from '@/components/admin/DynamicBillingPreview'
 import { ActivityTimeline, TaskList, EmailFollowupList } from '@/components/admin/crm';
 import { LeadIntelligencePanel } from '@/components/admin/LeadIntelligencePanel';
 import { LeadConversionDialog } from '@/components/admin/LeadConversionDialog';
+import { applyClientActivationEffects } from '@/lib/client-onboarding/applyClientActivationEffects';
 import { calculateLeadScore, getScoreLabel, getScoreBadgeClasses, type ScoringRules, DEFAULT_SCORING_RULES } from '@/lib/leadScoring';
 import {
   Select,
@@ -53,6 +54,7 @@ interface Lead {
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
   dynamic_billing_enabled: boolean | null;
+  user_id: string | null;
 }
 
 const serviceLabels: Record<string, string> = {
@@ -154,8 +156,30 @@ export default function AdminLeadDetail() {
     setIsSaving(false);
   };
 
-  const handlePipelineChange = (stage: string) => {
-    updateLead({ pipeline_stage: stage });
+  const handlePipelineChange = async (stage: string) => {
+    await updateLead({ pipeline_stage: stage });
+    if (stage === 'active' && lead) {
+      try {
+        const result = await applyClientActivationEffects({
+          leadId: lead.id,
+          leadUserId: lead.user_id ?? null,
+          leadSnapshot: { converted_via: 'admin_pipeline_status' },
+        });
+        if (!result.alreadyExisted) {
+          toast({
+            title: 'Client account activated',
+            description: 'Onboarding handoff created.',
+          });
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        toast({
+          title: 'Activation warning',
+          description: `Stage updated but handoff creation failed: ${msg}`,
+          variant: 'destructive',
+        });
+      }
+    }
   };
 
   const handleChecklistChange = (key: string, value: boolean) => {

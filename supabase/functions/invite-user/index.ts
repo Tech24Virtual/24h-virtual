@@ -100,31 +100,23 @@ serve(async (req) => {
 
     const userId = newUser.user.id;
 
-    // The handle_new_user trigger already creates a profile and assigns 'client' role.
-    // Update the profile name if needed and add any extra roles beyond 'client'.
+    // Upsert profile so the row exists regardless of whether the trigger fired.
     await supabaseAdmin
       .from("profiles")
-      .update({ full_name: name })
-      .eq("id", userId);
+      .upsert({ id: userId, full_name: name }, { onConflict: "id" });
 
-    // Insert additional roles (trigger already assigned 'client')
-    const extraRoles = roles.filter((r: string) => r !== "client");
-    if (extraRoles.length > 0) {
+    // Insert all selected roles directly — don't rely on the handle_new_user trigger.
+    // upsert with ignoreDuplicates keeps this idempotent.
+    if (roles.length > 0) {
       const { error: rolesError } = await supabaseAdmin
         .from("user_roles")
-        .insert(extraRoles.map((role: string) => ({ user_id: userId, role })));
+        .upsert(
+          roles.map((role: string) => ({ user_id: userId, role })),
+          { onConflict: "user_id,role", ignoreDuplicates: true },
+        );
       if (rolesError) {
         console.error("Error inserting roles:", rolesError);
       }
-    }
-
-    // If 'client' was NOT in the selected roles, remove it (trigger auto-added it)
-    if (!roles.includes("client")) {
-      await supabaseAdmin
-        .from("user_roles")
-        .delete()
-        .eq("user_id", userId)
-        .eq("role", "client");
     }
 
     // Create welcome notification
