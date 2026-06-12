@@ -85,7 +85,7 @@ interface HostnameRouterProps {
 }
 
 export function HostnameRouter({ children }: HostnameRouterProps) {
-  const { isPartnerHostname, loading } = useWLHostResolver();
+  const { isPartnerHostname, loading, partnerId } = useWLHostResolver();
 
   if (loading) return <PageLoader />;
 
@@ -100,8 +100,14 @@ export function HostnameRouter({ children }: HostnameRouterProps) {
       {/* Root redirect */}
       <Route path="/" element={<PartnerRootRedirect />} />
 
-      {/* Login at /login — no slug needed, branding from hostname */}
-      <Route path="/login" element={<LazyRoute><WLPortalLogin /></LazyRoute>} />
+      {/* Login at /login — WLPortalProvider applies branding before auth */}
+      <Route path="/login" element={
+        <LazyRoute>
+          <WLPortalProvider partnerIdOverride={partnerId || undefined}>
+            <WLPortalLogin />
+          </WLPortalProvider>
+        </LazyRoute>
+      } />
 
       {/* Redirect /portal/* to clean URLs */}
       <Route path="/portal/*" element={<PortalPrefixRedirect />} />

@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWLPortal } from '@/contexts/WLPortalContext';
 import { useWLHostResolver } from '@/contexts/WLHostContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,17 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { wlClientUrl } from '@/lib/wlClientUrl';
-
-interface Branding {
-  logo_url: string | null;
-  primary_color: string | null;
-  company_name: string | null;
-  login_page_title: string | null;
-  welcome_message: string | null;
-  favicon_url: string | null;
-  font_heading: string | null;
-  font_body: string | null;
-}
+import { useState } from 'react';
 
 export default function WLPortalLogin() {
   const { slug } = useParams<{ slug: string }>();
@@ -30,30 +21,15 @@ export default function WLPortalLogin() {
   const isPartnerHost = hostCtx.isPartnerHostname;
   const hostPartnerId = hostCtx.partnerId;
 
-  const [branding, setBranding] = useState<Branding | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Branding and loading come from the WLPortalProvider that wraps this page
+  // (both path-based /portal/:slug/login and hostname-based /login routes).
+  // WLPortalProvider's own useEffect already applies document.title, favicon,
+  // CSS vars and Google Fonts — no duplicate DOM work needed here.
+  const { branding, loading } = useWLPortal();
+
   const [submitting, setSubmitting] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-
-  // If on partner hostname, use branding from host context
-  useEffect(() => {
-    if (isPartnerHost && hostCtx.branding) {
-      setBranding({
-        logo_url: hostCtx.branding.logo_url,
-        primary_color: hostCtx.branding.primary_color,
-        company_name: hostCtx.branding.company_name,
-        login_page_title: hostCtx.branding.login_page_title,
-        welcome_message: hostCtx.branding.welcome_message,
-        favicon_url: hostCtx.branding.favicon_url,
-        font_heading: hostCtx.branding.font_heading,
-        font_body: hostCtx.branding.font_body,
-      });
-      setLoading(false);
-    } else if (!isPartnerHost) {
-      fetchBranding();
-    }
-  }, [isPartnerHost, hostCtx.branding, slug]);
 
   // Post-login redirect
   useEffect(() => {
@@ -76,59 +52,6 @@ export default function WLPortalLogin() {
       navigate(wlClientUrl(slug), { replace: true });
     }
   }, [user, slug, navigate, isPartnerHost, hostPartnerId]);
-
-  // Apply favicon
-  useEffect(() => {
-    if (!branding?.favicon_url) return;
-    let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-    if (!link) {
-      link = document.createElement('link');
-      link.rel = 'icon';
-      document.head.appendChild(link);
-    }
-    link.href = branding.favicon_url;
-  }, [branding?.favicon_url]);
-
-  // Load Google Fonts for login page
-  useEffect(() => {
-    if (!branding) return;
-    const fonts = [branding.font_heading, branding.font_body].filter(Boolean) as string[];
-    if (fonts.length === 0) return;
-    const families = fonts.map(f => f.replace(/ /g, '+')).join('&family=');
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = `https://fonts.googleapis.com/css2?family=${families}&display=swap`;
-    document.head.appendChild(link);
-    return () => { link.remove(); };
-  }, [branding]);
-
-  const fetchBranding = async () => {
-    try {
-      const { data: clients } = await supabase
-        .from('white_label_clients')
-        .select('partner_id')
-        .eq('client_portal_slug', slug)
-        .limit(1);
-
-      let pid: string | null = null;
-      if (clients && clients.length > 0) {
-        pid = clients[0].partner_id;
-      }
-
-      if (pid) {
-        const { data } = await supabase
-          .from('white_label_branding')
-          .select('logo_url, primary_color, company_name, login_page_title, welcome_message, favicon_url, font_heading, font_body')
-          .eq('partner_id', pid)
-          .single();
-        if (data) setBranding(data as Branding);
-      }
-    } catch (err) {
-      console.error('Error fetching branding:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

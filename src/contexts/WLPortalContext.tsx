@@ -48,6 +48,14 @@ interface WLPortalContextType {
 
 const WLPortalContext = createContext<WLPortalContextType | undefined>(undefined);
 
+// Deduplicates concurrent fetches for the same key (handles React StrictMode double-invocation).
+// Without this, both in-flight fetches complete with separate object references, causing
+// the branding effect to re-run a second time (cleanup → setup) which briefly resets
+// document.title to 'Client Portal' before re-applying the partner name.
+// Keyed 'slug:<slug>' or 'id:<partnerId>'. Entry removed after the request settles.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const _inflight = new Map<string, Promise<any>>();
+
 interface WLPortalProviderProps {
   children: ReactNode;
   partnerIdOverride?: string;
@@ -79,16 +87,24 @@ export function WLPortalProvider({ children, partnerIdOverride }: WLPortalProvid
   }, [user, partnerId]);
 
   const fetchBrandingById = async (pid: string) => {
+    const key = `id:${pid}`;
+    if (!_inflight.has(key)) {
+      _inflight.set(key, (async () => {
+        try {
+          const { data } = await supabase
+            .from('white_label_branding')
+            .select('*')
+            .eq('partner_id', pid)
+            .single();
+          return data ? (data as unknown as PartnerBranding) : null;
+        } finally {
+          _inflight.delete(key);
+        }
+      })());
+    }
     try {
-      const { data: brandingData } = await supabase
-        .from('white_label_branding')
-        .select('*')
-        .eq('partner_id', pid)
-        .single();
-
-      if (brandingData) {
-        setBranding(brandingData as unknown as PartnerBranding);
-      }
+      const result = await _inflight.get(key)!;
+      if (result) setBranding(result);
     } catch (err) {
       console.error('Error fetching portal branding by ID:', err);
       setError('Failed to load portal');
@@ -98,6 +114,7 @@ export function WLPortalProvider({ children, partnerIdOverride }: WLPortalProvid
   };
 
   const fetchBranding = async () => {
+    let resolvedPid = false;
     try {
       let pid: string | null = null;
 
@@ -125,26 +142,23 @@ export function WLPortalProvider({ children, partnerIdOverride }: WLPortalProvid
 
       if (!pid) {
         setError('Portal not found');
-        setLoading(false);
         return;
       }
 
+      // Set partner ID early so fetchClientInfo can start in parallel while
+      // we wait for the branding fetch — preserves the original timing that
+      // keeps WLPortalRoute in the loading spinner rather than /unauthorized.
       setPartnerId(pid);
+      resolvedPid = true;
+      await fetchBrandingById(pid); // deduped — handles setBranding + setLoading(false)
 
-      const { data: brandingData } = await supabase
-        .from('white_label_branding')
-        .select('*')
-        .eq('partner_id', pid)
-        .single();
-
-      if (brandingData) {
-        setBranding(brandingData as unknown as PartnerBranding);
-      }
     } catch (err) {
       console.error('Error fetching portal branding:', err);
       setError('Failed to load portal');
     } finally {
-      setLoading(false);
+      // fetchBrandingById's finally already calls setLoading(false); only call
+      // it here if we returned early before reaching fetchBrandingById.
+      if (!resolvedPid) setLoading(false);
     }
   };
 

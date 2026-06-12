@@ -89,35 +89,67 @@ test.describe.serial('Flow 20 — WL Portal Branding', () => {
     ).toBe(true);
   });
 
-  // ── Test 4: title is restored when navigating away ───────────────────────────
-  test('navigating away from portal restores document.title to index.html default', async ({ page }) => {
-    // Navigate directly to the portal (user already logged-in from shared context).
-    // This matters for cleanup correctness: when the page loads fresh via full-page
-    // navigation, index.html sets document.title = 'Client Portal' BEFORE React
-    // mounts any Helmet. WLPortalContext captures that as previousTitle, so cleanup
-    // will restore exactly 'Client Portal'.
-    await page.goto('/portal/acme-corp');
+  // ── Test 4: branding fires on login page, persists after login, resets on /login ─
+  test('document.title is branded on WL login page before auth, persists post-login, resets on main login', async ({ page }) => {
+    // Step 1: navigate directly to the WL portal login page (unauthenticated).
+    // WLPortalProvider wraps this route and can now fetch branding as anon.
+    await page.goto('/portal/acme-corp/login');
     await page.waitForLoadState('networkidle');
 
-    // Wait for branding to apply
+    // Step 2: wait for WLPortalProvider to resolve the partner slug and apply branding.
     await page.waitForFunction(
       () => document.title !== 'Client Portal' && document.title.length > 0,
       { timeout: 30000 }
     );
 
-    const portalTitle = await page.title();
-    expect(portalTitle).not.toBe('Client Portal');
+    const brandedTitle = await page.title();
+    expect(brandedTitle).not.toBe('Client Portal');
 
-    // SPA-navigate away by clicking the logo (href="/") so React unmounts
-    // WLPortalProvider and the cleanup effect runs synchronously.
-    await page.locator('a[href="/"]').first().click();
+    // Step 3: log in on the WL login form and verify the branded title persists.
+    await page.getByRole('textbox', { name: 'Email', exact: true }).fill('qa-wl-client1@24hv-test.com');
+    await page.getByRole('textbox', { name: 'Password' }).fill('QATestPass123!');
+    await page.getByRole('button', { name: 'Sign In' }).click();
+
+    // Wait for redirect to the portal dashboard. The login route's WLPortalProvider
+    // cleanup briefly restores 'Client Portal'; the dashboard route's provider then
+    // re-applies the branded title after its own async branding fetch completes.
+    // React 18 StrictMode double-invokes effects across separate scheduler tasks, so
+    // the title can transiently revert (setup → cleanup → setup). We require it to
+    // stay branded for ≥500ms so page.title() never catches the cleanup window.
+    await page.waitForURL(
+      url => url.toString().includes('/portal/') && !url.toString().includes('/login'),
+      { timeout: 15000 }
+    );
     await page.waitForFunction(
-      (expected) => document.title !== expected,
-      portalTitle,
+      (branded) => {
+        const win = window as any;
+        if (document.title === branded) {
+          if (!win._titleStableAt) win._titleStableAt = Date.now();
+          return Date.now() - win._titleStableAt >= 500;
+        }
+        win._titleStableAt = 0;
+        return false;
+      },
+      brandedTitle,
+      { timeout: 25000 }
+    );
+
+    const postLoginTitle = await page.title();
+    expect(postLoginTitle).toBe(brandedTitle);
+
+    // Step 4: full navigation to the main 24H login page — WL branding must be gone.
+    await page.goto('/login');
+    await page.waitForLoadState('networkidle');
+
+    // After a full-page reload, index.html restores 'Client Portal' before React
+    // mounts. WLPortalProvider is not present on /login so the title stays reset.
+    await page.waitForFunction(
+      (branded) => document.title !== branded,
+      brandedTitle,
       { timeout: 15000 }
     );
 
-    const restoredTitle = await page.title();
-    expect(restoredTitle).toBe('Client Portal');
+    const mainTitle = await page.title();
+    expect(mainTitle).not.toBe(brandedTitle);
   });
 });
