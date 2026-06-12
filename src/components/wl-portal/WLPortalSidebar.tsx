@@ -21,7 +21,7 @@ import { isModuleEnabled, type WLModuleSlug } from '@/lib/wlModuleVisibility';
 import type { NavGroup, NavChild } from '@/components/navigation/types';
 
 export function WLPortalSidebar() {
-  const { slug, branding, enabledModules } = useWLPortal();
+  const { slug, branding, enabledModules, loading } = useWLPortal();
 
   const groups = useMemo<NavGroup[]>(() => {
     const root = wlClientUrl(slug);
@@ -81,6 +81,8 @@ export function WLPortalSidebar() {
       roleLabel="Client"
       logoSrc={branding?.logo_url || undefined}
       logoAlt={branding?.company_name || 'Client Portal'}
+      suppressDefaultLogo
+      logoLoading={loading}
     />
   );
 }

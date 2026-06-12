@@ -10,6 +10,7 @@ export function WhiteLabelSidebar() {
   const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
   const [companyName, setCompanyName] = useState<string | undefined>(undefined);
   const [portalSlug, setPortalSlug] = useState<string | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
@@ -19,7 +20,10 @@ export function WhiteLabelSidebar() {
       .eq('user_id', user.id)
       .maybeSingle()
       .then(({ data: partner }) => {
-        if (!partner) return;
+        if (!partner) {
+          setIsLoading(false);
+          return;
+        }
         setCompanyName(partner.company_name ?? undefined);
         setPortalSlug(partner.partner_slug ?? undefined);
         supabase
@@ -27,7 +31,10 @@ export function WhiteLabelSidebar() {
           .select('logo_url')
           .eq('partner_id', partner.id)
           .maybeSingle()
-          .then(({ data: b }) => setLogoUrl(b?.logo_url ?? undefined));
+          .then(({ data: b }) => {
+            setLogoUrl(b?.logo_url ?? undefined);
+            setIsLoading(false);
+          });
       });
   }, [user]);
 
@@ -40,6 +47,7 @@ export function WhiteLabelSidebar() {
       logoSrc={logoUrl}
       logoAlt={companyName ?? 'Partner'}
       suppressDefaultLogo
+      logoLoading={isLoading}
       portalPreviewUrl={portalSlug ? `/portal/${portalSlug}` : undefined}
       logoBadge={
         <span className="text-xs font-medium text-muted-foreground bg-primary/10 px-2 py-0.5 rounded">

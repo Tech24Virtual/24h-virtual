@@ -6,6 +6,7 @@ import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { WhiteLabelSidebar } from './WhiteLabelSidebar';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -14,6 +15,7 @@ export function WhiteLabelHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
@@ -23,14 +25,20 @@ export function WhiteLabelHeader() {
       .eq('user_id', user.id)
       .maybeSingle()
       .then(({ data: partner }) => {
-        if (!partner) return;
+        if (!partner) {
+          setIsLoading(false);
+          return;
+        }
         setCompanyName(partner.company_name ?? null);
         supabase
           .from('white_label_branding')
           .select('logo_url')
           .eq('partner_id', partner.id)
           .maybeSingle()
-          .then(({ data: b }) => setLogoUrl(b?.logo_url ?? null));
+          .then(({ data: b }) => {
+            setLogoUrl(b?.logo_url ?? null);
+            setIsLoading(false);
+          });
       });
   }, [user]);
 
@@ -49,12 +57,16 @@ export function WhiteLabelHeader() {
               <WhiteLabelSidebar />
             </SheetContent>
           </Sheet>
-          <Link to="/white-label-dashboard">
-            {logoUrl
-              ? <img src={logoUrl} alt={companyName ?? 'Partner Dashboard'} className="h-7 object-contain" />
-              : <span className="text-sm font-semibold">{companyName ?? 'Partner Dashboard'}</span>
-            }
-          </Link>
+          {isLoading ? (
+            <Skeleton className="h-7 w-[100px] rounded" />
+          ) : (
+            <Link to="/white-label-dashboard">
+              {logoUrl
+                ? <img src={logoUrl} alt={companyName ?? 'Partner Dashboard'} className="h-7 object-contain" />
+                : <span className="text-sm font-semibold">{companyName ?? 'Partner Dashboard'}</span>
+              }
+            </Link>
+          )}
         </div>
 
         {/* Desktop title */}

@@ -50,6 +50,11 @@ const tierDetails: Record<string, { name: string; price: number; features: strin
     price: 299,
     features: ['Unlimited clients', 'Growth Hub (7 marketing tools)', 'Priority support', 'Dedicated account manager', 'API access', 'Custom SLA']
   },
+  reseller: {
+    name: 'Reseller',
+    price: 299,
+    features: ['Unlimited clients', 'Full white-label branding', 'Custom domain', 'Priority support', 'API access']
+  },
 };
 
 export default function WhiteLabelBilling() {
@@ -82,8 +87,8 @@ export default function WhiteLabelBilling() {
   });
 
   const isLoading = partnerLoading || invoicesLoading;
-  const currentTier = tierDetails[partnerData?.tier || 'starter'];
-  const displayPrice = partnerData?.monthly_fee || currentTier.price;
+  const currentTier = tierDetails[partnerData?.tier ?? ''] ?? tierDetails.starter;
+  const displayPrice = partnerData?.monthly_fee ?? currentTier.price;
 
   // Calculate next payment date (1st of next month)
   const now = new Date();

@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { UtilityTray } from '@/components/navigation/UtilityTray';
 import { findActiveGroup, type NavGroup } from '@/components/navigation/types';
 import logoBlue from '@/assets/logos/logo-blue.png';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface DrilldownSidebarProps {
   groups: NavGroup[];
@@ -23,6 +24,8 @@ interface DrilldownSidebarProps {
   renderGroupExtra?: (group: NavGroup) => ReactNode;
   /** When true and no logoSrc is provided, suppress the default 24H logo entirely. */
   suppressDefaultLogo?: boolean;
+  /** When true, renders a shimmer skeleton in the logo area instead of the logo or default. */
+  logoLoading?: boolean;
   /** Optional back link rendered above the nav items (e.g. "Back to Admin"). */
   backLink?: { label: string; href: string };
   /** When set, renders a "Preview client portal" footer link in the section panel. */
@@ -36,6 +39,7 @@ function BrandHeader({
   badge,
   tag,
   suppressDefaultLogo = false,
+  logoLoading = false,
 }: {
   compact?: boolean;
   logoSrc?: string;
@@ -43,6 +47,7 @@ function BrandHeader({
   badge?: ReactNode;
   tag?: string;
   suppressDefaultLogo?: boolean;
+  logoLoading?: boolean;
 }) {
   const resolvedLogoSrc = suppressDefaultLogo && !logoSrc ? undefined : (logoSrc ?? logoBlue);
   return (
@@ -52,32 +57,43 @@ function BrandHeader({
         compact ? 'items-center px-2 group-hover/rail:items-start group-hover/rail:px-3' : 'items-start px-4'
       )}
     >
-      <Link to="/" className="flex min-w-0 items-center gap-2">
-        {compact && resolvedLogoSrc && (
-          <img
-            src={resolvedLogoSrc}
-            alt={logoAlt}
-            className="h-8 w-8 shrink-0 object-contain group-hover/rail:hidden"
-          />
-        )}
-        {resolvedLogoSrc && (
-          <img
-            src={resolvedLogoSrc}
-            alt={compact ? '' : logoAlt}
-            aria-hidden={compact}
-            className={cn(
-              'h-7 max-w-[160px] shrink-0 object-contain transition-opacity duration-150',
-              compact ? 'hidden opacity-0 group-hover/rail:block group-hover/rail:opacity-100' : ''
+      {logoLoading ? (
+        <Skeleton className={cn(
+          'h-7 rounded',
+          compact
+            ? 'w-7 group-hover/rail:w-[100px] transition-[width] duration-200 ease-out'
+            : 'w-[120px]'
+        )} />
+      ) : (
+        <>
+          <Link to="/" className="flex min-w-0 items-center gap-2">
+            {compact && resolvedLogoSrc && (
+              <img
+                src={resolvedLogoSrc}
+                alt={logoAlt}
+                className="h-8 w-8 shrink-0 object-contain group-hover/rail:hidden"
+              />
             )}
-          />
-        )}
-        {badge && !compact && badge}
-        {badge && compact && (
-          <span className="hidden group-hover/rail:inline">{badge}</span>
-        )}
-      </Link>
-      {tag && !compact && (
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">{tag}</span>
+            {resolvedLogoSrc && (
+              <img
+                src={resolvedLogoSrc}
+                alt={compact ? '' : logoAlt}
+                aria-hidden={compact}
+                className={cn(
+                  'h-7 max-w-[160px] shrink-0 object-contain transition-opacity duration-150',
+                  compact ? 'hidden opacity-0 group-hover/rail:block group-hover/rail:opacity-100' : ''
+                )}
+              />
+            )}
+            {badge && !compact && badge}
+            {badge && compact && (
+              <span className="hidden group-hover/rail:inline">{badge}</span>
+            )}
+          </Link>
+          {tag && !compact && (
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">{tag}</span>
+          )}
+        </>
       )}
     </div>
   );
@@ -103,6 +119,7 @@ export function DrilldownSidebar({
   brandTag,
   renderGroupExtra,
   suppressDefaultLogo,
+  logoLoading,
   backLink,
   portalPreviewUrl,
 }: DrilldownSidebarProps) {
@@ -143,7 +160,7 @@ export function DrilldownSidebar({
     const Icon = activeGroup.icon;
     return (
       <aside className="hidden lg:flex w-60 flex-col bg-card border-r h-screen sticky top-0">
-        <BrandHeader logoSrc={logoSrc} logoAlt={logoAlt} badge={logoBadge} tag={brandTag} suppressDefaultLogo={suppressDefaultLogo} />
+        <BrandHeader logoSrc={logoSrc} logoAlt={logoAlt} badge={logoBadge} tag={brandTag} suppressDefaultLogo={suppressDefaultLogo} logoLoading={logoLoading} />
 
         {backLink && (
           <div className="px-4 pt-3 pb-1 shrink-0">
@@ -214,7 +231,7 @@ export function DrilldownSidebar({
         'w-14 hover:w-56 transition-[width] duration-200 ease-out'
       )}
     >
-      <BrandHeader compact logoSrc={logoSrc} logoAlt={logoAlt} badge={logoBadge} tag={brandTag} />
+      <BrandHeader compact logoSrc={logoSrc} logoAlt={logoAlt} badge={logoBadge} tag={brandTag} suppressDefaultLogo={suppressDefaultLogo} logoLoading={logoLoading} />
 
       {backLink && (
         <div className="px-2 pt-2 pb-1 shrink-0 overflow-hidden">
