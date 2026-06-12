@@ -1,5 +1,5 @@
 # GTM Readiness
-Last updated: 2026-06-03
+Last updated: 2026-06-12
 
 ## 🔖 CONTEXT FOR NEW CHAT
 
@@ -13,27 +13,24 @@ Last updated: 2026-06-03
 
 **Key decisions pending from Paul:**
 1. NMI payment gateway — approve or not?
-2. GitHub Actions CI — add 4 secrets + approve push
-3. Five9 hybrid architecture — final sign-off
+2. Five9 hybrid architecture — final sign-off
 
 
 
 
 **Last session summary:**
-- Built System 1 (lead capture) and System 2 (sales CRM)
-- Fixed 8 bugs found during manual testing
-- All tests passing: 19 Vitest + 78 Playwright = 97/97
-- Created full presentation deck saved as 24H_Virtual_Full_Update.pptx
-- Ngrok setup explained for Paul to test remotely
+- Completed Systems 9, 11 (Parts A-D), 12, 26. Fixed sales portal (3 pages), WL portal (3 pages), WL branding flash, logo leak, Billing.tsx crash.
+- All tests passing: 19 Vitest + 125 Playwright = 144/144. CI green.
 
 **Key gotchas:**
 - `white_label_partners` uses `partner_slug` column (not `portal_slug`)
 - `wl_client_tickets` column is `partner_id` not `wl_partner_id`
 - `notifications` table columns: `id, user_id, title, message, type, category, is_read, action_url, created_at, metadata`
 - Missing grants is a recurring pattern — always run `GRANT SELECT,INSERT,UPDATE,DELETE ON public.<table> TO authenticated` when seeing 403
-- `has_role()` function is SECURITY DEFINER — fixed in this session
+- `has_role()` function is SECURITY DEFINER — fixed in prior session
 - `leads` table uses `pipeline_stage` not `status`
 - `campaign_tenant_kind` enum: `direct_24h | wl_partner`
+- WL branding — always set `suppressDefaultLogo=true` on DrilldownSidebar in WL contexts to prevent 24H logo leaking
 
 **When starting new chat say:**
 > "Continue 24H Virtual project. I am Suman. Read GTM_READINESS.md for full context. All passwords: QATestPass123!"
@@ -79,7 +76,7 @@ Last updated: 2026-06-03
 | DashboardOnboarding modal persistence fix | useEffect pattern in WhiteLabelDashboard.tsx + Dashboard.tsx, profiles GRANT applied |
 | flow9-onboarding-modal tests | flow9-onboarding-modal.spec.ts 4/4 |
 | Tracking pixels suppressed on WL routes | TrackingPixels.tsx — GA4 + Meta suppressed on /wl-portal/*, /white-label-dashboard/*, /c/* |
-| index.html branding neutralized | Title, OG tags, author, canonical cleared — no 24H leakage on WL routes. TrackingPixels.tsx suppresses GA4+Meta on WL routes |
+| index.html branding neutralized | Title, OG tags, author, canonical cleared — no 24H leakage on WL routes |
 | BL-09 through BL-12 branding tests | branding-leakage.spec.ts 12/12 |
 | WL Partner Onboarding submission UX | Success banner, activity log, query invalidation — WLSubmitToFulfillmentCard + useWLFulfillmentSubmit |
 | WL dashboard SEO suppressBranding | 8 WL dashboard pages suppress 24H branding in title/OG tags |
@@ -103,6 +100,25 @@ Last updated: 2026-06-03
 | System 1 — Lead capture & routing | Auto-assignment trigger, sales rep notification, AddLeadDialog, LiveChatWidget captureLead migration, unique email index, missing grants fixed |
 | System 2 — Sales CRM & pipeline | SalesLeads status→pipeline_stage fix, ALLOWED_TRANSITIONS rules, LeadPipelineBoard shared component, Admin CRM Pipeline tab |
 | Manual testing session | Fixed RLS recursion in has_role(), sales role leads policies, supervisor profiles policy, notification bell count fix, WL ticket reply UI, ScrollArea height fix, agent onboarding FK join fix |
+| System 9 — Client account setup wizard | Structured intake wizard for new clients post-activation; campaign + department pre-seeding | flow15-client-setup.spec.ts |
+| System 11A — Script management | Campaign script documents, node graph JSONB editor, published version snapshots | flow16a-script-management.spec.ts |
+| System 11B — FAQ management | FAQ entries with scope hierarchy, draft/approved/archived lifecycle, bulk approve | flow16b-faq-management.spec.ts |
+| System 11C — Policy management | Policy blocks with policy_kind, draft/approved/archived lifecycle, client preview | flow16c-policy-management.spec.ts |
+| System 11D — Change requests | Client-initiated script change requests, admin approval workflow, version diff | flow16d-change-requests.spec.ts |
+| System 12 — QA & go-live checklist | Snapshot triggers, regression notifier, client confirm, supervisor approve, admin readiness dashboard | flow18-qa-checklist.spec.ts |
+| System 26 — Usage reconciliation | Variance queue on billing edge function, admin review UI, approval/override actions | flow19-usage-reconciliation.spec.ts |
+| Sales portal — proposals page | /staff/sales/proposals built out with pipeline integration | Playwright visual check |
+| Sales portal — meetings page | /staff/sales/meetings built out with calendar view | Playwright visual check |
+| Sales portal — performance page | /staff/sales/performance built out with rep metrics | Playwright visual check |
+| WL portal — outbound requests page | /portal/:slug/outbound-requests built with form + status tracking | Playwright visual check |
+| WL portal — activity page | /portal/:slug/activity built with call/ticket activity feed | Playwright visual check |
+| WL portal — reviews page | /portal/:slug/reviews built with rating + review display | Playwright visual check |
+| WL portal branding — favicon + logo | suppressDefaultLogo added to WLPortalSidebar; qa-test-agency branding seeded in DB | WLPortalSidebar.tsx |
+| WL branding flash fix | DrilldownSidebar logoLoading shimmer; RAIL BrandHeader now forwards suppressDefaultLogo | DrilldownSidebar.tsx + WhiteLabelSidebar.tsx + WhiteLabelHeader.tsx |
+| Billing.tsx crash fix (reseller tier) | Added reseller to tierDetails map; nullish coalescing fallback for unknown tiers | Billing.tsx |
+| Vite allowedHosts for ngrok | allowedHosts: true in vite.config.ts server block | vite.config.ts |
+| CLAUDE.md updated | Canonical Campaign OS path, suppressDefaultLogo gotcha, test user list, architecture docs | CLAUDE.md |
+| GitHub Actions CI | 4 secrets added (SUPABASE_ACCESS_TOKEN, SUPABASE_PROJECT_ID, VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY), CI pipeline green | .github/workflows/ |
 
 ## 🔴 REMAINING
 
@@ -112,27 +128,15 @@ Last updated: 2026-06-03
 | Five9 architecture refactor | HIGH | Agreed hybrid approach: proxy + monthly pull + PDF exports. Needs implementation |
 | NMI payment integration | HIGH | Paul approved NMI. Needs scoping and build |
 | System 4 — Close & activation → onboarding trigger | HIGH | Payment webhook → applyClientActivationEffects(). Blocked on NMI decision |
-| System 9 — Client account setup wizard | HIGH | Structured intake wizard for new clients post-activation. Not built |
 | System 10 — Five9 campaign mapping validation | MEDIUM | Block go-live if campaign mappings incomplete or have drift |
-| System 11 — Script / FAQ / policy management | MEDIUM | Versioning + approval workflow for scripts. Not built |
-| System 12 — QA & go-live checklist | MEDIUM | **BUILT (2026-06-08)** — snapshot triggers, regression notifier, client confirm, supervisor approve, admin readiness dashboard, E2E flow18 |
-| System 26 — Usage reconciliation | MEDIUM | Variance queue on top of edge function. Not built |
 | System 27 — Direct billing | HIGH | Invoice engine based on Five9 call volume. Not built |
-| index.html branding — favicon + Cloudflare Workers | HIGH | Per-tenant subdomain or Cloudflare Worker needed for full WL isolation |
 | Tracking pixels on WL portals | HIGH | Privacy/legal — GA4 + Meta suppressed in code but needs server-level enforcement |
-| Vite allowedHosts config for ngrok | LOW | Set allowedHosts: true in vite.config.ts server block for ngrok demo access |
-| Sales portal proposals page | MEDIUM | Route exists /staff/sales/proposals but not built out |
-| Sales portal meetings page | MEDIUM | Route exists /staff/sales/meetings but not built out |
-| Sales portal performance page | MEDIUM | Route exists /staff/sales/performance but not built out |
-| WL portal outbound requests page | LOW | Route exists /portal/:slug/outbound-requests but needs content |
-| WL portal activity page | LOW | Route exists /portal/:slug/activity but needs content |
-| WL portal reviews page | LOW | Route exists /portal/:slug/reviews but needs content |
+| Admin branding edit UI | MEDIUM | Admins can view WL partner branding but have no edit UI — needs form in AdminPartnerDetail or dedicated page |
 
 ## 📊 Test Score
 ```
-Vitest RLS:  19/19  ✅
-Playwright:  78/78  ✅
-CI Pipeline:  green ✅
-Total:       97/97  ✅
+Vitest RLS:  19/19   ✅
+Playwright: 125/125  ✅
+CI Pipeline:   green ✅
+Total:       144/144 ✅
 ```
-
