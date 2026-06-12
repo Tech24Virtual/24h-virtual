@@ -166,9 +166,9 @@ test.describe('Client — go-live readiness page', () => {
     await expect(page.getByText(/faqs approved/i).first()).toBeVisible();
     await expect(page.getByText(/policies approved/i).first()).toBeVisible();
     await expect(page.getByText(/training complete/i).first()).toBeVisible();
-    await expect(page.getByText(/your confirmation/i)).toBeVisible();
-    await expect(page.getByText(/supervisor sign-off/i)).toBeVisible();
-    await expect(page.getByText(/five9 telephony/i)).toBeVisible();
+    await expect(page.getByText(/your confirmation/i).first()).toBeVisible();
+    await expect(page.getByText(/supervisor sign-off/i).first()).toBeVisible();
+    await expect(page.getByText(/five9 telephony/i).first()).toBeVisible();
   });
 
   test('shows confirm button when all automated checks pass', async ({ page }) => {
