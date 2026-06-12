@@ -105,6 +105,33 @@ serve(async (req) => {
       .from("profiles")
       .upsert({ id: userId, full_name: name }, { onConflict: "id" });
 
+    // Link the new user to their lead record (matched by email) and backfill the
+    // onboarding handoff that was seeded during lead conversion with client_user_id = null
+    // (because the auth user doesn't exist at conversion time — it's created here).
+    const { data: matchedLead } = await supabaseAdmin
+      .from("leads")
+      .select("id")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (matchedLead) {
+      // Stamp leads.user_id — idempotent, only if not already set
+      await supabaseAdmin
+        .from("leads")
+        .update({ user_id: userId })
+        .eq("id", matchedLead.id)
+        .is("user_id", null);
+
+      // Fix the onboarding handoff created during lead conversion with client_user_id = null
+      await supabaseAdmin
+        .from("client_onboarding_handoffs")
+        .update({ client_user_id: userId })
+        .eq("client_lead_id", matchedLead.id)
+        .is("client_user_id", null);
+
+      console.log(`Linked user ${userId} to lead ${matchedLead.id} and backfilled handoff`);
+    }
+
     // Insert all selected roles directly — don't rely on the handle_new_user trigger.
     // upsert with ignoreDuplicates keeps this idempotent.
     if (roles.length > 0) {
