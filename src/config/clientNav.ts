@@ -12,6 +12,7 @@ import {
   MessageSquare,
   Layers,
   Rocket,
+  BarChart2,
 } from 'lucide-react';
 import type { NavGroup } from '@/components/navigation/types';
 
@@ -45,6 +46,12 @@ export const clientNavGroups: NavGroup[] = [
       { name: 'Outbound',   href: `${clientRoot}/calls/outbound` },
       { name: 'Campaigns',  href: `${clientRoot}/calls/campaigns` },
     ],
+  },
+  {
+    name: 'Reports',
+    icon: BarChart2,
+    basePath: `${clientRoot}/reports`,
+    children: [{ name: 'Call Reports', href: `${clientRoot}/reports` }],
   },
   {
     name: 'Scripts',

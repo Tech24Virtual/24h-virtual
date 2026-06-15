@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Building, Mail, Phone, Globe, Calendar, Copy, ExternalLink, UserCheck, Flame, Thermometer, Snowflake } from 'lucide-react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { ArrowLeft, User, Building, Mail, Phone, Globe, Calendar, Copy, ExternalLink, UserCheck, Flame, Thermometer, Snowflake, BarChart2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -259,12 +259,20 @@ export default function AdminLeadDetail() {
             <p className="text-muted-foreground">{lead.company || 'No company'}</p>
           </div>
         </div>
-        {lead.pipeline_stage !== 'active' && lead.pipeline_stage !== 'ready_for_billing' && (
-          <Button onClick={() => setShowConversion(true)}>
-            <UserCheck className="w-4 h-4 mr-2" />
-            Convert to Client
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" asChild data-testid="view-call-report-btn">
+            <Link to={`/admin/clients/${lead.id}/call-report`}>
+              <BarChart2 className="w-4 h-4 mr-2" />
+              View Call Report
+            </Link>
           </Button>
-        )}
+          {lead.pipeline_stage !== 'active' && lead.pipeline_stage !== 'ready_for_billing' && (
+            <Button onClick={() => setShowConversion(true)}>
+              <UserCheck className="w-4 h-4 mr-2" />
+              Convert to Client
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Pipeline Status */}
