@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { GitCompare, AlertTriangle, Clock, CheckCircle, Loader2 } from 'lucide-react';
+import { GitCompare, AlertTriangle, Clock, CheckCircle, Loader2, Download } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -68,6 +68,93 @@ function fmtMinutes(n: number | null) {
 function fmtPct(n: number | null) {
   if (n == null) return '—';
   return `${Number(n).toFixed(1)}%`;
+}
+
+// ─── Pull Five9 Reports button / dialog ──────────────────────────────────────
+
+function PullFive9ReportsButton({ onDone }: { onDone: () => void }) {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const lastMonth = subMonths(new Date(), 1);
+  const [periodStart, setPeriodStart] = useState(format(startOfMonth(lastMonth), 'yyyy-MM-dd'));
+  const [periodEnd, setPeriodEnd] = useState(format(endOfMonth(lastMonth), 'yyyy-MM-dd'));
+
+  const handleRun = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('pull-five9-call-report', {
+        body: { period_start: periodStart, period_end: periodEnd },
+      });
+      if (error) throw error;
+
+      toast({
+        title: 'Five9 pull complete',
+        description: `${data?.clients_processed ?? 0} client(s) processed, ${data?.new_rows ?? 0} new call log row(s) added.`,
+      });
+      setOpen(false);
+      onDone();
+    } catch (err) {
+      toast({ title: 'Five9 pull failed', description: String(err), variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <Button
+        onClick={() => setOpen(true)}
+        variant="outline"
+        className="gap-2"
+        data-testid="pull-five9-reports-btn"
+      >
+        <Download className="w-4 h-4" />
+        Pull Five9 Reports
+      </Button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent data-testid="pull-five9-dialog">
+          <DialogHeader>
+            <DialogTitle>Pull Five9 Call Reports</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Fetches call log data from Five9 for all active clients with campaign mappings
+              and upserts new records into call_logs, skipping any already captured by webhook.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Period Start</Label>
+                <Input
+                  type="date"
+                  value={periodStart}
+                  onChange={(e) => setPeriodStart(e.target.value)}
+                  data-testid="five9-period-start"
+                />
+              </div>
+              <div>
+                <Label>Period End</Label>
+                <Input
+                  type="date"
+                  value={periodEnd}
+                  onChange={(e) => setPeriodEnd(e.target.value)}
+                  data-testid="five9-period-end"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>Cancel</Button>
+            <Button onClick={handleRun} disabled={loading} data-testid="confirm-pull-five9-btn">
+              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Pull Reports
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }
 
 // ─── Run Reconciliation button / dialog ──────────────────────────────────────
@@ -338,7 +425,10 @@ export default function BillingReconciliation() {
             <h1 className="text-2xl font-bold">Usage Reconciliation</h1>
             <p className="text-muted-foreground">Variance queue — review discrepancies between call logs, usage records, and billing summaries</p>
           </div>
-          <RunReconciliationButton onDone={invalidateQueue} />
+          <div className="flex gap-2">
+            <PullFive9ReportsButton onDone={invalidateQueue} />
+            <RunReconciliationButton onDone={invalidateQueue} />
+          </div>
         </div>
 
         {/* Summary cards */}

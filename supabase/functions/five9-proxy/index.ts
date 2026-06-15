@@ -4,6 +4,7 @@ const FIVE9_USERNAME = Deno.env.get("FIVE9_USERNAME") ?? "";
 const FIVE9_PASSWORD = Deno.env.get("FIVE9_PASSWORD") ?? "";
 
 const SOAP_URL = `https://api.five9.com/wsadmin/v13/AdminWebService?user=${encodeURIComponent(FIVE9_USERNAME)}`;
+const REPORTING_URL = "https://api.five9.com/wsreports/v12/ReportingService";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -25,6 +26,22 @@ function setCache(key: string, data: unknown, ttlSeconds = 60) {
 
 function basicAuth() {
     return btoa(`${FIVE9_USERNAME}:${FIVE9_PASSWORD}`);
+}
+
+async function soapReportRequest(body: string, action = ""): Promise<string> {
+    const res = await fetch(REPORTING_URL, {
+        method: "POST",
+        headers: {
+            "Content-Type": "text/xml;charset=UTF-8",
+            "Authorization": `Basic ${basicAuth()}`,
+            "SOAPAction": `http://service.reports.ws.five9.com/${action}`,
+            "Accept": "text/xml",
+        },
+        body,
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`Five9 Reporting error: ${res.status} ${text.substring(0, 200)}`);
+    return text;
 }
 
 async function soapRequest(body: string, action = ""): Promise<string> {
@@ -172,6 +189,88 @@ serve(async (req) => {
                                 : `Unexpected error (HTTP ${testRes.status})`,
                     raw_error: testRes.ok ? null : testBody,
                 };
+                break;
+            }
+            case "runReport": {
+                const folderName = url.searchParams.get("folderName") || "Call Log";
+                const reportName = url.searchParams.get("reportName") || "Call Log";
+                const startDate = url.searchParams.get("startDate");
+                const endDate = url.searchParams.get("endDate");
+                if (!startDate || !endDate) {
+                    return new Response(JSON.stringify({ error: "startDate and endDate are required" }), {
+                        status: 400,
+                        headers: { ...corsHeaders, "Content-Type": "application/json" },
+                    });
+                }
+                const runXml = `<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://service.reports.ws.five9.com/">
+  <soapenv:Body>
+    <ser:runReport>
+      <folderName>${folderName}</folderName>
+      <reportName>${reportName}</reportName>
+      <criteria>
+        <time>
+          <start>${startDate}T00:00:00.000</start>
+          <end>${endDate}T23:59:59.000</end>
+        </time>
+      </criteria>
+    </ser:runReport>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+                const runRes = await soapReportRequest(runXml, "runReport");
+                const idMatch = runRes.match(/<return[^>]*>(\d+)<\/return>/);
+                if (!idMatch) throw new Error(`Could not parse report identifier: ${runRes.substring(0, 400)}`);
+                data = { identifier: idMatch[1] };
+                break;
+            }
+            case "isReportRunning": {
+                const identifier = url.searchParams.get("identifier");
+                if (!identifier) {
+                    return new Response(JSON.stringify({ error: "identifier is required" }), {
+                        status: 400,
+                        headers: { ...corsHeaders, "Content-Type": "application/json" },
+                    });
+                }
+                const pollXml = `<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://service.reports.ws.five9.com/">
+  <soapenv:Body>
+    <ser:isReportRunning>
+      <identifier>${identifier}</identifier>
+    </ser:isReportRunning>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+                const pollRes = await soapReportRequest(pollXml, "isReportRunning");
+                const runningMatch = pollRes.match(/<return[^>]*>(true|false)<\/return>/i);
+                data = { running: runningMatch ? runningMatch[1].toLowerCase() === "true" : false };
+                break;
+            }
+            case "getReportCsv": {
+                const csvIdentifier = url.searchParams.get("identifier");
+                if (!csvIdentifier) {
+                    return new Response(JSON.stringify({ error: "identifier is required" }), {
+                        status: 400,
+                        headers: { ...corsHeaders, "Content-Type": "application/json" },
+                    });
+                }
+                const csvXml = `<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://service.reports.ws.five9.com/">
+  <soapenv:Body>
+    <ser:getReportResultCSV>
+      <identifier>${csvIdentifier}</identifier>
+    </ser:getReportResultCSV>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+                const csvRes = await soapReportRequest(csvXml, "getReportResultCSV");
+                const csvMatch = csvRes.match(/<return[^>]*>([\s\S]*?)<\/return>/i);
+                const csv = csvMatch
+                    ? csvMatch[1]
+                        .replace(/&amp;/g, "&")
+                        .replace(/&lt;/g, "<")
+                        .replace(/&gt;/g, ">")
+                        .replace(/&quot;/g, '"')
+                        .replace(/&#xd;/gi, "")
+                    : "";
+                data = { csv };
                 break;
             }
             default:
