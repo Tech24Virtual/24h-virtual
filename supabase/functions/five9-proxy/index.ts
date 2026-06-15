@@ -62,13 +62,16 @@ async function getUsers() {
     const cached = getCached("users");
     if (cached) return cached;
 
+    // v13: method renamed to getUsersInfo; user fields nested inside <generalInfo>
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://service.admin.ws.five9.com/">
-  <soapenv:Body><ser:getUsers><userNamePattern>.*</userNamePattern></ser:getUsers></soapenv:Body>
+  <soapenv:Body><ser:getUsersInfo><userNamePattern>.*</userNamePattern></ser:getUsersInfo></soapenv:Body>
 </soapenv:Envelope>`;
 
-    const response = await soapRequest(xml, "getUsers");
-    const users = parseXmlObjects(response, "return", ["userName", "firstName", "lastName", "email", "active", "extension"]);
+    const response = await soapRequest(xml, "getUsersInfo");
+    // v13 userInfo wraps fields in <generalInfo>; email element is "EMail" (capital)
+    const raw = parseXmlObjects(response, "generalInfo", ["userName", "firstName", "lastName", "EMail", "active", "extension"]);
+    const users = raw.map(u => ({ userName: u.userName, firstName: u.firstName, lastName: u.lastName, email: u.EMail, active: u.active, extension: u.extension }));
     if (users.length === 0) return { raw: response.substring(0, 3000), users };
     setCache("users", users, 300);
     return users;
@@ -78,9 +81,10 @@ async function getCampaigns() {
     const cached = getCached("campaigns");
     if (cached) return cached;
 
+    // v13: namePattern renamed to campaignNamePattern
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://service.admin.ws.five9.com/">
-  <soapenv:Body><ser:getCampaigns><namePattern>.*</namePattern></ser:getCampaigns></soapenv:Body>
+  <soapenv:Body><ser:getCampaigns><campaignNamePattern>.*</campaignNamePattern></ser:getCampaigns></soapenv:Body>
 </soapenv:Envelope>`;
 
     const response = await soapRequest(xml, "getCampaigns");
@@ -94,9 +98,10 @@ async function getSkills() {
     const cached = getCached("skills");
     if (cached) return cached;
 
+    // v13: namePattern renamed to skillNamePattern
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://service.admin.ws.five9.com/">
-  <soapenv:Body><ser:getSkills><namePattern>.*</namePattern></ser:getSkills></soapenv:Body>
+  <soapenv:Body><ser:getSkills><skillNamePattern>.*</skillNamePattern></ser:getSkills></soapenv:Body>
 </soapenv:Envelope>`;
 
     const response = await soapRequest(xml, "getSkills");
@@ -110,9 +115,10 @@ async function getDispositions() {
     const cached = getCached("dispositions");
     if (cached) return cached;
 
+    // v13: namePattern renamed to dispositionNamePattern
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://service.admin.ws.five9.com/">
-  <soapenv:Body><ser:getDispositions><namePattern>.*</namePattern></ser:getDispositions></soapenv:Body>
+  <soapenv:Body><ser:getDispositions><dispositionNamePattern>.*</dispositionNamePattern></ser:getDispositions></soapenv:Body>
 </soapenv:Envelope>`;
 
     const response = await soapRequest(xml, "getDispositions");
@@ -136,12 +142,11 @@ serve(async (req) => {
             case "skills": data = await getSkills(); break;
             case "dispositions": data = await getDispositions(); break;
             case "test": {
-                const testUrl = `https://api.five9.com/wsadmin/v12/AdminWebService?user=${encodeURIComponent(FIVE9_USERNAME)}`;
                 const testXml = `<?xml version="1.0" encoding="UTF-8"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://service.admin.ws.five9.com/">
   <soapenv:Body><ser:getApiVersions/></soapenv:Body>
 </soapenv:Envelope>`;
-                const testRes = await fetch(testUrl, {
+                const testRes = await fetch(SOAP_URL, {
                     method: "POST",
                     headers: {
                         "Content-Type": "text/xml;charset=UTF-8",
@@ -150,7 +155,23 @@ serve(async (req) => {
                     },
                     body: testXml,
                 });
-                data = { status: testRes.status, body: await testRes.text(), username: FIVE9_USERNAME, url: testUrl };
+                const testBody = await testRes.text();
+                const isAuthError = testRes.status === 401 || testBody.includes("InvalidAccountFault") || testBody.includes("password");
+                const isLocked = testBody.toLowerCase().includes("locked");
+                data = {
+                    status: testRes.status,
+                    ok: testRes.ok,
+                    url: SOAP_URL,
+                    username: FIVE9_USERNAME,
+                    diagnosis: testRes.ok
+                        ? "Auth succeeded"
+                        : isLocked
+                            ? "ACCOUNT LOCKED — unlock in Five9 admin console under Users"
+                            : isAuthError
+                                ? "AUTH FAILED — check FIVE9_PASSWORD secret matches the Five9 admin password"
+                                : `Unexpected error (HTTP ${testRes.status})`,
+                    raw_error: testRes.ok ? null : testBody,
+                };
                 break;
             }
             default:
