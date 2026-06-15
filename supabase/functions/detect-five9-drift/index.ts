@@ -80,21 +80,42 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const clientDepartmentId = body?.client_department_id as string | undefined;
-    const variables = (body?.variables ?? []) as Five9Var[];
-    const source = (body?.source ?? 'manual_paste') as string;
+    const isLive = body?.live === true;
 
     if (!clientDepartmentId) {
       return new Response(JSON.stringify({ error: 'client_department_id required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    if (!Array.isArray(variables)) {
-      return new Response(JSON.stringify({ error: 'variables must be an array' }), {
+
+    // In manual mode, variables must be provided; in live mode we fetch them from Five9
+    if (!isLive && !Array.isArray(body?.variables)) {
+      return new Response(JSON.stringify({ error: 'variables must be an array (or pass live:true to fetch from Five9)' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const admin = createClient(supabaseUrl, serviceKey);
+
+    // Resolve Five9 variables — live API or manual paste
+    let five9Vars: Five9Var[];
+    let source: string;
+
+    if (isLive) {
+      const proxyRes = await fetch(`${supabaseUrl}/functions/v1/five9-proxy?action=campaigns`);
+      if (!proxyRes.ok) {
+        return new Response(JSON.stringify({ error: 'Failed to fetch live Five9 campaigns' }), {
+          status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const proxyJson = await proxyRes.json();
+      const campaigns = (proxyJson.data ?? []) as Array<{ name: string; type: string }>;
+      five9Vars = campaigns.map((c) => ({ name: c.name, kind: 'campaign', type: c.type }));
+      source = 'live_api';
+    } else {
+      five9Vars = (body?.variables ?? []) as Five9Var[];
+      source = (body?.source ?? 'manual_paste') as string;
+    }
 
     // Load OS mappings for this department
     const { data: osMappings, error: mapErr } = await admin
@@ -104,7 +125,7 @@ Deno.serve(async (req) => {
       .eq('is_active', true);
     if (mapErr) throw mapErr;
 
-    const drift = computeDrift(osMappings ?? [], variables);
+    const drift = computeDrift(osMappings ?? [], five9Vars);
 
     const first = osMappings?.[0];
     const { data: inserted, error: insErr } = await admin

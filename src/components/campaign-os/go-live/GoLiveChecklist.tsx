@@ -134,11 +134,12 @@ export function GoLiveChecklist({ campaignId, campaignStatus }: Props) {
     },
     {
       label: 'Five9 configured',
-      description: 'Telephony configuration via Five9 (System 10 — coming soon).',
-      ok: false,
-      placeholder: true,
-      fixHref: `/admin/campaign-os/five9`,
-      fixLabel: 'Five9 mappings',
+      description: snapshot?.five9_ok
+        ? 'Five9 campaign is linked and variable mappings are complete.'
+        : 'Link a Five9 campaign and ensure at least 8 variable mappings are configured.',
+      ok: snapshot?.five9_ok ?? false,
+      fixHref: `/admin/campaign-os/five9?tab=campaign-link`,
+      fixLabel: 'Configure Five9',
     },
   ];
 
