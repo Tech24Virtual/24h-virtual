@@ -15,6 +15,8 @@
 import { test, expect } from '@playwright/test';
 import { loginAs } from '../helpers/auth';
 
+const isCI = !!process.env.CI;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Admin: Campaign Link tab
 // ─────────────────────────────────────────────────────────────────────────────
@@ -52,6 +54,7 @@ test.describe('Admin — Five9 Campaign Link tab', () => {
   });
 
   test('Live Five9 campaigns load in the dropdown after selecting a campaign', async ({ page }) => {
+    test.skip(isCI, 'Skipped in CI — requires live Five9 proxy credentials');
     await loginAs(page, 'admin');
     await page.goto('/admin/campaign-os/five9');
     await page.waitForLoadState('networkidle');
@@ -114,6 +117,7 @@ test.describe('Admin — Five9 Campaign Link tab', () => {
   });
 
   test('Admin can save a campaign mapping', async ({ page }) => {
+    test.skip(isCI, 'Skipped in CI — requires live Five9 proxy credentials');
     await loginAs(page, 'admin');
     await page.goto('/admin/campaign-os/five9');
     await page.waitForLoadState('networkidle');
