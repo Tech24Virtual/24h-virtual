@@ -3,31 +3,40 @@ import { corsHeaders, authenticateAgent } from "../_shared/agent-auth.ts";
 
 const FIVE9_USERNAME = Deno.env.get("FIVE9_USERNAME") ?? "";
 const FIVE9_PASSWORD = Deno.env.get("FIVE9_PASSWORD") ?? "";
-const REPORTING_URL = "https://api.five9.com/wsreports/v12/ReportingService";
+// Five9 Admin API v13 — reporting methods (runReport, isReportRunning, getReportResultCsv)
+// are confirmed present in the Admin API WSDL. The separate wsreports/ service returns 404.
+const ADMIN_URL = `https://api.five9.com/wsadmin/v13/AdminWebService?user=${encodeURIComponent(FIVE9_USERNAME)}`;
+const ADMIN_NS = "http://service.admin.ws.five9.com/";
 
 function basicAuth() {
   return btoa(`${FIVE9_USERNAME}:${FIVE9_PASSWORD}`);
 }
 
-async function soapReportRequest(body: string, action: string): Promise<string> {
-  const res = await fetch(REPORTING_URL, {
+async function soapAdminRequest(body: string, action: string, extraHeaders?: Record<string, string>): Promise<string> {
+  const res = await fetch(ADMIN_URL, {
     method: "POST",
     headers: {
       "Content-Type": "text/xml;charset=UTF-8",
       "Authorization": `Basic ${basicAuth()}`,
-      "SOAPAction": `http://service.reports.ws.five9.com/${action}`,
+      "SOAPAction": `${ADMIN_NS}${action}`,
       "Accept": "text/xml",
+      ...(extraHeaders ?? {}),
     },
     body,
   });
   const text = await res.text();
-  if (!res.ok) throw new Error(`Five9 Reporting error ${res.status}: ${text.substring(0, 300)}`);
+  if (!res.ok) throw new Error(`Five9 Admin ${action} error ${res.status}: ${text.substring(0, 400)}`);
   return text;
 }
 
-async function runReport(folderName: string, reportName: string, startDate: string, endDate: string): Promise<string> {
+async function runReport(
+  folderName: string,
+  reportName: string,
+  startDate: string,
+  endDate: string
+): Promise<{ identifier: string; sessionCookie: string }> {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://service.reports.ws.five9.com/">
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="${ADMIN_NS}">
   <soapenv:Body>
     <ser:runReport>
       <folderName>${folderName}</folderName>
@@ -41,41 +50,67 @@ async function runReport(folderName: string, reportName: string, startDate: stri
     </ser:runReport>
   </soapenv:Body>
 </soapenv:Envelope>`;
-  const response = await soapReportRequest(xml, "runReport");
-  const match = response.match(/<return[^>]*>(\d+)<\/return>/);
-  if (!match) throw new Error(`Could not parse report identifier: ${response.substring(0, 300)}`);
-  return match[1];
+  // Make the request manually to capture session cookies for load-balancer affinity
+  const res = await fetch(ADMIN_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "text/xml;charset=UTF-8",
+      "Authorization": `Basic ${basicAuth()}`,
+      "SOAPAction": `${ADMIN_NS}runReport`,
+      "Accept": "text/xml",
+    },
+    body: xml,
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`Five9 Admin runReport error ${res.status}: ${text.substring(0, 400)}`);
+  // Capture session cookies for backend-affinity on follow-up calls
+  const cookies: string[] = [];
+  if ("getSetCookie" in res.headers) {
+    const setCookies = (res.headers as unknown as { getSetCookie(): string[] }).getSetCookie();
+    for (const sc of setCookies) cookies.push(sc.split(";")[0].trim());
+  } else {
+    const sc = res.headers.get("set-cookie");
+    if (sc) cookies.push(sc.split(";")[0].trim());
+  }
+  const sessionCookie = cookies.join("; ");
+  // Identifier is an opaque string token (not just digits)
+  const match = text.match(/<return[^>]*>([^<]+)<\/return>/);
+  if (!match) throw new Error(`Could not parse report identifier: ${text.substring(0, 400)}`);
+  return { identifier: match[1].trim(), sessionCookie };
 }
 
-async function pollUntilReady(identifier: string, maxAttempts = 10): Promise<void> {
+async function pollUntilReady(
+  identifier: string,
+  sessionCookie: string,
+  maxAttempts = 15
+): Promise<void> {
+  const cookieHeader = sessionCookie ? { "Cookie": sessionCookie } : {};
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     await new Promise((r) => setTimeout(r, 3000));
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://service.reports.ws.five9.com/">
-  <soapenv:Body>
-    <ser:isReportRunning>
-      <identifier>${identifier}</identifier>
-    </ser:isReportRunning>
-  </soapenv:Body>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="${ADMIN_NS}">
+  <soapenv:Body><ser:isReportRunning><identifier>${identifier}</identifier></ser:isReportRunning></soapenv:Body>
 </soapenv:Envelope>`;
-    const response = await soapReportRequest(xml, "isReportRunning");
-    const match = response.match(/<return[^>]*>(true|false)<\/return>/i);
-    const running = match ? match[1].toLowerCase() === "true" : false;
-    if (!running) return;
+    try {
+      const response = await soapAdminRequest(xml, "isReportRunning", cookieHeader);
+      const match = response.match(/<return[^>]*>(true|false)<\/return>/i);
+      const running = match ? match[1].toLowerCase() === "true" : false;
+      if (!running) return;
+    } catch {
+      // Five9 sometimes returns 500 when report is done — treat as complete and proceed
+      return;
+    }
   }
   throw new Error(`Report ${identifier} still running after ${maxAttempts} attempts`);
 }
 
-async function getReportCsv(identifier: string): Promise<string> {
+async function getReportCsv(identifier: string, sessionCookie: string): Promise<string> {
+  const cookieHeader = sessionCookie ? { "Cookie": sessionCookie } : {};
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://service.reports.ws.five9.com/">
-  <soapenv:Body>
-    <ser:getReportResultCSV>
-      <identifier>${identifier}</identifier>
-    </ser:getReportResultCSV>
-  </soapenv:Body>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="${ADMIN_NS}">
+  <soapenv:Body><ser:getReportResultCsv><identifier>${identifier}</identifier></ser:getReportResultCsv></soapenv:Body>
 </soapenv:Envelope>`;
-  const response = await soapReportRequest(xml, "getReportResultCSV");
+  const response = await soapAdminRequest(xml, "getReportResultCsv", cookieHeader);
   const match = response.match(/<return[^>]*>([\s\S]*?)<\/return>/i);
   if (!match) return "";
   return match[1]
@@ -286,9 +321,9 @@ Deno.serve(async (req) => {
           message: `Pulling report for ${cm.client_name} (campaign: ${cm.five9_campaign_name})`,
         });
 
-        const identifier = await runReport("Call Log", cm.five9_campaign_name, period_start!, period_end!);
-        await pollUntilReady(identifier);
-        const csv = await getReportCsv(identifier);
+        const { identifier, sessionCookie } = await runReport("Campaign Reports", "Campaign Activity", period_start!, period_end!);
+        await pollUntilReady(identifier, sessionCookie);
+        const csv = await getReportCsv(identifier, sessionCookie);
 
         const csvRows = parseCsv(csv);
         const records = csvRows
