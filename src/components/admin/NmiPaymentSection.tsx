@@ -126,8 +126,20 @@ export function NmiPaymentSection({ lead, onUpdate }: NmiPaymentSectionProps) {
           currency: lead.billing_currency || 'usd',
         },
       });
-      if (error) throw error;
-      if (!data?.success) throw new Error(data?.message || 'Charge failed');
+
+      if (error) {
+        // Extract the real error body from FunctionsHttpError when possible
+        let message = 'Function error';
+        try {
+          const body = await (error as any).context?.json?.();
+          message = body?.message || body?.error || error.message;
+        } catch (_) {
+          message = error.message;
+        }
+        throw new Error(message);
+      }
+
+      if (!data?.success) throw new Error(data?.message || 'Charge declined');
       toast({ title: 'Charge successful', description: `$${amount.toFixed(2)} charged. TXN: ${data.transaction_id}` });
       setShowCharge(false);
       setChargeAmount('');

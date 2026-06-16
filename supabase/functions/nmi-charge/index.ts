@@ -57,6 +57,7 @@ Deno.serve(async (req) => {
     });
 
     if (!result.success) {
+      // Record failure — non-blocking, ignore insert errors
       await supabase.from("payment_failures").insert({
         lead_id,
         nmi_transaction_id: result.transaction_id || null,
@@ -81,9 +82,11 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Return 200 so the Supabase client can read the body.
+      // Payment declines are application-level events, not HTTP errors.
       return new Response(
         JSON.stringify({ success: false, message: result.message, response_code: result.response_code }),
-        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -94,7 +97,7 @@ Deno.serve(async (req) => {
         amount,
         message: result.message,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
     return new Response(
