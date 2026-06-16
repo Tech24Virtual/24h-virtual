@@ -7,6 +7,13 @@
  * Only callable by admins (RLS enforces it).
  */
 import { supabase } from '@/integrations/supabase/client';
+
+// Monthly subscription price by plan_minutes — mirrors the Stripe pricing sheet.
+// Update these when pricing changes.
+const MONTHLY_PRICES_USD: Record<number, number> = {
+  50: 49, 100: 89, 250: 149, 500: 249, 750: 349,
+  1000: 449, 1250: 549, 1500: 649, 2000: 849, 2500: 1049, 5000: 1999,
+};
 import {
   DIRECT_CLIENT_DEFAULT_TEMPLATE,
   buildDirectClientChecklistState,
@@ -123,6 +130,52 @@ export async function applyClientActivationEffects(
       backfilled_from_legacy: !!legacyChecklist,
     },
   });
+
+  // 6. NMI first-payment trigger (System 4)
+  const { data: fullLead } = await supabase
+    .from('leads')
+    .select('payment_processor, nmi_customer_vault_id, plan_minutes, billing_currency')
+    .eq('id', leadId)
+    .single();
+
+  if (fullLead?.payment_processor === 'nmi') {
+    if (fullLead.nmi_customer_vault_id && fullLead.plan_minutes) {
+      const amount =
+        MONTHLY_PRICES_USD[fullLead.plan_minutes as keyof typeof MONTHLY_PRICES_USD] ??
+        MONTHLY_PRICES_USD[
+          (Object.keys(MONTHLY_PRICES_USD)
+            .map(Number)
+            .sort((a, b) => a - b)
+            .find((k) => k >= (fullLead.plan_minutes ?? 0)) ?? 50) as keyof typeof MONTHLY_PRICES_USD
+        ] ??
+        49;
+
+      await supabase.functions.invoke('nmi-charge', {
+        body: {
+          lead_id: leadId,
+          amount,
+          description: 'First month subscription',
+          currency: fullLead.billing_currency || 'usd',
+        },
+      });
+    } else {
+      // Vault not set up yet — notify admin to complete payment setup
+      const { data: adminUsers } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .in('role', ['admin', 'billing']);
+
+      for (const u of adminUsers || []) {
+        await supabase.from('notifications').insert({
+          user_id: u.user_id,
+          title: 'New client activated — payment setup required',
+          message: `NMI client ${leadId} was activated but has no card on file. Add a card to collect the first payment.`,
+          category: 'billing',
+          action_url: `/admin/leads/${leadId}`,
+        });
+      }
+    }
+  }
 
   return { handoffId, intakeId, alreadyExisted: false };
 }

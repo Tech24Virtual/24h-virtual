@@ -17,6 +17,7 @@ import { DynamicBillingPreview } from '@/components/admin/DynamicBillingPreview'
 import { ActivityTimeline, TaskList, EmailFollowupList } from '@/components/admin/crm';
 import { LeadIntelligencePanel } from '@/components/admin/LeadIntelligencePanel';
 import { LeadConversionDialog } from '@/components/admin/LeadConversionDialog';
+import { NmiPaymentSection } from '@/components/admin/NmiPaymentSection';
 import { applyClientActivationEffects } from '@/lib/client-onboarding/applyClientActivationEffects';
 import { calculateLeadScore, getScoreLabel, getScoreBadgeClasses, type ScoringRules, DEFAULT_SCORING_RULES } from '@/lib/leadScoring';
 import {
@@ -55,6 +56,11 @@ interface Lead {
   stripe_subscription_id: string | null;
   dynamic_billing_enabled: boolean | null;
   user_id: string | null;
+  payment_processor: string | null;
+  nmi_customer_vault_id: string | null;
+  nmi_card_last_four: string | null;
+  nmi_card_type: string | null;
+  nmi_card_expiry: string | null;
 }
 
 const serviceLabels: Record<string, string> = {
@@ -503,6 +509,9 @@ export default function AdminLeadDetail() {
               </CardContent>
             </Card>
           </div>
+
+          {/* NMI Payment Section */}
+          <NmiPaymentSection lead={lead} onUpdate={fetchLead} />
         </div>
 
         {/* Right Column - AI Intelligence, CRM: Activity & Tasks */}

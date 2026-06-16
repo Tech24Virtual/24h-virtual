@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders, authenticateAgent, getEffectiveMode } from "../_shared/agent-auth.ts";
+import { nmiDirectCharge } from "../_shared/nmi.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -100,11 +101,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 3. Get active clients
+    // 3. Get active clients (Stripe or NMI)
     const { data: clients } = await supabase
       .from("leads")
-      .select("id, name, company, plan_minutes, custom_minute_rate, stripe_subscription_id, service_type")
-      .not("stripe_subscription_id", "is", null)
+      .select("id, name, company, plan_minutes, custom_minute_rate, stripe_subscription_id, service_type, payment_processor, nmi_customer_vault_id, billing_currency")
+      .or("stripe_subscription_id.not.is.null,nmi_customer_vault_id.not.is.null")
       .eq("pipeline_stage", "active");
 
     let hasErrors = false;
@@ -160,10 +161,50 @@ Deno.serve(async (req) => {
 
         let stripeInvoiceId = null;
         let stripeInvoiceUrl = null;
+        let nmiTransactionId = null;
+        const processor = client.payment_processor || "stripe";
 
         if (mode === "simulation") {
-          stripeInvoiceId = `sim_inv_${crypto.randomUUID().slice(0, 8)}`;
-          stripeInvoiceUrl = `https://stripe.com/simulated/${stripeInvoiceId}`;
+          if (processor === "nmi") {
+            nmiTransactionId = `sim_nmi_${crypto.randomUUID().slice(0, 8)}`;
+          } else {
+            stripeInvoiceId = `sim_inv_${crypto.randomUUID().slice(0, 8)}`;
+            stripeInvoiceUrl = `https://stripe.com/simulated/${stripeInvoiceId}`;
+          }
+        } else if (mode === "live" && overageAmount > 0) {
+          // Live mode: charge via the appropriate processor
+          if (processor === "nmi" && client.nmi_customer_vault_id) {
+            const nmiKey = Deno.env.get("NMI_API_KEY");
+            if (nmiKey) {
+              const chargeResult = await nmiDirectCharge({
+                nmiKey,
+                customerVaultId: client.nmi_customer_vault_id,
+                amount: overageAmount,
+                currency: client.billing_currency || "usd",
+                description: `Overage charges ${period_start} to ${period_end}`,
+              });
+              if (chargeResult.success) {
+                nmiTransactionId = chargeResult.transaction_id || null;
+              } else {
+                hasErrors = true;
+                await supabase.from("payment_failures").insert({
+                  lead_id: client.id,
+                  nmi_transaction_id: chargeResult.transaction_id || null,
+                  failure_code: chargeResult.response_code || "declined",
+                  failure_message: chargeResult.message,
+                  payment_processor: "nmi",
+                  attempt_number: 1,
+                });
+                await supabase.from("mission_control_events").insert({
+                  mission_id: mission.id,
+                  agent_name: "CallReportAgent",
+                  event_type: "error",
+                  message: `NMI charge failed for ${(client.name || client.company || "").slice(0, 30)}: ${chargeResult.message}`,
+                });
+              }
+            }
+          }
+          // Stripe live charging is handled separately via create-invoice / send-payment-link
         }
 
         await supabase.from("agent_runs").insert({
@@ -171,7 +212,7 @@ Deno.serve(async (req) => {
           agent_name: "CallReportAgent",
           step_name: "compute_billing",
           input_snapshot: { client_id: client.id, totalMinutes, totalCalls, includedMinutes },
-          output_snapshot: { overageMinutes, overageAmount, invoice_created: !!stripeInvoiceId },
+          output_snapshot: { overageMinutes, overageAmount, invoice_created: !!(stripeInvoiceId || nmiTransactionId), processor },
           success: true,
         });
 
@@ -188,6 +229,8 @@ Deno.serve(async (req) => {
           plan_name: client.service_type || "Standard",
           stripe_invoice_id: stripeInvoiceId,
           stripe_invoice_url: stripeInvoiceUrl,
+          nmi_transaction_id: nmiTransactionId,
+          payment_processor: processor,
           mode_used: mode,
           raw_details: { client_name: client.name || client.company, overage_rate: overageRate },
         });
