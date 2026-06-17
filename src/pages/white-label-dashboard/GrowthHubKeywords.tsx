@@ -110,7 +110,7 @@ export default function GrowthHubKeywords() {
         body: { partner_id: partner!.id, focus_area: focusArea || undefined },
       });
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (data?.error) throw new Error(typeof data.error === 'string' ? data.error : data.error?.message ?? 'Unknown error');
       return data.suggestions;
     },
     onSuccess: (data) => {

@@ -66,7 +66,7 @@ export default function GrowthHubEmail() {
         body: { api_key: apiKey, from_email: fromEmail },
       });
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (data?.error) throw new Error(typeof data.error === 'string' ? data.error : data.error?.message ?? 'Unknown error');
       return data;
     },
     onSuccess: () => toast({ title: "Connection verified!" }),

@@ -181,7 +181,8 @@ export default function WLFeedbackQueue() {
       const { data, error } = await supabase.functions.invoke('escalate-feedback', {
         body: { wl_feedback_id: escalating.id, partner_summary: summary.trim(), include_end_client_identity: includeIdentity },
       });
-      if (error || (data as any)?.error) throw new Error((data as any)?.error || error?.message);
+      const dataErr = (data as any)?.error;
+      if (error || dataErr) throw new Error(typeof dataErr === 'string' ? dataErr : dataErr?.message || error?.message || 'Failed to escalate');
       toast({ title: 'Escalated', description: 'Sent to platform support.' });
       setEscalating(null); setSummary(''); setIncludeIdentity(false);
       load();

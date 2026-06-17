@@ -88,7 +88,7 @@ export default function GrowthHubBlog() {
         body: { queue_id: queueId },
       });
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (data?.error) throw new Error(typeof data.error === 'string' ? data.error : data.error?.message ?? 'Unknown error');
       return data;
     },
     onSuccess: () => {
@@ -104,7 +104,7 @@ export default function GrowthHubBlog() {
         body: { queue_id: queueId },
       });
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (data?.error) throw new Error(typeof data.error === 'string' ? data.error : data.error?.message ?? 'Unknown error');
       return data;
     },
     onSuccess: () => {

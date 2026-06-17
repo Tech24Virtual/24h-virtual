@@ -29,7 +29,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const partnerId = body.partner_id || null;
+    const partnerId = body.partner_id || body.partnerId || null;
 
     // Determine billing period (current month)
     const now = new Date();

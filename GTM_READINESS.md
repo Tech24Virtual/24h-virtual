@@ -119,19 +119,19 @@ Last updated: 2026-06-12
 | Vite allowedHosts for ngrok | allowedHosts: true in vite.config.ts server block | vite.config.ts |
 | CLAUDE.md updated | Canonical Campaign OS path, suppressDefaultLogo gotcha, test user list, architecture docs | CLAUDE.md |
 | GitHub Actions CI | 4 secrets added (SUPABASE_ACCESS_TOKEN, SUPABASE_PROJECT_ID, VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY), CI pipeline green | .github/workflows/ |
+| Admin branding edit UI | 8th tab on AdminPartnerDetail — view + edit WL branding, RLS fix, login preview mockup | AdminPartnerBrandingTab.tsx |
+| [object Object] UUID error on WL dashboard | Root cause: `escalate-feedback` + `escalate-wl-ticket` imported corsHeaders from non-existent URL `@supabase/supabase-js@2.95.0/cors`, causing function startup failure and returning non-string error payloads. Fixed: inline corsHeaders in both functions, defensive string coercion for `data.error` in all WL dashboard mutation handlers, `calculate-wl-usage` now reads both `partner_id` and `partnerId` | escalate-feedback/index.ts, escalate-wl-ticket/index.ts, Feedback.tsx, GrowthHub*.tsx |
 
 ## 🔴 REMAINING
 
 | Task | Priority | Notes |
 |------|----------|-------|
-| [object Object] UUID error on WL dashboard | LOW | Pre-existing, originates in Edge Function server-side, not client code |
 | Five9 architecture refactor | HIGH | Agreed hybrid approach: proxy + monthly pull + PDF exports. Needs implementation |
 | NMI payment integration | HIGH | Paul approved NMI. Needs scoping and build |
 | System 4 — Close & activation → onboarding trigger | HIGH | Payment webhook → applyClientActivationEffects(). Blocked on NMI decision |
 | System 10 — Five9 campaign mapping validation | MEDIUM | Block go-live if campaign mappings incomplete or have drift |
 | System 27 — Direct billing | HIGH | Invoice engine based on Five9 call volume. Not built |
 | Tracking pixels on WL portals | HIGH | Privacy/legal — GA4 + Meta suppressed in code but needs server-level enforcement |
-| Admin branding edit UI | MEDIUM | Admins can view WL partner branding but have no edit UI — needs form in AdminPartnerDetail or dedicated page |
 
 ## 📊 Test Score
 ```

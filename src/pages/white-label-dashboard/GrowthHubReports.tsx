@@ -58,7 +58,7 @@ export default function GrowthHubReports() {
         body: { partner_id: partner!.id, report_month: selectedMonth },
       });
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (data?.error) throw new Error(typeof data.error === 'string' ? data.error : data.error?.message ?? 'Unknown error');
       return data;
     },
     onSuccess: () => {
