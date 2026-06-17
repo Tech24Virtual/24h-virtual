@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { startOfMonth, endOfMonth, format } from 'date-fns';
+import { startOfMonth, endOfMonth, format, parseISO } from 'date-fns';
 
 export interface CallSummary {
   client_id: string;
@@ -44,7 +44,7 @@ export interface CallLogFilters {
 }
 
 function periodBounds(period: string): { start: string; end: string } {
-  const d = new Date(period);
+  const d = parseISO(`${period}-01`);
   return {
     start: format(startOfMonth(d), 'yyyy-MM-dd'),
     end: format(endOfMonth(d), 'yyyy-MM-dd'),

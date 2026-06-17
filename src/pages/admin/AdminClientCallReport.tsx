@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Phone, Clock, TrendingDown, BarChart3, Download, FileText, Search, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Phone, Clock, TrendingDown, BarChart3, Download, FileText, Table2, Search, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { downloadCallReportXlsx } from '@/lib/callReportXlsx';
+import { downloadCallReportPdf } from '@/lib/callReportPdf';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -176,8 +178,40 @@ export default function AdminClientCallReport() {
     const a = document.createElement('a');
     a.href = url;
     a.download = `call-report-${clientName}-${period}.csv`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+  };
+
+  const hasData = !logs.isLoading && (logs.data?.count ?? 0) > 0;
+
+  const handleExportXlsx = async () => {
+    if (!leadId) return;
+    const start = format(startOfMonth(parseISO(`${period}-01`)), 'yyyy-MM-dd');
+    const end   = format(endOfMonth(parseISO(`${period}-01`)),   'yyyy-MM-dd');
+    const { data } = await (supabase as any)
+      .from('call_logs')
+      .select('call_date, call_time, caller_phone, agent_name, campaign_name, handle_time_seconds, billable_minutes, disposition, status, call_direction, notes')
+      .eq('client_id', leadId)
+      .gte('call_date', start)
+      .lte('call_date', end)
+      .order('call_date', { ascending: false });
+    downloadCallReportXlsx(data ?? [], summary.data, clientName, period);
+  };
+
+  const handleExportPdf = async () => {
+    if (!leadId) return;
+    const start = format(startOfMonth(parseISO(`${period}-01`)), 'yyyy-MM-dd');
+    const end   = format(endOfMonth(parseISO(`${period}-01`)),   'yyyy-MM-dd');
+    const { data } = await (supabase as any)
+      .from('call_logs')
+      .select('call_date, call_time, caller_name, caller_phone, agent_name, disposition, handle_time_seconds, status')
+      .eq('client_id', leadId)
+      .gte('call_date', start)
+      .lte('call_date', end)
+      .order('call_date', { ascending: false });
+    await downloadCallReportPdf(data ?? [], summary.data, clientName, period);
   };
 
   const s = summary.data;
@@ -210,11 +244,13 @@ export default function AdminClientCallReport() {
             <Download className="w-4 h-4 mr-2" />
             Export CSV
           </Button>
-          <Button variant="outline" asChild data-testid="export-pdf-btn">
-            <Link to={`/admin/clients/${leadId}/call-report/pdf`}>
-              <FileText className="w-4 h-4 mr-2" />
-              Export PDF
-            </Link>
+          <Button variant="outline" onClick={handleExportXlsx} disabled={!hasData} data-testid="export-xlsx-btn">
+            <Table2 className="w-4 h-4 mr-2" />
+            Export XLSX
+          </Button>
+          <Button variant="outline" onClick={handleExportPdf} disabled={!hasData} data-testid="export-pdf-btn">
+            <FileText className="w-4 h-4 mr-2" />
+            Export PDF
           </Button>
         </div>
       </div>
