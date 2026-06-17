@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { PartnerFulfillmentMiniTable } from '@/components/admin/fulfillment/PartnerFulfillmentMiniTable';
+import { AdminPartnerBrandingTab } from '@/components/admin/AdminPartnerBrandingTab';
 
 export default function AdminPartnerDetail() {
   const { id } = useParams<{ id: string }>();
@@ -51,7 +52,7 @@ export default function AdminPartnerDetail() {
     queryFn: async () => {
       const { data } = await supabase
         .from('white_label_branding')
-        .select('company_name, logo_url')
+        .select('*')
         .eq('partner_id', id!)
         .maybeSingle();
       return data;
@@ -318,6 +319,7 @@ export default function AdminPartnerDetail() {
           <TabsTrigger value="mappings">Campaign Mappings</TabsTrigger>
           <TabsTrigger value="usage">Usage & Billing</TabsTrigger>
           <TabsTrigger value="agreements">Agreements</TabsTrigger>
+          <TabsTrigger value="branding">Branding</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -642,6 +644,11 @@ export default function AdminPartnerDetail() {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Branding Tab */}
+        <TabsContent value="branding">
+          <AdminPartnerBrandingTab partnerId={id!} />
         </TabsContent>
       </Tabs>
     </div>

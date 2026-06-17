@@ -227,25 +227,71 @@ export default function AdminWLPreview() {
                   )}
                 </TabsContent>
                 <TabsContent value="login" className="mt-4">
-                  {previewUrl ? (
-                    <div
-                      className="mx-auto border rounded-lg overflow-hidden bg-background"
-                      style={{
-                        maxWidth: viewport === "mobile" ? 390 : "100%",
-                        height: 600,
-                      }}
-                    >
-                      <iframe
-                        src={`${previewUrl}/login`}
-                        className="w-full h-full"
-                        title="Login preview"
-                      />
+                  {/* Static mockup — a live iframe triggers WL auth guards that
+                      redirect the admin user in a rapid loop, causing visible blinking.
+                      The branding state is already loaded so we render it directly. */}
+                  <div
+                    className="mx-auto border rounded-lg overflow-hidden bg-background flex items-center justify-center"
+                    style={{
+                      maxWidth: viewport === "mobile" ? 390 : "100%",
+                      height: 600,
+                      fontFamily: branding?.font_body
+                        ? `'${branding.font_body}', sans-serif`
+                        : undefined,
+                    }}
+                  >
+                    <div className="w-full max-w-sm mx-auto p-6">
+                      <div className="bg-card rounded-xl border shadow-sm p-6 space-y-5">
+                        <div className="text-center space-y-3">
+                          {branding?.logo_url && (
+                            <img
+                              src={branding.logo_url}
+                              alt="Logo"
+                              className="h-10 mx-auto object-contain"
+                            />
+                          )}
+                          <h2
+                            className="text-xl font-bold text-foreground"
+                            style={
+                              branding?.font_heading
+                                ? { fontFamily: `'${branding.font_heading}', sans-serif` }
+                                : undefined
+                            }
+                          >
+                            {branding?.login_page_title ||
+                              branding?.company_name ||
+                              partner?.company_name ||
+                              "Client Portal"}
+                          </h2>
+                          {branding?.welcome_message && (
+                            <p className="text-sm text-muted-foreground">
+                              {branding.welcome_message}
+                            </p>
+                          )}
+                        </div>
+                        <div className="space-y-3">
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-foreground">Email</label>
+                            <div className="h-9 rounded-md border bg-background px-3 flex items-center text-xs text-muted-foreground">
+                              client@company.com
+                            </div>
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-foreground">Password</label>
+                            <div className="h-9 rounded-md border bg-background px-3 flex items-center text-xs text-muted-foreground">
+                              ••••••••
+                            </div>
+                          </div>
+                          <div
+                            className="h-9 rounded-md flex items-center justify-center text-xs font-medium text-white"
+                            style={{ backgroundColor: branding?.primary_color || "#0B60B0" }}
+                          >
+                            Sign In
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center py-12">
-                      Partner has no slug configured.
-                    </p>
-                  )}
+                  </div>
                 </TabsContent>
               </Tabs>
             </CardContent>
