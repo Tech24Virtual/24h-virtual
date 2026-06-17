@@ -8,7 +8,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const auth = await authenticateAgent(req, ["admin", "billing"]);
+    const auth = await authenticateAgent(req, ["admin", "billing", "client"]);
     if (auth.error) return auth.error;
 
     const nmiKey = Deno.env.get("NMI_API_KEY");
@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
 
     const { data: lead, error: leadErr } = await supabase
       .from("leads")
-      .select("id, name")
+      .select("id, name, user_id")
       .eq("id", lead_id)
       .single();
 
@@ -50,6 +50,17 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Lead not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Clients may only add a card to their own lead
+    const isClientOnly = auth.user.roles.includes("client") &&
+      !auth.user.roles.includes("admin") &&
+      !auth.user.roles.includes("billing");
+    if (isClientOnly && lead.user_id !== auth.user.id) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden: not your account" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

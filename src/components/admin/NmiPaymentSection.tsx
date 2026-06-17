@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CreditCard, Plus, RefreshCw, Zap } from 'lucide-react';
+import { AlertTriangle, CreditCard, Plus, RefreshCw, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -190,7 +190,16 @@ export function NmiPaymentSection({ lead, onUpdate }: NmiPaymentSectionProps) {
         )}
 
         {isNmi && !hasVault && (
-          <p className="text-sm text-muted-foreground">No card on file yet.</p>
+          <div
+            data-testid="nmi-no-card-warning"
+            className="rounded-md bg-amber-50 border border-amber-200 p-4 flex items-start gap-3"
+          >
+            <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-amber-800">No card on file — billing is disabled</p>
+              <p className="text-sm text-amber-700 mt-0.5">Add a card to enable automatic billing for this client.</p>
+            </div>
+          </div>
         )}
 
         <Separator />
