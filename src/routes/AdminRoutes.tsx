@@ -52,6 +52,7 @@ const AdminClientCallReport = lazy(() => import("@/pages/admin/AdminClientCallRe
 const AdminFulfillmentIntake = lazy(() => import("@/pages/admin/AdminFulfillmentIntake"));
 const AdminFulfillmentIntakeDetail = lazy(() => import("@/pages/admin/AdminFulfillmentIntakeDetail"));
 const AdminProductTesting = lazy(() => import("@/pages/admin/AdminProductTesting"));
+const NmiPaymentTest = lazy(() => import("@/pages/admin/NmiPaymentTest"));
 const CampaignOsLayout = lazy(() => import("@/pages/admin/campaign-os/CampaignOsLayout"));
 const CampaignOsOverview = lazy(() => import("@/pages/admin/campaign-os/CampaignOsOverview"));
 const CampaignOsDepartments = lazy(() => import("@/pages/admin/campaign-os/CampaignOsDepartments"));
@@ -104,6 +105,7 @@ export const AdminRoutes = (
       <Route path="analytics/dashboard-events" element={<LazyRoute><AdminDashboardEvents /></LazyRoute>} />
       <Route path="settings" element={<LazyRoute><AdminSettings /></LazyRoute>} />
       <Route path="settings/product-testing" element={<LazyRoute><AdminProductTesting /></LazyRoute>} />
+      <Route path="nmi-test" element={<LazyRoute><NmiPaymentTest /></LazyRoute>} />
       <Route path="support" element={<LazyRoute><AdminSupport /></LazyRoute>} />
       <Route path="blog" element={<LazyRoute><AdminBlog /></LazyRoute>} />
       <Route path="blog/editor" element={<LazyRoute><AdminBlogEditor /></LazyRoute>} />

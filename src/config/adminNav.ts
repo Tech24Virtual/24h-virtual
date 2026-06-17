@@ -156,6 +156,7 @@ export const adminNavGroups: AdminNavGroup[] = [
       { name: 'Audit Log', href: '/admin/audit-log', hint: 'System-wide activity trail' },
       { name: 'Feedback Queue', href: '/admin/feedback', hint: 'Cross-dashboard product feedback intake' },
       { name: 'Product Testing', href: '/admin/settings/product-testing', hint: 'QA harness, seed_qa_state' },
+      { name: 'NMI Test', href: '/admin/nmi-test', hint: 'Sandbox payment gateway demo' },
       { name: 'Architecture', href: '/admin/architecture', hint: 'System architecture map' },
     ],
   },
