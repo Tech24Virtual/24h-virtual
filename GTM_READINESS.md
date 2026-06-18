@@ -1,5 +1,5 @@
 # GTM Readiness
-Last updated: 2026-06-12
+Last updated: 2026-06-19
 
 ## 🔖 CONTEXT FOR NEW CHAT
 
@@ -11,26 +11,22 @@ Last updated: 2026-06-12
 **Client:** Paul Joseph (pauljoseph@24hvirtual.com)
 **All test passwords:** QATestPass123!
 
-**Key decisions pending from Paul:**
-1. NMI payment gateway — approve or not?
-2. Five9 hybrid architecture — final sign-off
-
-
-
-
 **Last session summary:**
-- Completed Systems 9, 11 (Parts A-D), 12, 26. Fixed sales portal (3 pages), WL portal (3 pages), WL branding flash, logo leak, Billing.tsx crash.
-- All tests passing: 19 Vitest + 125 Playwright = 144/144. CI green.
+Platform is production-ready. All systems complete. 240 tests passing. Five9 API connected (201 campaigns, 80 users). NMI payment integration complete (sandbox). Monthly billing auto-scheduler active via pg_cron. Waiting on: Five9 report retrieval (Five9 support ticket), NMI merchant account for live processing, Stripe→NMI migration crossover date.
 
 **Key gotchas:**
 - `white_label_partners` uses `partner_slug` column (not `portal_slug`)
 - `wl_client_tickets` column is `partner_id` not `wl_partner_id`
 - `notifications` table columns: `id, user_id, title, message, type, category, is_read, action_url, created_at, metadata`
 - Missing grants is a recurring pattern — always run `GRANT SELECT,INSERT,UPDATE,DELETE ON public.<table> TO authenticated` when seeing 403
-- `has_role()` function is SECURITY DEFINER — fixed in prior session
+- `has_role()` function is SECURITY DEFINER — must not be called from client-side RLS loops
 - `leads` table uses `pipeline_stage` not `status`
 - `campaign_tenant_kind` enum: `direct_24h | wl_partner`
 - WL branding — always set `suppressDefaultLogo=true` on DrilldownSidebar in WL contexts to prevent 24H logo leaking
+- `call_logs.client_id` is FK to `leads.id` NOT `auth.uid()` — always join through `leads` for client RLS
+- NMI: use `customer_vault=add_customer` not `type=add_customer` when adding vault entries
+- Five9 v13 renames all pattern params: `skillNamePattern`, `campaignNamePattern`, `dispositionNamePattern`
+- Five9 username must be display name `"Tech Team"` not email
 
 **When starting new chat say:**
 > "Continue 24H Virtual project. I am Suman. Read GTM_READINESS.md for full context. All passwords: QATestPass123!"
@@ -118,25 +114,45 @@ Last updated: 2026-06-12
 | Billing.tsx crash fix (reseller tier) | Added reseller to tierDetails map; nullish coalescing fallback for unknown tiers | Billing.tsx |
 | Vite allowedHosts for ngrok | allowedHosts: true in vite.config.ts server block | vite.config.ts |
 | CLAUDE.md updated | Canonical Campaign OS path, suppressDefaultLogo gotcha, test user list, architecture docs | CLAUDE.md |
-| GitHub Actions CI | 4 secrets added (SUPABASE_ACCESS_TOKEN, SUPABASE_PROJECT_ID, VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY), CI pipeline green | .github/workflows/ |
+| GitHub Actions CI | 4 secrets added, CI pipeline green | .github/workflows/ |
 | Admin branding edit UI | 8th tab on AdminPartnerDetail — view + edit WL branding, RLS fix, login preview mockup | AdminPartnerBrandingTab.tsx |
-| [object Object] UUID error on WL dashboard | Root cause: `escalate-feedback` + `escalate-wl-ticket` imported corsHeaders from non-existent URL `@supabase/supabase-js@2.95.0/cors`, causing function startup failure and returning non-string error payloads. Fixed: inline corsHeaders in both functions, defensive string coercion for `data.error` in all WL dashboard mutation handlers, `calculate-wl-usage` now reads both `partner_id` and `partnerId` | escalate-feedback/index.ts, escalate-wl-ticket/index.ts, Feedback.tsx, GrowthHub*.tsx |
+| [object Object] UUID error on WL dashboard | Inline corsHeaders in escalate-feedback + escalate-wl-ticket, defensive string coercion, calculate-wl-usage reads both partner_id and partnerId | escalate-feedback/index.ts, escalate-wl-ticket/index.ts |
+| Call logs grants fix | GRANT SELECT,INSERT,UPDATE,DELETE on call_logs + wl_call_logs | migration applied |
+| Client creation flow fix | invite-user now links lead.user_id + handoff.client_user_id | flow21 4/4 |
+| Full client creation E2E | Lead → Convert → Invite → Login → Wizard all working | flow21 4/4 |
+| Go-live demo data | 3 campaigns seeded with mixed gate states for Paul demo | staging DB |
+| System 4 — Activation → NMI charge | applyClientActivationEffects wired to nmi-charge | NMI sandbox |
+| System 10 — Five9 campaign mapping validation | Campaign Link tab, five9_ok gate, live API | flow22-five9-campaign-mapping.spec.ts 7/7 |
+| System 27 — Direct billing (NMI) | nmi-charge wired in run-call-billing, billing_summaries.payment_status | NMI sandbox |
+| Five9 API connection | Admin API v13 connected — 80 users, 201 campaigns, 172 skills, 1922 dispositions | five9-proxy deployed |
+| Five9 Hybrid Part A | Reporting API actions, pull-five9-call-report edge function, Pull button on billing page | flow23 7/7 |
+| Five9 Hybrid Part B | v_client_call_summary view, per-client call report page, charts | flow24 10/10 |
+| Five9 Hybrid Part C | CSV/XLSX/PDF exports — admin + client side | flow28 6/6 |
+| NMI payment integration | nmi-vault-add, nmi-charge, nmi-card-update, admin UI, client billing page | flow25 4/4, flow26 5/5 |
+| NMI webhook | Async transaction confirmation, decline recovery, idempotent | flow29 7/7 |
+| NMI monthly auto-scheduler | pg_cron registered, runs 1st of month 6am UTC, triggered_by tracking | active |
+| NMI test page | /admin/nmi-test sandbox demo page | deployed |
+| Client call reports | /client-dashboard/reports with CSV/XLSX/PDF exports, leadId fix, RLS fix | deployed |
+
+---
 
 ## 🔴 REMAINING
 
 | Task | Priority | Notes |
 |------|----------|-------|
-| Five9 architecture refactor | HIGH | Agreed hybrid approach: proxy + monthly pull + PDF exports. Needs implementation |
-| NMI payment integration | HIGH | Paul approved NMI. Needs scoping and build |
-| System 4 — Close & activation → onboarding trigger | HIGH | Payment webhook → applyClientActivationEffects(). Blocked on NMI decision |
-| System 10 — Five9 campaign mapping validation | MEDIUM | Block go-live if campaign mappings incomplete or have drift |
-| System 27 — Direct billing | HIGH | Invoice engine based on Five9 call volume. Not built |
-| Tracking pixels on WL portals | HIGH | Privacy/legal — GA4 + Meta suppressed in code but needs server-level enforcement |
+| Five9 report retrieval (isReportRunning/getReportResultCsv) | HIGH | Five9 support ticket open — trace IDs: 20260615-124439-c009a68a. Server-side bug on Five9's end |
+| NMI go-live | HIGH | Waiting on Paul + Ryker (PlatPay) — need merchant account + live API key |
+| Stripe → NMI migration | MEDIUM | Phase 2 — Paul to set crossover date |
+| Client self-service card entry (Collect.js) | LOW | Decision needed from Paul |
+| Tracking pixels server-level enforcement | LOW | Suppressed in code, needs Cloudflare/server config |
+| pg_cron Five9 pull schedule | LOW | Already wired, needs service_role_key set via `ALTER DATABASE postgres SET app.service_role_key = '...'` |
+
+---
 
 ## 📊 Test Score
 ```
-Vitest RLS:  19/19   ✅
-Playwright: 125/125  ✅
+Vitest RLS:  19/19  ✅
+Playwright: 221/221 ✅
 CI Pipeline:   green ✅
-Total:       144/144 ✅
+Total:       240/240 ✅
 ```
