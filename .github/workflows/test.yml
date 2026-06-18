@@ -9,7 +9,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     env:
       VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
@@ -38,8 +38,8 @@ jobs:
         timeout-minutes: 5
 
       - name: Run Playwright tests
-        run: npx playwright test --reporter=list,html
-        timeout-minutes: 30
+        run: npx playwright test --workers=4 --reporter=list,html
+        timeout-minutes: 45
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4

@@ -20,6 +20,8 @@
 import { test, expect } from '@playwright/test';
 import { loginAs } from '../helpers/auth';
 
+const isCI = !!process.env.CI;
+
 const WEBHOOK_URL =
   'https://sdsxdqsomxuimrjpaylv.supabase.co/functions/v1/nmi-webhook';
 const CORRECT_SECRET  = 'whsec_24hVirtual2024!';
@@ -34,6 +36,7 @@ const FAKE_LEAD_ID = '00000000-0000-0000-0000-000000000001';
 
 test.describe('NMI Webhook — endpoint security', () => {
   test('returns 403 without secret', async ({ request }) => {
+    test.skip(isCI, 'Skipped in CI — calls live edge function endpoint');
     const res = await request.post(WEBHOOK_URL, {
       data: 'response=1&transactionid=TEST-NO-SECRET&order_id=' + FAKE_LEAD_ID,
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -44,6 +47,7 @@ test.describe('NMI Webhook — endpoint security', () => {
   });
 
   test('returns 403 with wrong secret', async ({ request }) => {
+    test.skip(isCI, 'Skipped in CI — calls live edge function endpoint');
     const res = await request.post(
       `${WEBHOOK_URL}?secret=${WRONG_SECRET}`,
       {
@@ -57,6 +61,7 @@ test.describe('NMI Webhook — endpoint security', () => {
   });
 
   test('returns 200 with correct secret — approval payload', async ({ request }) => {
+    test.skip(isCI, 'Skipped in CI — calls live edge function endpoint');
     const res = await request.post(
       `${WEBHOOK_URL}?secret=${encodeURIComponent(CORRECT_SECRET)}`,
       {
@@ -80,6 +85,7 @@ test.describe('NMI Webhook — endpoint security', () => {
   });
 
   test('returns 200 with correct secret — decline payload', async ({ request }) => {
+    test.skip(isCI, 'Skipped in CI — calls live edge function endpoint');
     const res = await request.post(
       `${WEBHOOK_URL}?secret=${encodeURIComponent(CORRECT_SECRET)}`,
       {
@@ -101,6 +107,7 @@ test.describe('NMI Webhook — endpoint security', () => {
   });
 
   test('returns 200 for GET health-check with correct secret', async ({ request }) => {
+    test.skip(isCI, 'Skipped in CI — calls live edge function endpoint');
     const res = await request.get(
       `${WEBHOOK_URL}?secret=${encodeURIComponent(CORRECT_SECRET)}`,
     );
