@@ -54,6 +54,7 @@ Deno.serve(async (req) => {
       amount,
       currency,
       description: description || "Subscription charge",
+      order_id: lead_id,
     });
 
     if (!result.success) {

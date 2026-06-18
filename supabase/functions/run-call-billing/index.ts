@@ -182,6 +182,7 @@ Deno.serve(async (req) => {
                 amount: overageAmount,
                 currency: client.billing_currency || "usd",
                 description: `Overage charges ${period_start} to ${period_end}`,
+                order_id: client.id,
               });
               if (chargeResult.success) {
                 nmiTransactionId = chargeResult.transaction_id || null;
