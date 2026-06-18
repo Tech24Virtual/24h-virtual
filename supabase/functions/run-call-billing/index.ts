@@ -2,27 +2,62 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders, authenticateAgent, getEffectiveMode } from "../_shared/agent-auth.ts";
 import { nmiDirectCharge } from "../_shared/nmi.ts";
 
+function isoDate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+// Returns the first and last day of the previous calendar month as yyyy-MM-dd strings.
+function prevMonthRange(): { period_start: string; period_end: string } {
+  const now = new Date();
+  const firstOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastOfPrevMonth = new Date(firstOfThisMonth.getTime() - 1);
+  const firstOfPrevMonth = new Date(lastOfPrevMonth.getFullYear(), lastOfPrevMonth.getMonth(), 1);
+  return {
+    period_start: isoDate(firstOfPrevMonth),
+    period_end: isoDate(lastOfPrevMonth),
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const auth = await authenticateAgent(req, ["admin", "billing"]);
-    if (auth.error) return auth.error;
+    // Detect scheduler invocation: Supabase sends the service role key as the bearer token.
+    // Also accept the X-Supabase-Scheduled header for forward-compatibility.
+    const authHeader = req.headers.get("authorization") || "";
+    const isSchedulerCall =
+      authHeader === `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` ||
+      req.headers.get("x-supabase-scheduled") === "true";
+
+    const triggeredBy: "scheduler" | "manual" = isSchedulerCall ? "scheduler" : "manual";
+    let callerUserId: string | null = null;
+
+    if (!isSchedulerCall) {
+      const auth = await authenticateAgent(req, ["admin", "billing"]);
+      if (auth.error) return auth.error;
+      callerUserId = auth.user.id;
+    }
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { period_start, period_end } = await req.json();
+    // Parse body safely — scheduler sends no body; manual calls send period_start/period_end.
+    let body: { period_start?: string; period_end?: string } = {};
+    try {
+      const text = await req.text();
+      if (text) body = JSON.parse(text);
+    } catch { /* empty or non-JSON body is fine */ }
 
+    // Derive billing period: use provided dates or fall back to previous calendar month.
+    let { period_start, period_end } = body;
     if (!period_start || !period_end) {
-      return new Response(
-        JSON.stringify({ error: "period_start and period_end are required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      const derived = prevMonthRange();
+      period_start = derived.period_start;
+      period_end = derived.period_end;
     }
 
     // 1. Check agent config
@@ -40,8 +75,9 @@ Deno.serve(async (req) => {
           status: "blocked",
           period_start,
           period_end,
-          initiated_by: auth.user.id,
+          initiated_by: callerUserId,
           summary: "Agent is disabled",
+          raw_details: { triggered_by: triggeredBy },
         })
         .select()
         .single();
@@ -72,8 +108,9 @@ Deno.serve(async (req) => {
         status: "running",
         period_start,
         period_end,
-        initiated_by: auth.user.id,
+        initiated_by: callerUserId,
         summary: `Monthly billing run (${mode} mode)`,
+        raw_details: { triggered_by: triggeredBy },
       })
       .select()
       .single();
@@ -89,7 +126,7 @@ Deno.serve(async (req) => {
       mission_id: mission.id,
       agent_name: "CallReportAgent",
       event_type: "started",
-      message: `Billing run started in ${mode} mode for ${period_start} to ${period_end}`,
+      message: `Billing run started in ${mode} mode for ${period_start} to ${period_end} [triggered by: ${triggeredBy}]`,
     });
 
     if (wasOverridden) {
@@ -296,7 +333,7 @@ Deno.serve(async (req) => {
         status: finalStatus,
         error_flag: hasErrors,
         completed_at: new Date().toISOString(),
-        summary: `Processed ${processedClients.length} clients in ${mode} mode. ${hasErrors ? "Some errors occurred." : "All successful."}`,
+        summary: `Processed ${processedClients.length} clients in ${mode} mode [${triggeredBy}]. ${hasErrors ? "Some errors occurred." : "All successful."}`,
       })
       .eq("id", mission.id);
 
@@ -309,7 +346,7 @@ Deno.serve(async (req) => {
       mission_id: mission.id,
       agent_name: "CallReportAgent",
       event_type: "finished",
-      message: `Billing run ${finalStatus}. ${processedClients.length} clients processed.`,
+      message: `Billing run ${finalStatus}. ${processedClients.length} clients processed. [${triggeredBy}]`,
     });
 
     // 5. Cross-dashboard notifications
@@ -322,7 +359,7 @@ Deno.serve(async (req) => {
       await supabase.from("notifications").insert({
         user_id: u.user_id,
         title: `Billing Run ${finalStatus === "completed" ? "Complete" : "Has Errors"}`,
-        message: `Monthly billing (${mode}) processed ${processedClients.length} clients.`,
+        message: `Monthly billing (${mode}) processed ${processedClients.length} clients. [${triggeredBy}]`,
         category: "billing",
         action_url: "/admin/mission-control",
       });
@@ -334,6 +371,7 @@ Deno.serve(async (req) => {
         mission_id: mission.id,
         clients_processed: processedClients.length,
         mode,
+        triggered_by: triggeredBy,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
