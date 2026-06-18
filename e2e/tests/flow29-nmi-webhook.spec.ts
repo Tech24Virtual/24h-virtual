@@ -126,12 +126,9 @@ test.describe('NMI Webhook — admin UI', () => {
       { timeout: 8000 },
     );
 
-    // The PaymentFailures component renders inside AdminBilling.
-    // It either shows "No unresolved payment failures" or a table of failures.
-    const failuresSection = page.locator(
-      'text=Payment Failures, text=Unresolved Payment Failures, text=No unresolved'
-    ).first();
-    await expect(failuresSection).toBeVisible({ timeout: 10000 });
+    // PaymentFailures component renders with CardTitle "Payment Issues"
+    // regardless of whether there are open failures or not.
+    await expect(page.locator('text=Payment Issues').first()).toBeVisible({ timeout: 10000 });
   });
 
   test('admin can navigate to a lead that has NMI payment data', async ({ page }) => {
