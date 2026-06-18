@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Phone, Clock, TrendingDown, BarChart3, Download, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Phone, Clock, TrendingDown, BarChart3, Download, FileText, Table2, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { downloadCallReportXlsx } from '@/lib/callReportXlsx';
+import { downloadCallReportPdf } from '@/lib/callReportPdf';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -74,7 +76,18 @@ function buildPeriodOptions() {
 
 export default function Reports() {
   const { user } = useAuth();
-  const clientId = user?.id ?? null;
+  const [leadId, setLeadId] = useState<string | null>(null);
+
+  // Resolve the leads.id for this auth user — call_logs.client_id is a FK to leads.id, not auth.uid()
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase
+      .from('leads')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle()
+      .then(({ data }) => { if (data) setLeadId(data.id); });
+  }, [user?.id]);
 
   const [period, setPeriod] = useState(currentPeriod());
   const [search, setSearch] = useState('');
@@ -90,24 +103,24 @@ export default function Reports() {
 
   useEffect(() => { setPage(0); }, [period, debouncedSearch, dispositionFilter]);
 
-  const summary = useClientCallSummary(clientId, period);
-  const logs = useClientCallLogs(clientId, period, {
+  const summary = useClientCallSummary(leadId, period);
+  const logs = useClientCallLogs(leadId, period, {
     disposition: dispositionFilter || undefined,
     search: debouncedSearch || undefined,
     page,
     pageSize: PAGE_SIZE,
   });
-  const disposition = useCallDispositionBreakdown(clientId, period);
+  const disposition = useCallDispositionBreakdown(leadId, period);
 
   // Build daily chart
   useEffect(() => {
-    if (!clientId || !period) return;
+    if (!leadId || !period) return;
     const start = startOfMonth(parseISO(`${period}-01`));
     const end = endOfMonth(start);
     supabase
       .from('call_logs')
       .select('call_date')
-      .eq('client_id', clientId)
+      .eq('client_id', leadId)
       .gte('call_date', format(start, 'yyyy-MM-dd'))
       .lte('call_date', format(end, 'yyyy-MM-dd'))
       .then(({ data }) => {
@@ -121,20 +134,22 @@ export default function Reports() {
         });
         setDailyData(days);
       });
-  }, [clientId, period]);
+  }, [leadId, period]);
 
   const totalPages = Math.ceil((logs.data?.count ?? 0) / PAGE_SIZE);
   const periodOptions = buildPeriodOptions();
   const s = summary.data;
 
+  const hasData = !logs.isLoading && (logs.data?.count ?? 0) > 0;
+
   const handleExportCsv = async () => {
-    if (!clientId) return;
+    if (!leadId) return;
     const start = format(startOfMonth(parseISO(`${period}-01`)), 'yyyy-MM-dd');
     const end = format(endOfMonth(parseISO(`${period}-01`)), 'yyyy-MM-dd');
     const { data } = await (supabase as any)
       .from('call_logs')
       .select('call_date, call_time, caller_name, caller_phone, agent_name, campaign_name, handle_time_seconds, billable_minutes, disposition, status')
-      .eq('client_id', clientId)
+      .eq('client_id', leadId)
       .gte('call_date', start)
       .lte('call_date', end)
       .order('call_date', { ascending: false });
@@ -151,9 +166,39 @@ export default function Reports() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `call-report-${period}.csv`;
+    a.download = `my-call-report-${period}.csv`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+  };
+
+  const handleExportXlsx = async () => {
+    if (!leadId) return;
+    const start = format(startOfMonth(parseISO(`${period}-01`)), 'yyyy-MM-dd');
+    const end = format(endOfMonth(parseISO(`${period}-01`)), 'yyyy-MM-dd');
+    const { data } = await (supabase as any)
+      .from('call_logs')
+      .select('call_date, call_time, caller_phone, agent_name, campaign_name, handle_time_seconds, billable_minutes, disposition, status, call_direction, notes')
+      .eq('client_id', leadId)
+      .gte('call_date', start)
+      .lte('call_date', end)
+      .order('call_date', { ascending: false });
+    downloadCallReportXlsx(data ?? [], summary.data ?? null, 'my-call-report', period);
+  };
+
+  const handleExportPdf = async () => {
+    if (!leadId) return;
+    const start = format(startOfMonth(parseISO(`${period}-01`)), 'yyyy-MM-dd');
+    const end = format(endOfMonth(parseISO(`${period}-01`)), 'yyyy-MM-dd');
+    const { data } = await (supabase as any)
+      .from('call_logs')
+      .select('call_date, call_time, caller_name, caller_phone, agent_name, disposition, handle_time_seconds, status')
+      .eq('client_id', leadId)
+      .gte('call_date', start)
+      .lte('call_date', end)
+      .order('call_date', { ascending: false });
+    await downloadCallReportPdf(data ?? [], summary.data ?? null, 'my-call-report', period);
   };
 
   return (
@@ -174,10 +219,20 @@ export default function Reports() {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={handleExportCsv} data-testid="client-export-csv-btn">
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={handleExportCsv} disabled={!hasData} data-testid="client-export-csv-btn">
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
+            <Button variant="outline" onClick={handleExportXlsx} disabled={!hasData} data-testid="client-export-xlsx-btn">
+              <Table2 className="w-4 h-4 mr-2" />
+              Export XLSX
+            </Button>
+            <Button variant="outline" onClick={handleExportPdf} disabled={!hasData} data-testid="client-export-pdf-btn">
+              <FileText className="w-4 h-4 mr-2" />
+              Export PDF
+            </Button>
+          </div>
         </div>
 
         {/* Summary Cards */}
