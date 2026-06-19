@@ -313,6 +313,42 @@ export default function AdminSettings() {
             </CardContent>
           </Card>
 
+          {/* Bookii Direct Webhook */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Plug className="w-5 h-5" />
+                Bookii Direct Webhook
+              </CardTitle>
+              <CardDescription>
+                Configure this URL in Bookii → Settings → Integrations → Webhooks. Handles booking.created, booking.cancelled, and booking.rescheduled events natively via HMAC-SHA256 signature verification.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  value={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bookii-webhook`}
+                  readOnly
+                  className="font-mono text-sm"
+                />
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(
+                      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bookii-webhook`
+                    );
+                    toast({ title: 'Copied!', description: 'Bookii webhook URL copied to clipboard' });
+                  }}
+                >
+                  Copy
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Bookii signs each request with <code className="bg-muted px-1 rounded">X-Bookii-Signature: sha256=…</code> — set the signing secret once via: <code className="bg-muted px-1 rounded text-xs">npx supabase secrets set BOOKII_WEBHOOK_SECRET="…" --project-ref sdsxdqsomxuimrjpaylv</code>
+              </p>
+            </CardContent>
+          </Card>
+
           {/* Airwallex Payouts */}
           <AirwallexSettings />
         </TabsContent>
