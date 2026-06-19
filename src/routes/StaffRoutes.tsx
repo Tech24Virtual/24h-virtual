@@ -30,6 +30,7 @@ const AgentTimeOff = lazy(() => import("@/pages/staff/AgentTimeOff"));
 const AgentMyProfile = lazy(() => import("@/pages/staff/AgentMyProfile"));
 const AgentCampaigns = lazy(() => import("@/pages/staff/AgentCampaigns"));
 const AgentTraining = lazy(() => import("@/pages/staff/AgentTraining"));
+const AgentCalendar = lazy(() => import("@/pages/staff/AgentCalendar"));
 
 // Supervisor
 const SupervisorDashboard = lazy(() => import("@/pages/staff/SupervisorDashboard"));
@@ -115,6 +116,7 @@ export const StaffRoutes = (
     <Route path="/staff/agent/my-profile" element={guard("agent", <AgentMyProfile />)} />
     <Route path="/staff/agent/campaigns" element={guard("agent", <AgentCampaigns />)} />
     <Route path="/staff/agent/training" element={guard("agent", <AgentTraining />)} />
+    <Route path="/staff/agent/calendar" element={guard("agent", <AgentCalendar />)} />
     <Route path="/staff/agent/settings" element={guard("agent", <StaffSettings />)} />
     <Route path="/staff/agent/support" element={guard("agent", <StaffSupport role="agent" />)} />
     <Route path="/staff/agent/feedback" element={guard("agent", <StaffFeedback role="agent" />)} />

@@ -112,6 +112,7 @@ export function getStaffNav(role: StaffRole): NavGroup[] {
             { name: 'Shifts', href: `${root}/shifts` },
             { name: 'Schedule', href: `${root}/schedule` },
             { name: 'Time Off', href: `${root}/time-off` },
+            { name: 'Calendar', href: `${root}/calendar` },
           ],
         },
         {

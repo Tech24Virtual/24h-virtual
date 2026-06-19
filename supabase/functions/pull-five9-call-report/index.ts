@@ -76,7 +76,7 @@ async function runReport(
   // Identifier is an opaque string token (not just digits)
   const match = text.match(/<return[^>]*>([^<]+)<\/return>/);
   if (!match) throw new Error(`Could not parse report identifier: ${text.substring(0, 400)}`);
-  return { identifier: match[1].trim(), sessionCookie };
+  return { identifier: match[1], sessionCookie };
 }
 
 async function pollUntilReady(

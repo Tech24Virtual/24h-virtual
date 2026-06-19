@@ -146,7 +146,7 @@ const crossDeps: CrossDep[] = [
   { name: "Sales Portal — Dual Layer Role", from: "Delivery", to: "Platform", description: "The Sales Portal lives in Service Delivery (pipeline, meetings, proposals) but sales commissions touch Platform (billing reconciliation, payout processing).", ownership: "Delivery owns pipeline & proposals; Platform owns commission calculation & payouts.", type: "dual-role" },
   { name: "CRM Attribution ← UTM Tracking", from: "Growth", to: "Delivery", description: "CRM attribution data (source, medium, campaign) is captured in Growth and consumed read-only by Delivery for pipeline analytics.", ownership: "Growth owns capture; Delivery consumes read-only.", type: "data-flow" },
   { name: "Five9 Ingestion → Call Logs → Billing", from: "Delivery", to: "Platform", description: "Five9 call data is ingested in Delivery (call_logs), then aggregated by Platform for billing calculations (calculate-monthly-billing, calculate-wl-usage).", ownership: "Delivery owns call records; Platform owns billing aggregation.", type: "data-flow" },
-  { name: "Calendly → Meetings → Sales", from: "Growth", to: "Delivery", description: "Calendly booking widget (Growth) triggers ingest-meeting (Delivery) which creates meeting records linked to leads and the sales pipeline.", ownership: "Growth owns booking UX; Delivery owns meeting records.", type: "trigger" },
+  { name: "Bookii → Meetings → Sales", from: "Growth", to: "Delivery", description: "Bookii booking embed (Growth) triggers ingest-meeting (Delivery) which creates meeting records linked to leads and the sales pipeline.", ownership: "Growth owns booking UX; Delivery owns meeting records.", type: "trigger" },
   { name: "WL Client Portals ← Client Scripts", from: "Delivery", to: "Platform", description: "Client scripts and call handling rules are authored in Delivery but surfaced in WL client portals (Platform) for partner-branded agent access.", ownership: "Delivery owns script content; Platform owns portal presentation.", type: "data-flow" },
   { name: "RBAC/RLS — Universal Foundation", from: "Platform", to: "All Layers", description: "The 10-role RBAC system and has_role() security definer function are defined in Platform but enforced across all tables in every layer.", ownership: "Platform owns role definitions; all layers consume via RLS policies.", type: "shared-concept" },
   { name: "Notifications — Cross-Layer Events", from: "Platform", to: "All Layers", description: "The notifications table lives in Platform but receives inserts from triggers across Delivery (task events, shift edits, time-off) and Growth (new leads).", ownership: "Platform owns notification infrastructure; triggers are authored per-layer.", type: "trigger" },
@@ -164,7 +164,7 @@ const depTypeBadge: Record<CrossDep["type"], string> = {
 
 /* ── Flow Diagram Data ─────────────────────────────────────────── */
 const flowArrows = [
-  { from: "Growth", to: "Delivery", labels: ["Leads", "UTM", "Calendly"] },
+  { from: "Growth", to: "Delivery", labels: ["Leads", "UTM", "Bookii"] },
   { from: "Growth", to: "Platform", labels: ["Content Tenancy"] },
   { from: "Delivery", to: "Platform", labels: ["Call Data", "Commissions", "Scripts"] },
   { from: "Platform", to: "All", labels: ["RBAC", "Notifications"] },

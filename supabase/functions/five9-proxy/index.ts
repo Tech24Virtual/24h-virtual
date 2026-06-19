@@ -503,6 +503,7 @@ serve(async (req) => {
                 const idM = runBody.match(/<return[^>]*>([^<]+)<\/return>/);
                 if (!idM) throw new Error(`No identifier in runReport response: ${runBody.substring(0, 400)}`);
                 const reportId = idM[1];
+                console.log('runReport identifier:', JSON.stringify(reportId));
                 // Step 2: poll isReportRunning (max 10 attempts × 2s = 20s)
                 let running = true;
                 let attempts = 0;

@@ -83,6 +83,11 @@ export function MeetingsCalendarView({ meetings, onMarkCompleted, onMarkNoShow }
 
   return (
     <div className="space-y-4">
+      {/* Sync note */}
+      <p className="text-xs text-muted-foreground border rounded-md px-3 py-2 bg-muted/40">
+        Bookings made via Bookii appear here once synced.
+      </p>
+
       {/* Month navigation */}
       <div className="flex items-center justify-between">
         <Button variant="outline" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
@@ -192,7 +197,7 @@ export function MeetingsCalendarView({ meetings, onMarkCompleted, onMarkNoShow }
                       </Button>
                     )}
                     {meeting.calendly_event_url && (
-                      <Button variant="ghost" size="sm" asChild>
+                      <Button variant="ghost" size="sm" asChild title="View booking details">
                         <a href={meeting.calendly_event_url} target="_blank" rel="noopener noreferrer">
                           <ExternalLink className="h-3.5 w-3.5" />
                         </a>

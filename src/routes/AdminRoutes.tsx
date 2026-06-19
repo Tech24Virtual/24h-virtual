@@ -49,6 +49,7 @@ const WLClientsPortalList = lazy(() => import("@/pages/wl-clients/WLClientsPorta
 const DiscoverabilityLayout = lazy(() => import("@/pages/admin/discoverability/DiscoverabilityLayout"));
 const DiscoverabilityOverview = lazy(() => import("@/pages/admin/discoverability/DiscoverabilityOverview"));
 const AdminClientCallReport = lazy(() => import("@/pages/admin/AdminClientCallReport"));
+const AdminCalendar = lazy(() => import("@/pages/admin/AdminCalendar"));
 const AdminFulfillmentIntake = lazy(() => import("@/pages/admin/AdminFulfillmentIntake"));
 const AdminFulfillmentIntakeDetail = lazy(() => import("@/pages/admin/AdminFulfillmentIntakeDetail"));
 const AdminProductTesting = lazy(() => import("@/pages/admin/AdminProductTesting"));
@@ -131,6 +132,7 @@ export const AdminRoutes = (
       <Route path="wl-config-diff" element={<LazyRoute><AdminWLConfigDiff /></LazyRoute>} />
       <Route path="wl-preview/:partnerId" element={<LazyRoute><AdminWLPreview /></LazyRoute>} />
       <Route path="clients/:leadId/call-report" element={<LazyRoute><AdminClientCallReport /></LazyRoute>} />
+      <Route path="calendar" element={<LazyRoute><AdminCalendar /></LazyRoute>} />
       <Route path="fulfillment-intake" element={<LazyRoute><AdminFulfillmentIntake /></LazyRoute>} />
       <Route path="fulfillment-intake/:id" element={<LazyRoute><AdminFulfillmentIntakeDetail /></LazyRoute>} />
       <Route path="campaign-os" element={<LazyRoute><CampaignOsLayout /></LazyRoute>}>

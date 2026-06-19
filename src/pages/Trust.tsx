@@ -14,7 +14,7 @@ const subprocessors = [
   { name: "Reach59", purpose: "SMS notifications and availability bridge", region: "US / CA", website: "https://reach59.com" },
   { name: "Pabbly Connect", purpose: "Workflow automation for call report ingestion", region: "US / IN", website: "https://pabbly.com" },
   { name: "Slack", purpose: "Internal team communication and ticket escalation", region: "US", website: "https://slack.com" },
-  { name: "Calendly", purpose: "Meeting scheduling for sales and onboarding", region: "US", website: "https://calendly.com" },
+  { name: "Bookii", purpose: "Meeting scheduling and appointment booking", region: "US", website: "https://bookii.io" },
 ];
 
 const retention = [

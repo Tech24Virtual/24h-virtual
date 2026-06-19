@@ -19,6 +19,7 @@ const ClientSupportDetail = lazy(() => import("@/pages/client-dashboard/SupportD
 const ClientSetup = lazy(() => import("@/pages/client-dashboard/Setup"));
 const ClientGoLiveReadiness = lazy(() => import("@/pages/client-dashboard/GoLiveReadiness"));
 const ClientReports = lazy(() => import("@/pages/client-dashboard/Reports"));
+const ClientBooking = lazy(() => import("@/pages/client-dashboard/Booking"));
 
 const guard = (el: React.ReactNode) => (
   <ProtectedRoute requiredRole={["client", "wl_client"]}><LazyRoute>{el}</LazyRoute></ProtectedRoute>
@@ -42,6 +43,7 @@ export const ClientRoutes = (
     <Route path="/client-dashboard/setup" element={guard(<ClientSetup />)} />
     <Route path="/client-dashboard/readiness" element={guard(<ClientGoLiveReadiness />)} />
     <Route path="/client-dashboard/reports" element={guard(<ClientReports />)} />
+    <Route path="/client-dashboard/booking" element={guard(<ClientBooking />)} />
     {/* ── Legacy redirects ── */}
     <Route path="/client-dashboard/outbound-requests" element={<Navigate to="/client-dashboard/calls/outbound" replace />} />
     <Route path="/client-dashboard/campaigns" element={<Navigate to="/client-dashboard/calls/campaigns" replace />} />

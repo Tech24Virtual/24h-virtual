@@ -13,6 +13,7 @@ import {
   Layers,
   Rocket,
   BarChart2,
+  CalendarCheck,
 } from 'lucide-react';
 import type { NavGroup } from '@/components/navigation/types';
 
@@ -64,6 +65,12 @@ export const clientNavGroups: NavGroup[] = [
     icon: Calendar,
     basePath: `${clientRoot}/schedule`,
     children: [{ name: 'Schedule', href: `${clientRoot}/schedule` }],
+  },
+  {
+    name: 'Booking',
+    icon: CalendarCheck,
+    basePath: `${clientRoot}/booking`,
+    children: [{ name: 'Booking', href: `${clientRoot}/booking` }],
   },
   {
     name: 'Billing',

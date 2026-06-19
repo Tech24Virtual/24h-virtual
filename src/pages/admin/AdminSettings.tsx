@@ -282,10 +282,10 @@ export default function AdminSettings() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Plug className="w-5 h-5" />
-                Meeting Ingestion (Calendly via Pabbly)
+                Meeting Ingestion (Bookii via Pabbly)
               </CardTitle>
               <CardDescription>
-                Configure Pabbly Connect to forward Calendly events to this webhook URL
+                Configure Pabbly Connect to forward Bookii booking events to this webhook URL
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

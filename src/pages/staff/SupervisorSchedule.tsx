@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Calendar, Clock, User, Search, List, LayoutGrid, CalendarPlus, ShieldAlert, CalendarOff } from 'lucide-react';
+import { Calendar, Clock, User, Search, List, LayoutGrid, CalendarPlus, ShieldAlert, CalendarOff, ExternalLink } from 'lucide-react';
 import { ScheduleBuilder } from '@/components/staff/ScheduleBuilder';
 import { PostOpenShiftDialog } from '@/components/staff/PostOpenShiftDialog';
 import { OpenShiftBoard } from '@/components/staff/OpenShiftBoard';
@@ -137,6 +137,12 @@ export default function SupervisorSchedule() {
             </Button>
             <Button variant="outline" onClick={() => setShowPostShift(true)}>
               <ShieldAlert className="h-4 w-4 mr-2" /> Post Open Shift
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => window.open('https://bookii.io', '_blank', 'noopener,noreferrer')}
+            >
+              <ExternalLink className="h-4 w-4 mr-2" /> Schedule via Bookii
             </Button>
           </div>
         </div>

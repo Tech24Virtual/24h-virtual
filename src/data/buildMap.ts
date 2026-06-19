@@ -1335,7 +1335,7 @@ export const platformInventoryGrowth: BuildMapItem[] = [
   { id: "email-campaigns", name: "Growth Hub: Email Campaigns", description: "Contact management and targeted email blasts", status: "done" },
   { id: "seo-reports", name: "Growth Hub: SEO Reports", description: "Monthly SEO performance reports with PDF export", status: "done" },
   { id: "social-snippets", name: "Growth Hub: Social Snippets", description: "AI-generated social media posts from blog content", status: "done" },
-  { id: "calendly-booking", name: "Calendly Meeting Booking", description: "Embedded scheduling with event ingestion via webhook", status: "done" },
+  { id: "calendly-booking", name: "Bookii Meeting Booking", description: "Embedded Bookii scheduling with event ingestion via webhook", status: "done" },
   { id: "gpt-advisor", name: "GPT Call Advisor", description: "AI chat assistant for pre-sales questions and plan guidance", status: "done" },
   { id: "web-callback-widget", name: "Web Callback Widget", description: "Enter-your-number callback modal replacing all tel: links", status: "done" },
   { id: "desktop-qr-call", name: "Desktop QR-to-Call", description: "QR code for desktop visitors to call from their phone", status: "done" },
@@ -1357,7 +1357,7 @@ export const platformInventoryDelivery: BuildMapItem[] = [
   { id: "tasks-ticketing", name: "Tasks & Ticketing", description: "SLA-driven task system with cross-departmental ticket routing", status: "done" },
   { id: "outbound-calls", name: "Outbound Call Requests", description: "Client-initiated callback queue with retry logic", status: "done" },
   { id: "call-logs", name: "Call Logs & Reporting", description: "Detailed call records with billable minutes and disposition tracking", status: "done" },
-  { id: "meetings", name: "Meetings", description: "Calendly-synced meeting records linked to leads and pipeline", status: "done" },
+  { id: "meetings", name: "Meetings", description: "Bookii-synced meeting records linked to leads and pipeline", status: "done" },
   { id: "notifications", name: "Notifications", description: "In-app and email notifications for system events", status: "done" },
   { id: "callback-routing-engine", name: "Callback Routing Engine", description: "Intent classification and AI/human routing with business hours logic", status: "done" },
   
@@ -1422,6 +1422,6 @@ export const requiredSecrets: RequiredSecret[] = [
   { name: "Airwallex Client ID", service: "Payroll", description: "Authenticating with Airwallex API for international payouts", isPublic: false },
   { name: "Airwallex API Key", service: "Payroll", description: "Authorizing payout transactions and beneficiary management", isPublic: false },
   { name: "WordPress App Password", service: "Growth Hub", description: "Publishing blog posts to WordPress via REST API (per-partner)", isPublic: false },
-  { name: "Calendly Webhook Secret", service: "Meetings", description: "Verifying Calendly webhook payloads for meeting ingestion", isPublic: false },
+  { name: "Bookii Webhook Secret", service: "Meetings", description: "Verifying Bookii webhook payloads for meeting ingestion via Pabbly", isPublic: false },
   { name: "Lovable API Key", service: "AI Features", description: "AI gateway access for lead intelligence and content generation (auto-provisioned)", isPublic: false },
 ];
