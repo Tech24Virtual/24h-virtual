@@ -22,7 +22,7 @@ export default function AgentSchedule() {
       const { data: mySkills } = await supabase.from('agent_skills').select('skill_name').eq('agent_id', user!.id);
       const skills = (mySkills || []).map(s => s.skill_name);
       const { data: shifts } = await supabase.from('open_shifts').select('id, required_skills').eq('status', 'open');
-      return (shifts || []).filter(s => s.required_skills.length === 0 || s.required_skills.some((sk: string) => skills.includes(sk))).length;
+      return (shifts || []).filter(s => (s.required_skills ?? []).length === 0 || (s.required_skills ?? []).some((sk: string) => skills.includes(sk))).length;
     },
     enabled: !!user?.id,
   });

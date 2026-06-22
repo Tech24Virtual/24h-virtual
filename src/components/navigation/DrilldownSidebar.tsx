@@ -22,6 +22,8 @@ interface DrilldownSidebarProps {
   brandTag?: string;
   /** Optional renderer for extra content inside an active rail row (e.g. shift timer). */
   renderGroupExtra?: (group: NavGroup) => ReactNode;
+  /** Optional renderer for a badge overlay on the group icon (e.g. notification counts). */
+  renderGroupBadge?: (group: NavGroup) => ReactNode;
   /** When true and no logoSrc is provided, suppress the default 24H logo entirely. */
   suppressDefaultLogo?: boolean;
   /** When true, renders a shimmer skeleton in the logo area instead of the logo or default. */
@@ -118,6 +120,7 @@ export function DrilldownSidebar({
   logoAlt,
   brandTag,
   renderGroupExtra,
+  renderGroupBadge,
   suppressDefaultLogo,
   logoLoading,
   backLink,
@@ -196,13 +199,18 @@ export function DrilldownSidebar({
               key={child.href}
               to={child.href}
               className={cn(
-                'block px-3 py-2 rounded-md text-sm transition-colors',
+                'flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors',
                 isTabActive(child.href)
                   ? 'bg-primary/10 text-primary font-medium'
                   : 'text-muted-foreground hover:bg-accent hover:text-foreground'
               )}
             >
               {child.name}
+              {child.badge && child.badge > 0 ? (
+                <span className="ml-auto bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center font-bold shrink-0">
+                  {child.badge > 9 ? '9+' : child.badge}
+                </span>
+              ) : null}
             </Link>
           ))}
         </nav>
@@ -252,6 +260,13 @@ export function DrilldownSidebar({
         {groups.map((group) => {
           const Icon = group.icon;
           const isActive = activeGroup?.name === group.name;
+          // Auto-dot: show a red dot on the group icon when any child has a pending badge.
+          // renderGroupBadge (if provided) takes precedence for custom badge content.
+          const childBadgeSum = group.children.reduce((sum, c) => sum + (c.badge ?? 0), 0);
+          const customBadge = renderGroupBadge?.(group);
+          const groupDot = !customBadge && childBadgeSum > 0
+            ? <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-card" />
+            : null;
           return (
             <button
               key={group.name}
@@ -264,7 +279,10 @@ export function DrilldownSidebar({
               )}
               title={group.name}
             >
-              <Icon className="w-5 h-5 shrink-0" />
+              <span className="relative shrink-0">
+                <Icon className="w-5 h-5" />
+                {customBadge ?? groupDot}
+              </span>
               <span className="whitespace-nowrap opacity-0 group-hover/rail:opacity-100 transition-opacity flex-1 text-left">
                 {group.name}
               </span>

@@ -14,9 +14,11 @@ import { cn } from '@/lib/utils';
 interface Props {
   lesson: TrainingLesson;
   campaignId: string;
+  /** Called once when the agent passes the quiz for the first time in this session. */
+  onPass?: () => void;
 }
 
-export function QuizRunner({ lesson, campaignId }: Props) {
+export function QuizRunner({ lesson, campaignId, onPass }: Props) {
   const questionsQ = useQuizQuestions(lesson.id);
   const submit = useSubmitQuizAttempt();
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -63,8 +65,12 @@ export function QuizRunner({ lesson, campaignId }: Props) {
         passed: score.passed,
         answers: formatted,
       });
-      if (score.passed) toast.success(`Passed with ${score.scorePct}%`);
-      else toast.error(`Did not pass (${score.scorePct}%, need ${passingScore}%)`);
+      if (score.passed) {
+        toast.success(`Passed with ${score.scorePct}%`);
+        onPass?.();
+      } else {
+        toast.error(`Did not pass (${score.scorePct}%, need ${passingScore}%)`);
+      }
     } catch (e: any) {
       toast.error(e.message);
     }

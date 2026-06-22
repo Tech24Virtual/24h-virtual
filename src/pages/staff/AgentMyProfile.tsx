@@ -6,72 +6,77 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import { User, Briefcase, DollarSign, FileCheck, Star, GraduationCap } from 'lucide-react';
+import { User, DollarSign, FileCheck, Star, GraduationCap, AlertCircle } from 'lucide-react';
 
 export default function AgentMyProfile() {
   const { user } = useAuth();
 
-  const { data: profile, isLoading: profileLoading } = useQuery({
+  const { data: profile, isLoading: profileLoading, isError: profileError } = useQuery({
     queryKey: ['my-profile', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user!.id)
-        .single();
-      if (error) throw error;
-      return data;
+        .maybeSingle();
+      return data ?? null;
     },
     enabled: !!user?.id,
+    retry: 1,
   });
 
   const { data: banking } = useQuery({
     queryKey: ['my-banking', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('agent_banking')
         .select('hourly_rate, currency, employment_type, break_policy, country')
         .eq('agent_id', user!.id)
         .maybeSingle();
-      if (error) throw error;
-      return data;
+      return data ?? null;
     },
     enabled: !!user?.id,
+    retry: 1,
   });
 
   const { data: onboarding } = useQuery({
     queryKey: ['my-onboarding', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('agent_onboarding')
         .select('status, contract_signed_at, training_completed_at, banking_submitted, training_checklist')
         .eq('applicant_user_id', user!.id)
         .maybeSingle();
-      if (error) throw error;
-      return data;
+      return data ?? null;
     },
     enabled: !!user?.id,
+    retry: 1,
   });
 
   const { data: reviews = [] } = useQuery({
     queryKey: ['my-performance-reviews', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('agent_performance_reviews')
         .select('*')
         .eq('agent_id', user!.id)
         .eq('status', 'published')
         .order('period_end', { ascending: false });
-      if (error) throw error;
-      return data;
+      return data ?? [];
     },
     enabled: !!user?.id,
+    retry: 1,
   });
 
-  // Training checklist completion
-  const trainingChecklist = (onboarding?.training_checklist as any[] | null) || [];
-  const completedItems = trainingChecklist.filter((item: any) => item.completed);
-  const trainingProgress = trainingChecklist.length > 0 ? Math.round((completedItems.length / trainingChecklist.length) * 100) : null;
+  // training_checklist is JSONB — guard against non-array values
+  const trainingChecklist = Array.isArray(onboarding?.training_checklist)
+    ? onboarding.training_checklist
+    : [];
+  const completedItems = trainingChecklist.filter((item: { completed?: boolean }) => item.completed);
+  const trainingProgress =
+    trainingChecklist.length > 0
+      ? Math.round((completedItems.length / trainingChecklist.length) * 100)
+      : null;
 
   if (profileLoading) {
     return (
@@ -81,6 +86,17 @@ export default function AgentMyProfile() {
           <div className="grid gap-4 md:grid-cols-2">
             {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-48" />)}
           </div>
+        </div>
+      </StaffLayout>
+    );
+  }
+
+  if (profileError) {
+    return (
+      <StaffLayout role="agent">
+        <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
+          <AlertCircle className="h-8 w-8 text-destructive" />
+          <p className="text-sm">Unable to load profile. Please refresh the page.</p>
         </div>
       </StaffLayout>
     );

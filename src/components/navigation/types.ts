@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react';
 export interface NavChild {
   name: string;
   href: string;
+  badge?: number;
 }
 
 export interface NavGroup {

@@ -219,8 +219,10 @@ export function useSubmitQuizAttempt() {
         .from('campaign_training_quiz_attempts')
         .insert({
           lesson_id: input.lesson_id,
+          module_id: input.module_id,
+          campaign_id: input.campaign_id,
           agent_id: u.user.id,
-          score_pct: input.score_pct,
+          score: input.score_pct,
           passed: input.passed,
           answers: input.answers,
         })

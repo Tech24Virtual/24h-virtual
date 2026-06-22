@@ -15,6 +15,7 @@ export interface TrainingCompletion {
 export function useMyCompletions() {
   return useQuery({
     queryKey: ['campaign-os', 'my-completions'],
+    staleTime: 30_000,
     queryFn: async (): Promise<TrainingCompletion[]> => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) return [];

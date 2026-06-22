@@ -166,18 +166,18 @@ export default function AgentShifts() {
     if (!shift.clock_out) return '—';
     const totalMins = differenceInMinutes(new Date(shift.clock_out), new Date(shift.clock_in));
     const deduction = shift.manual_deduction_minutes || 0;
-    const netMins = breaksPaid ? Math.max(0, totalMins - deduction) : Math.max(0, totalMins - (shift.total_break_minutes || 0) - deduction);
+    const netMins = breaksPaid ? Math.max(0, totalMins - deduction) : Math.max(0, totalMins - (shift.total_break_minutes ?? 0) - deduction);
     return `${Math.floor(netMins / 60)}h ${netMins % 60}m`;
   };
 
   // Calculate totals for submit dialog
   const approvedPeriodShifts = periodShifts.filter(s => s.status === 'approved');
-  const totalMins = approvedPeriodShifts.reduce((acc, s) => {
+  const totalMins = (approvedPeriodShifts ?? []).reduce((acc, s) => {
     if (!s.clock_out) return acc;
     return acc + differenceInMinutes(new Date(s.clock_out), new Date(s.clock_in));
   }, 0);
-  const totalBreakMins = approvedPeriodShifts.reduce((acc, s) => acc + (s.total_break_minutes || 0), 0);
-  const totalDeductMins = approvedPeriodShifts.reduce((acc, s) => acc + (s.manual_deduction_minutes || 0), 0);
+  const totalBreakMins = (approvedPeriodShifts ?? []).reduce((acc, s) => acc + (s.total_break_minutes ?? 0), 0);
+  const totalDeductMins = (approvedPeriodShifts ?? []).reduce((acc, s) => acc + (s.manual_deduction_minutes ?? 0), 0);
   const netMins = breaksPaid ? Math.max(0, totalMins - totalDeductMins) : Math.max(0, totalMins - totalBreakMins - totalDeductMins);
 
   const invoiceStatusBadge: Record<string, { label: string; className: string }> = {
