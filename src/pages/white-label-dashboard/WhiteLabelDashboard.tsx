@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { DashboardOnboarding } from '@/components/onboarding/DashboardOnboarding';
 import { PartnerWelcomeModal } from '@/components/white-label/PartnerWelcomeModal';
 import { motion } from "framer-motion";
 import { 
@@ -34,13 +33,7 @@ interface StatsData {
 }
 
 export default function WhiteLabelDashboard() {
-  const { user, profile } = useAuth();
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  useEffect(() => {
-    if (profile !== undefined && profile !== null) {
-      setShowOnboarding(!(profile as any)?.onboarding_completed);
-    }
-  }, [profile]);
+  const { user } = useAuth();
   const [stats, setStats] = useState<StatsData>({
     totalClients: 0,
     activeClients: 0,
@@ -145,14 +138,6 @@ export default function WhiteLabelDashboard() {
     <WhiteLabelLayout>
       <PartnerWelcomeModal partnerName={partnerData?.contact_name || partnerData?.company_name} />
       <div className="space-y-8">
-        {showOnboarding && (
-          <DashboardOnboarding
-            dashboardContext="white_label"
-            partnerId={partnerData?.id}
-            brandName={partnerData?.company_name}
-            onComplete={() => setShowOnboarding(false)}
-          />
-        )}
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>

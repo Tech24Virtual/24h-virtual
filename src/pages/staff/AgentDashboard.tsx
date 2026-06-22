@@ -1,7 +1,5 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Phone, Users, MessageSquare, CheckCircle, ShieldAlert, Star, Calendar, GraduationCap } from 'lucide-react';
-import { DashboardOnboarding } from '@/components/onboarding/DashboardOnboarding';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { StaffLayout } from '@/components/staff/StaffLayout';
@@ -19,8 +17,7 @@ import { usePageView } from '@/lib/analytics';
 
 export default function AgentDashboard() {
   usePageView('agent_dashboard', 'agent');
-  const { user, profile } = useAuth();
-  const [showOnboarding, setShowOnboarding] = useState(!(profile as any)?.onboarding_completed);
+  const { user } = useAuth();
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ['agent-dashboard-stats'],
@@ -114,9 +111,6 @@ export default function AgentDashboard() {
   return (
     <StaffLayout role="agent">
       <div className="space-y-6">
-        {showOnboarding && (
-          <DashboardOnboarding dashboardContext="agent" onComplete={() => setShowOnboarding(false)} />
-        )}
         <SlackMappingBanner />
         <div>
           <h1 className="text-2xl font-bold">Agent Dashboard</h1>

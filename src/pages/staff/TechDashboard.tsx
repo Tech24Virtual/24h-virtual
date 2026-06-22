@@ -1,7 +1,5 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { StaffLayout } from '@/components/staff/StaffLayout';
-import { DashboardOnboarding } from '@/components/onboarding/DashboardOnboarding';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TicketList } from '@/components/tickets/TicketList';
 import { TrendChart } from '@/components/analytics/TrendChart';
@@ -9,13 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { MessageSquare, CheckCircle2, AlertTriangle, Clock, Percent, Wrench, BookOpen } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function TechDashboard() {
-  const { user, profile } = useAuth();
-  const [showOnboarding, setShowOnboarding] = useState(!(profile as any)?.onboarding_completed);
 
   const { data: ticketStats } = useQuery({
     queryKey: ['tech-ticket-stats'],
@@ -51,9 +46,6 @@ export default function TechDashboard() {
   return (
     <StaffLayout role="tech">
       <div className="space-y-6">
-        {showOnboarding && (
-          <DashboardOnboarding dashboardContext="tech" onComplete={() => setShowOnboarding(false)} />
-        )}
         <div>
           <h1 className="text-3xl font-bold">Tech Support Dashboard</h1>
           <p className="text-muted-foreground">Manage technical support tickets, system issues, and knowledge base</p>

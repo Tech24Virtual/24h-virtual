@@ -10,10 +10,8 @@ import { WLClientServiceStatusCard } from '@/components/wl-portal/WLClientServic
 import { ClientCallTrendCard } from '@/components/client-dashboard/ClientCallTrendCard';
 import { ClientNudgesCard } from '@/components/client-dashboard/ClientNudgesCard';
 import { WLEndClientActivationCard } from '@/components/wl-portal/WLEndClientActivationCard';
-import { DashboardOnboarding } from '@/components/onboarding/DashboardOnboarding';
 import { ClientWelcomeModal } from '@/components/wl-portal/ClientWelcomeModal';
 import { useWLPortal } from '@/contexts/WLPortalContext';
-import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -23,18 +21,10 @@ import { usePageView } from '@/lib/analytics';
 export default function WLPortalDashboard() {
   usePageView('wl_portal_dashboard', 'wl_partner');
   const { slug, clientInfo, branding, partnerId } = useWLPortal();
-  const { profile } = useAuth();
   const [stats, setStats] = useState({ callsThisMonth: 0, totalMinutes: 0, missedCalls: 0, activeScripts: 0 });
   const [recentCalls, setRecentCalls] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [showOnboarding, setShowOnboarding] = useState(false);
   const [outboundDialogOpen, setOutboundDialogOpen] = useState(false);
-
-  useEffect(() => {
-    if (profile && !profile.onboarding_completed) {
-      setShowOnboarding(true);
-    }
-  }, [profile]);
 
   useEffect(() => {
     if (!clientInfo) return;
@@ -100,14 +90,6 @@ export default function WLPortalDashboard() {
       description="Here's an overview of your call activity"
     >
       <ClientWelcomeModal />
-      {showOnboarding && (
-        <DashboardOnboarding
-          dashboardContext="wl_client"
-          partnerId={partnerId || undefined}
-          brandName={branding?.company_name || undefined}
-          onComplete={() => setShowOnboarding(false)}
-        />
-      )}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {statCards.map((stat) => (
           <Card key={stat.label}>

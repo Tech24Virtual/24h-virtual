@@ -1,10 +1,7 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CreditCard, MessageSquare, AlertTriangle, CheckCircle, DollarSign, Users, TrendingUp, Building2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { StaffLayout } from '@/components/staff/StaffLayout';
-import { DashboardOnboarding } from '@/components/onboarding/DashboardOnboarding';
-import { useAuth } from '@/contexts/AuthContext';
 import { TicketList } from '@/components/tickets/TicketList';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,8 +11,6 @@ import { RunBillingButton } from '@/components/missions/RunBillingButton';
 import { MissionsList } from '@/components/missions/MissionsList';
 
 export default function BillingDashboard() {
-  const { profile } = useAuth();
-  const [showOnboarding, setShowOnboarding] = useState(!(profile as any)?.onboarding_completed);
   const { data: stats, isLoading } = useQuery({
     queryKey: ['billing-dashboard-stats'],
     queryFn: async () => {
@@ -58,9 +53,6 @@ export default function BillingDashboard() {
   return (
     <StaffLayout role="billing">
       <div className="space-y-6">
-        {showOnboarding && (
-          <DashboardOnboarding dashboardContext="billing" onComplete={() => setShowOnboarding(false)} />
-        )}
         <div>
           <h1 className="text-2xl font-bold">Billing Dashboard</h1>
           <p className="text-muted-foreground">Manage billing inquiries, payments, and commissions</p>

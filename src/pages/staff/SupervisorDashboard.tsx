@@ -1,8 +1,5 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Users, MessageSquare, AlertTriangle, CheckCircle, UserPlus, TrendingUp } from 'lucide-react';
-import { DashboardOnboarding } from '@/components/onboarding/DashboardOnboarding';
-import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { StaffLayout } from '@/components/staff/StaffLayout';
 import { TicketList } from '@/components/tickets/TicketList';
@@ -18,8 +15,6 @@ import { FulfillmentPulseCards } from '@/components/admin/fulfillment/Fulfillmen
 import { useFulfillmentCounters } from '@/hooks/shared/useFulfillmentCounters';
 
 export default function SupervisorDashboard() {
-  const { profile } = useAuth();
-  const [showOnboarding, setShowOnboarding] = useState(!(profile as any)?.onboarding_completed);
   const { data: stats, isLoading } = useQuery({
     queryKey: ['supervisor-dashboard-stats'],
     queryFn: async () => {
@@ -87,9 +82,6 @@ export default function SupervisorDashboard() {
   return (
     <StaffLayout role="supervisor">
       <div className="space-y-6">
-        {showOnboarding && (
-          <DashboardOnboarding dashboardContext="supervisor" onComplete={() => setShowOnboarding(false)} />
-        )}
         <div>
           <h1 className="text-2xl font-bold">Supervisor Dashboard</h1>
           <p className="text-muted-foreground">Oversee agent performance and escalations</p>

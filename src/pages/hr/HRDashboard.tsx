@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, GitPullRequest, CalendarOff, Briefcase, UserMinus, DollarSign, MessageSquare } from 'lucide-react';
-import { DashboardOnboarding } from '@/components/onboarding/DashboardOnboarding';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,8 +13,7 @@ import { usePageView } from '@/lib/analytics';
 
 export default function HRDashboard() {
   usePageView('hr_dashboard', 'hr');
-  const { user, profile } = useAuth();
-  const [showOnboarding, setShowOnboarding] = useState(!(profile as any)?.onboarding_completed);
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState({ employees: 0, onboardings: 0, pendingTimeOff: 0, openJobs: 0, offboardings: 0, pendingPayouts: 0, unreadComms: 0 });
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
@@ -68,9 +66,6 @@ export default function HRDashboard() {
   return (
     <HRLayout>
       <div className="space-y-6">
-        {showOnboarding && (
-          <DashboardOnboarding dashboardContext="hr" onComplete={() => setShowOnboarding(false)} />
-        )}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl lg:text-3xl font-bold">HR Dashboard</h1>

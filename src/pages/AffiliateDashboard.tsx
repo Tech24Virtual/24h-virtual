@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { DollarSign, Users, TrendingUp, Copy, Check, ExternalLink, LifeBuoy, Plus, Bot } from 'lucide-react';
-import { DashboardOnboarding } from '@/components/onboarding/DashboardOnboarding';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -68,8 +67,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function AffiliateDashboard() {
-  const { user, profile } = useAuth();
-  const [showOnboarding, setShowOnboarding] = useState(!(profile as any)?.onboarding_completed);
+  const { user } = useAuth();
   const [affiliateData, setAffiliateData] = useState<AffiliateData | null>(null);
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [payouts, setPayouts] = useState<Payout[]>([]);
@@ -237,9 +235,6 @@ export default function AffiliateDashboard() {
 
   return (
     <DashboardLayout title="Affiliate Dashboard" description="Track your referrals and earnings">
-      {showOnboarding && (
-        <DashboardOnboarding dashboardContext="affiliate" onComplete={() => setShowOnboarding(false)} />
-      )}
       {/* Stats Cards */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {statCards.map((stat) => (

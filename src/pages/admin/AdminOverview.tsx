@@ -1,6 +1,4 @@
 import { useState, useEffect } from 'react';
-import { DashboardOnboarding } from '@/components/onboarding/DashboardOnboarding';
-import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import { Users, Building2, Headphones, Phone, Share2, Clock, ArrowRight, AlertTriangle, MessageSquare, Shield, DollarSign, BarChart3 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,8 +44,6 @@ import { usePageView } from '@/lib/analytics';
 
 export default function AdminOverview() {
   usePageView('admin_overview', 'admin');
-  const { profile } = useAuth();
-  const [showOnboarding, setShowOnboarding] = useState(!(profile as any)?.onboarding_completed);
   const [stats, setStats] = useState<Stats>({
     totalLeads: 0, totalClients: 0, totalAgents: 0, totalCalls: 0,
     totalAffiliates: 0, newLeadsToday: 0, wlPartners: 0, openTickets: 0, wlMonthlyRevenue: 0,
@@ -175,9 +171,6 @@ export default function AdminOverview() {
 
   return (
     <div className="space-y-8">
-      {showOnboarding && (
-        <DashboardOnboarding dashboardContext="admin" onComplete={() => setShowOnboarding(false)} />
-      )}
       <div>
         <h1 className="text-2xl lg:text-3xl font-bold text-heading">Dashboard Overview</h1>
         <p className="text-muted-foreground mt-1">Welcome to your admin dashboard</p>

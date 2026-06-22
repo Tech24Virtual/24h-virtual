@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { DashboardOnboarding } from '@/components/onboarding/DashboardOnboarding';
 import { WizardPersonalizedHero } from '@/components/dashboard/WizardPersonalizedHero';
 import { Phone, Clock, TrendingUp, FileText, ArrowRight, PhoneOutgoing } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,12 +37,6 @@ interface Stats {
 
 export default function ClientDashboard() {
   const { profile, user } = useAuth();
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  useEffect(() => {
-    if (profile !== undefined && profile !== null) {
-      setShowOnboarding(!(profile as any)?.onboarding_completed);
-    }
-  }, [profile]);
   const [handoffStatus, setHandoffStatus] = useState<HandoffStatus>(null);
   const [outboundDialogOpen, setOutboundDialogOpen] = useState(false);
   const [stats, setStats] = useState<Stats>({
@@ -165,9 +158,6 @@ export default function ClientDashboard() {
       title={`Welcome back${profile?.full_name ? `, ${profile.full_name}` : ''}!`}
       description="Here's an overview of your call activity"
     >
-      {showOnboarding && (
-        <DashboardOnboarding dashboardContext="client" onComplete={() => setShowOnboarding(false)} />
-      )}
       {handoffStatus === 'collecting_info' && (
         <Card className="mb-4 border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800" data-testid="setup-banner">
           <CardContent className="flex items-center justify-between gap-4 p-4">

@@ -1,9 +1,7 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, Users, MessageSquare, Calendar, ArrowRight, DollarSign, Clock, Trophy } from 'lucide-react';
 import { RunLeadsAgentButton } from '@/components/missions/RunLeadsAgentButton';
 import { MissionsList } from '@/components/missions/MissionsList';
-import { DashboardOnboarding } from '@/components/onboarding/DashboardOnboarding';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { StaffLayout } from '@/components/staff/StaffLayout';
@@ -20,8 +18,7 @@ import { Link } from 'react-router-dom';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth } from 'date-fns';
 
 export default function SalesDashboard() {
-  const { user, profile } = useAuth();
-  const [showOnboarding, setShowOnboarding] = useState(!(profile as any)?.onboarding_completed);
+  const { user } = useAuth();
   const now = new Date();
   const monthStart = startOfMonth(now).toISOString();
 
@@ -119,9 +116,6 @@ export default function SalesDashboard() {
   return (
     <StaffLayout role="sales">
       <div className="space-y-6">
-        {showOnboarding && (
-          <DashboardOnboarding dashboardContext="sales" onComplete={() => setShowOnboarding(false)} />
-        )}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold">Sales Dashboard</h1>
