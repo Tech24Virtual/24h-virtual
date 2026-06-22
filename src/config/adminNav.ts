@@ -5,7 +5,6 @@ import {
   BarChart3,
   Share2,
   Settings,
-  UserCheck,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -139,11 +138,6 @@ export const adminNavGroups: AdminNavGroup[] = [
       { name: 'WL Preview', href: '/admin/wl-preview' },
       { name: 'Impersonate', href: '/admin/wl-portals' },
     ],
-  },
-  {
-    name: 'HR Portal',
-    icon: UserCheck,
-    href: '/hr-portal',
   },
   {
     name: 'System',

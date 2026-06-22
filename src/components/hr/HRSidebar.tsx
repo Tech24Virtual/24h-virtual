@@ -8,7 +8,6 @@ export function HRSidebar() {
       rootPath={hrRoot}
       brandTag="HR Portal"
       roleLabel="HR Staff"
-      backLink={{ label: 'Admin Dashboard', href: '/admin' }}
     />
   );
 }
