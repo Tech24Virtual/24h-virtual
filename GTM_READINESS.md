@@ -1,5 +1,5 @@
 # GTM Readiness
-Last updated: 2026-06-19
+Last updated: 2026-06-24
 
 ## 🔖 CONTEXT FOR NEW CHAT
 
@@ -12,7 +12,7 @@ Last updated: 2026-06-19
 **All test passwords:** QATestPass123!
 
 **Last session summary:**
-Platform is production-ready. All systems complete. 240 tests passing. Five9 API connected (201 campaigns, 80 users). NMI payment integration complete (sandbox). Monthly billing auto-scheduler active via pg_cron. Waiting on: Five9 report retrieval (Five9 support ticket), NMI merchant account for live processing, Stripe→NMI migration crossover date.
+Agent portal fully redesigned and fixed — Dashboard, Training, Onboarding, Support, Tasks, Notifications, Schedule, Clients, Outbound all working. PiP AI rewritten with Anthropic. All missing grants applied. Bookii.io integrated. Five9 report retrieval working. Currently working on dashboard redesign — Agent done, Supervisor next.
 
 **Key gotchas:**
 - `white_label_partners` uses `partner_slug` column (not `portal_slug`)
@@ -26,7 +26,7 @@ Platform is production-ready. All systems complete. 240 tests passing. Five9 API
 - `call_logs.client_id` is FK to `leads.id` NOT `auth.uid()` — always join through `leads` for client RLS
 - NMI: use `customer_vault=add_customer` not `type=add_customer` when adding vault entries
 - Five9 v13 renames all pattern params: `skillNamePattern`, `campaignNamePattern`, `dispositionNamePattern`
-- Five9 username must be display name `"Tech Team"` not email
+- Five9 username must be `TechTeam` (no spaces) — confirmed with Five9 support, FIVE9_USERNAME secret updated
 
 **When starting new chat say:**
 > "Continue 24H Virtual project. I am Suman. Read GTM_READINESS.md for full context. All passwords: QATestPass123!"
@@ -54,7 +54,7 @@ Platform is production-ready. All systems complete. 240 tests passing. Five9 API
 | Add invited_email to wl_partner_members | migration 20260523000001 |
 | Allow null user_id for pending invites | migration 20260523000002 |
 | Add pending status to wl_partner_members | migration 20260523000003 |
-| WL branding leakage tests | branding-leakage.spec.ts 8/8 |
+| WL branding leakage tests | branding-leakage.spec.ts 12/12 |
 | WhiteLabelHeader + Sidebar 24H logo leak fixed | WhiteLabelHeader.tsx + WhiteLabelSidebar.tsx |
 | Notification RLS isolation | t2-rls-proof.spec.ts 19/19 |
 | Notification fan-out tests | notification-bell.spec.ts 5/5 |
@@ -133,6 +133,28 @@ Platform is production-ready. All systems complete. 240 tests passing. Five9 API
 | NMI monthly auto-scheduler | pg_cron registered, runs 1st of month 6am UTC, triggered_by tracking | active |
 | NMI test page | /admin/nmi-test sandbox demo page | deployed |
 | Client call reports | /client-dashboard/reports with CSV/XLSX/PDF exports, leadId fix, RLS fix | deployed |
+| Bookii.io integration | Iframe embed in Admin/Client/Agent/Sales portals, Calendly replaced, webhook handler deployed | bookii-webhook deployed |
+| Five9 report retrieval working | runReport + isReportRunning + getReportResultCsv all working, real data confirmed | Shared Reports/Call Log - Sales |
+| Five9 username fix | Changed from "Tech Team" (space) to "TechTeam" (no space) per Five9 support | FIVE9_USERNAME secret updated |
+| Support requests grants fix | GRANT SELECT,INSERT,UPDATE on support_requests TO authenticated | migration 20260623000005 |
+| PiP AI assistant | Rewritten with Anthropic claude-sonnet-4-6, human conversational tone, platform_knowledge seeded | support-assistant deployed |
+| Agent Dashboard redesign | Shift clock, glance cards, quick actions, assigned clients, recent activity | AgentDashboard.tsx |
+| Agent Training system | campaign_training_assignments table, auto-assign on onboarding/campaign, supervisor signoff flow | flow + migrations |
+| Agent Onboarding redesign | Journey timeline, milestone grid, training checklist, status badges | AgentOnboarding.tsx |
+| Agent notification badges | All nav items + sub-items badged, badges clear on completion | StaffSidebar.tsx + DrilldownSidebar.tsx |
+| Agent Support page redesign | Submit form, my requests list, PiP AI collapsible | StaffSupport.tsx |
+| Agent Outbound calls fixes | Atomic claim RPC, RLS fix, dial helper panel, log outcome | OutboundCallQueue.tsx + migration |
+| Agent Clients page fix | leadId vs userId bug fixed, auto-refresh, status badges, last call date | AgentClients.tsx |
+| Agent Tasks page | Priority badges, mark complete, due date warnings, overdue highlighting | AgentTasks.tsx |
+| Agent Notifications page | /staff/agent/notifications, full list, mark read, clear | AgentNotifications.tsx |
+| Agent Schedule fixes | Grants on agent_schedules + shift_invoices, date validation, cancel time off | migrations + fixes |
+| Agent Messages nav fix | Removed confusing sub-sidebar, Tasks as standalone nav item | staffNav.ts |
+| Browser tab titles | All portals show correct portal name (Agent Portal, HR Portal, etc.) | StaffLayout.tsx |
+| HR portal separation | Removed from admin sidebar, standalone portal via Dashboard Switcher only | adminNav.ts + HRSidebar.tsx |
+| Onboarding walkthrough removal | Removed from all 11 dashboards | DashboardOnboarding.tsx deleted |
+| Missing grants sweep | agent_onboarding, agent_schedules, time_off_requests, open_shifts, client_agent_assignments, shift_invoices, support_requests, agent_performance_reviews, agent_banking, campaign_training_* tables | multiple migrations |
+| FAQ badge clears on Scripts visit | localStorage timestamp, invalidates on page visit | AgentScripts.tsx |
+| Training badge clears on completion | Excludes completed module_ids from urgent count | useTrainingAssignments.ts |
 
 ---
 
@@ -140,9 +162,14 @@ Platform is production-ready. All systems complete. 240 tests passing. Five9 API
 
 | Task | Priority | Notes |
 |------|----------|-------|
-| Five9 report retrieval (isReportRunning/getReportResultCsv) | HIGH | Five9 support ticket open — trace IDs: 20260615-124439-c009a68a. Server-side bug on Five9's end |
+| Dashboard redesign — Supervisor | HIGH | Agent portal done, Supervisor next |
+| Dashboard redesign — Admin | HIGH | After Supervisor |
+| Dashboard redesign — Client | MEDIUM | After Admin |
+| Dashboard redesign — Sales/HR/WL | LOW | After Client |
 | NMI go-live | HIGH | Waiting on Paul + Ryker (PlatPay) — need merchant account + live API key |
+| Notification badges for all portals | MEDIUM | Currently only agent portal has badges |
 | Stripe → NMI migration | MEDIUM | Phase 2 — Paul to set crossover date |
+| URL readability improvements | LOW | IDs in URLs not human-readable |
 | Client self-service card entry (Collect.js) | LOW | Decision needed from Paul |
 | Tracking pixels server-level enforcement | LOW | Suppressed in code, needs Cloudflare/server config |
 | pg_cron Five9 pull schedule | LOW | Already wired, needs service_role_key set via `ALTER DATABASE postgres SET app.service_role_key = '...'` |
