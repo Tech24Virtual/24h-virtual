@@ -146,6 +146,28 @@ serve(async (req) => {
       }
     }
 
+    // Auto-assign published required training modules to new agents
+    if (roles.includes("agent")) {
+      const { data: modules } = await supabaseAdmin
+        .from("campaign_training_modules")
+        .select("id")
+        .eq("status", "published")
+        .eq("required", true);
+
+      if (modules && modules.length > 0) {
+        await supabaseAdmin
+          .from("campaign_training_assignments")
+          .insert(
+            modules.map((m: { id: string }) => ({
+              module_id: m.id,
+              agent_id: userId,
+              trigger_type: "onboarding",
+            }))
+          );
+        console.log(`Auto-assigned ${modules.length} training modules to agent ${userId}`);
+      }
+    }
+
     // Create welcome notification
     const portalList = roles.map((r: string) => ROLE_LABELS[r] || r).join(", ");
     await supabaseAdmin.from("notifications").insert({

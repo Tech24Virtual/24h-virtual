@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { PhoneOutgoing, Clock, Copy, User, AlertTriangle, RotateCcw, Check, X, PhoneCall } from 'lucide-react';
+import { PhoneOutgoing, Clock, Copy, User, AlertTriangle, RotateCcw, Check, X, PhoneCall, Phone } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -84,23 +84,19 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
 
   const claimMutation = useMutation({
     mutationFn: async (requestId: string) => {
-      const { error } = await supabase
-        .from('outbound_call_requests')
-        .update({
-          status: 'claimed',
-          claimed_by: user!.id,
-          claimed_at: new Date().toISOString(),
-        })
-        .eq('id', requestId)
-        .eq('status', 'pending');
+      const { data: claimed, error } = await supabase.rpc('claim_outbound_request', {
+        p_request_id: requestId,
+        p_agent_id: user!.id,
+      });
       if (error) throw error;
+      if (!claimed) throw new Error('This request was just claimed by another agent.');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['outbound-requests'] });
       queryClient.invalidateQueries({ queryKey: ['outbound-stats'] });
       toast.success('Request claimed');
     },
-    onError: () => toast.error('Failed to claim request'),
+    onError: (err: Error) => toast.error(err.message || 'Failed to claim request'),
   });
 
   const startCallMutation = useMutation({
@@ -108,13 +104,16 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
       const { error } = await supabase
         .from('outbound_call_requests')
         .update({ status: 'in_progress' })
-        .eq('id', requestId);
+        .eq('id', requestId)
+        .eq('status', 'claimed')
+        .eq('claimed_by', user!.id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['outbound-requests'] });
       toast.success('Marked as in progress');
     },
+    onError: () => toast.error('Failed to update call status'),
   });
 
   const copyPhone = (phone: string) => {
@@ -172,9 +171,18 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
         <div className="text-center py-12 text-muted-foreground">Loading...</div>
       ) : requests.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center py-12">
-            <PhoneOutgoing className="w-12 h-12 text-muted-foreground/50 mb-4" />
-            <p className="text-muted-foreground">No requests in this queue</p>
+          <CardContent className="flex flex-col items-center py-16 text-center">
+            <div className="rounded-full bg-muted p-4 mb-4">
+              <PhoneOutgoing className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <p className="text-base font-medium text-foreground mb-1">
+              {activeTab === 'all' ? 'No outbound calls assigned' : `No ${activeTab.replace('_', ' ')} calls`}
+            </p>
+            <p className="text-sm text-muted-foreground max-w-xs">
+              {activeTab === 'all'
+                ? 'Outbound call requests submitted by clients appear here. Claim a request to call the contact on behalf of your client.'
+                : 'Try switching to the "All" tab to see the full queue.'}
+            </p>
           </CardContent>
         </Card>
       ) : (
@@ -186,6 +194,7 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
             const canLog = ['claimed', 'in_progress', 'retry_pending'].includes(req.status) &&
               (req.claimed_by === user?.id || role === 'supervisor' || role === 'admin');
             const canStart = req.status === 'claimed' && req.claimed_by === user?.id;
+            const showDialHelper = req.claimed_by === user?.id && ['claimed', 'in_progress'].includes(req.status);
 
             return (
               <Card
@@ -276,8 +285,8 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
                       {canStart && (
                         <Button
                           size="sm"
-                          variant="outline"
                           onClick={() => startCallMutation.mutate(req.id)}
+                          disabled={startCallMutation.isPending}
                         >
                           <PhoneCall className="w-4 h-4 mr-1" />
                           Call Now
@@ -302,6 +311,35 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
                       )}
                     </div>
                   </div>
+
+                  {/* Dial helper — visible while agent has the request claimed/in-progress */}
+                  {showDialHelper && (
+                    <div className="mt-4 pt-4 border-t">
+                      <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-4 space-y-2">
+                        <p className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide flex items-center gap-1">
+                          <Phone className="w-3 h-3" />
+                          Dial via Five9 or your phone
+                        </p>
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <a
+                            href={`tel:${req.contact_phone}`}
+                            className="text-xl font-mono font-bold text-blue-700 dark:text-blue-300 hover:underline"
+                          >
+                            {req.contact_phone}
+                          </a>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 h-7 text-xs"
+                            onClick={() => copyPhone(req.contact_phone)}
+                          >
+                            <Copy className="w-3 h-3" />
+                            Copy Number
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );

@@ -442,8 +442,8 @@ serve(async (req) => {
             case "runAndGetReport": {
                 // Run report + poll until done + return CSV — all in one edge-function call
                 // so the Five9 identifier stays in the same SOAP session context
-                const rFolder = url.searchParams.get("folderName") || "Campaign Reports";
-                const rReport = url.searchParams.get("reportName") || "Campaign Activity";
+                const rFolder = url.searchParams.get("folderName") || "Shared Reports";
+                const rReport = url.searchParams.get("reportName") || "Call Log - Sales";
                 const rStart  = url.searchParams.get("startDate");
                 const rEnd    = url.searchParams.get("endDate");
                 if (!rStart || !rEnd) {

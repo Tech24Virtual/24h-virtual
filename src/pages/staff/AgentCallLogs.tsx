@@ -71,7 +71,12 @@ export default function AgentCallLogs() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Call Logs</h1>
-          <p className="text-muted-foreground">View all call activity across clients</p>
+          <p className="text-muted-foreground">
+            Showing calls for your assigned clients
+            {!isLoading && calls !== undefined && (
+              <span className="ml-1 text-foreground font-medium">— {calls.length} call{calls.length !== 1 ? 's' : ''} found</span>
+            )}
+          </p>
         </div>
 
         {/* Stats Cards */}
@@ -157,8 +162,20 @@ export default function AgentCallLogs() {
                   ))
                 ) : filteredCalls?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      No call logs found
+                    <TableCell colSpan={6} className="text-center py-12">
+                      <div className="flex flex-col items-center gap-2">
+                        <Phone className="w-8 h-8 text-muted-foreground/40" />
+                        <p className="font-medium text-foreground">
+                          {searchQuery || statusFilter !== 'all'
+                            ? 'No calls match your filters'
+                            : 'No calls found for your assigned clients yet'}
+                        </p>
+                        <p className="text-sm text-muted-foreground max-w-xs">
+                          {searchQuery || statusFilter !== 'all'
+                            ? 'Try clearing the search or status filter.'
+                            : 'Calls handled by your clients will appear here once recorded in Five9.'}
+                        </p>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (

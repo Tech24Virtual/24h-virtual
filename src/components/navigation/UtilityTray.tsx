@@ -8,65 +8,79 @@ interface UtilityTrayProps {
   roleLabel?: string;
   className?: string;
   compact?: boolean;
-  /** Optional slot rendered above the user/sign-out row (e.g. System popover trigger). */
+  /** Optional slot rendered above the user row (e.g. System popover trigger). */
   extra?: React.ReactNode;
 }
 
 /**
- * Compact, non-scrolling footer cluster shared by every dashboard sidebar.
- * Holds theme toggle, user identity chip, sign out, and optional extras
- * (e.g. System popover trigger). Lives outside the primary rail so the rail
- * itself stays short and never scrolls on desktop.
+ * Bottom section shared by every dashboard sidebar.
+ * compact=true → rail (56 px): shows avatar + toggle icon; labels appear on group-hover/rail.
+ * compact=false → expanded panel: shows avatar + name + role + theme toggle + sign-out.
  */
 export function UtilityTray({ roleLabel = 'Admin', className, compact = false, extra }: UtilityTrayProps) {
-  const { signOut, user } = useAuth();
+  const { signOut, user, profile } = useAuth();
+  const displayName = profile?.full_name || user?.email || 'User';
+  const initial = displayName.charAt(0).toUpperCase();
 
   if (compact) {
     return (
-      <div className={cn('p-2 pb-16 border-t flex flex-col items-center gap-2', className)}>
+      <div className={cn('border-t shrink-0 p-2 flex flex-col gap-1', className)}>
         {extra}
-        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0" title={user?.email}>
-          <span className="text-sm font-medium text-primary">
-            {user?.email?.charAt(0).toUpperCase()}
-          </span>
+
+        {/* Avatar row — name + role slide in on rail hover */}
+        <div className="flex items-center gap-2 overflow-hidden rounded-lg px-1 py-1">
+          <div
+            className="h-8 w-8 shrink-0 rounded-full bg-primary/10 flex items-center justify-center"
+            title={user?.email}
+          >
+            <span className="text-xs font-semibold text-primary">{initial}</span>
+          </div>
+          <div className="min-w-0 opacity-0 group-hover/rail:opacity-100 transition-opacity duration-150">
+            <p className="truncate text-xs font-medium leading-none">{displayName}</p>
+            <p className="mt-0.5 text-[10px] text-muted-foreground">{roleLabel}</p>
+          </div>
         </div>
-        <ThemeToggle />
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-muted-foreground"
-          onClick={signOut}
-          aria-label="Sign Out"
-          title="Sign Out"
-        >
-          <LogOut className="w-4 h-4" />
-        </Button>
+
+        {/* Theme toggle always visible; "Sign Out" label appears on hover */}
+        <div className="flex items-center">
+          <ThemeToggle />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="flex-1 justify-start px-2 text-xs text-muted-foreground opacity-0 group-hover/rail:opacity-100 transition-opacity duration-150"
+            onClick={signOut}
+          >
+            <LogOut className="h-3.5 w-3.5 mr-1.5 shrink-0" />
+            Sign Out
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className={cn('p-3 pb-16 border-t space-y-2', className)}>
+    <div className={cn('border-t shrink-0 p-3 space-y-1', className)}>
       {extra}
-      <div className="flex items-center gap-2 px-2 py-2">
-        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-          <span className="text-sm font-medium text-primary">
-            {user?.email?.charAt(0).toUpperCase()}
-          </span>
+
+      {/* User identity row */}
+      <div className="flex items-center gap-2 rounded-lg px-2 py-2">
+        <div className="h-8 w-8 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
+          <span className="text-sm font-semibold text-primary">{initial}</span>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium truncate">{user?.email}</p>
-          <p className="text-[10px] text-muted-foreground">{roleLabel}</p>
+          <p className="truncate text-xs font-medium leading-none">{displayName}</p>
+          <p className="mt-0.5 text-[10px] text-muted-foreground">{roleLabel}</p>
         </div>
         <ThemeToggle />
       </div>
+
       <Button
         variant="ghost"
         size="sm"
-        className="w-full justify-start text-muted-foreground"
+        className="w-full justify-start text-muted-foreground hover:text-destructive"
         onClick={signOut}
       >
-        <LogOut className="w-4 h-4 mr-2" />
+        <LogOut className="h-4 w-4 mr-2" />
         Sign Out
       </Button>
     </div>

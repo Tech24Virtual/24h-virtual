@@ -36685,6 +36685,10 @@ export type Database = {
         Args: { p_campaign_id: string }
         Returns: undefined
       }
+      claim_outbound_request: {
+        Args: { p_request_id: string; p_agent_id: string }
+        Returns: boolean
+      }
       classify_event_domain: { Args: { _name: string }; Returns: string }
       clear_legacy_script_cutover: {
         Args: { p_campaign_id: string }
