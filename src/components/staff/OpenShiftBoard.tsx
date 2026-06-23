@@ -97,7 +97,7 @@ export function OpenShiftBoard({ role }: Props) {
   const getName = (id: string) => profiles.find(p => p.id === id)?.full_name || 'Unknown';
 
   const displayed = role === 'agent'
-    ? shifts.filter(s => s.status === 'open' && (s.required_skills.length === 0 || s.required_skills.some((sk: string) => agentSkills.includes(sk))))
+    ? shifts.filter(s => s.status === 'open' && ((s.required_skills ?? []).length === 0 || (s.required_skills ?? []).some((sk: string) => agentSkills.includes(sk))))
     : shifts.filter(s => s.status !== 'cancelled');
 
   if (isLoading) return <p className="text-sm text-muted-foreground py-4">Loading...</p>;

@@ -23,6 +23,7 @@ import {
   Share2,
   ClipboardCheck,
   GitCompare,
+  CheckSquare,
 } from 'lucide-react';
 import type { NavGroup } from '@/components/navigation/types';
 
@@ -74,16 +75,10 @@ export function getStaffNav(role: StaffRole): NavGroup[] {
     case 'agent':
       return [
         { name: 'Overview', icon: LayoutDashboard, basePath: root, children: [{ name: 'Overview', href: root }] },
-        {
-          name: 'Workspace',
-          icon: MessageSquareText,
-          basePath: `${root}/workspace-group`,
-          children: [
-            { name: 'Workspace', href: `${root}/workspace` },
-            { name: 'Messages', href: `${root}/messages` },
-            { name: 'Tasks', href: `${root}/tasks` },
-          ],
-        },
+        // Single-child groups navigate directly — no section panel / Back button.
+        { name: 'Workspace', icon: MessageSquareText, basePath: `${root}/workspace`, children: [{ name: 'Workspace', href: `${root}/workspace` }] },
+        { name: 'Tasks', icon: CheckSquare, basePath: `${root}/tasks`, children: [{ name: 'Tasks', href: `${root}/tasks` }] },
+        { name: 'Messages', icon: MessageCircle, basePath: `${root}/messages`, children: [{ name: 'Messages', href: `${root}/messages` }] },
         {
           name: 'Clients',
           icon: Users,

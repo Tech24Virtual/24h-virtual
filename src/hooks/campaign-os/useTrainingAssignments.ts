@@ -86,12 +86,29 @@ export function useUrgentTrainingCount() {
     queryFn: async (): Promise<number> => {
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() + 7);
-      const { count, error } = await (supabase as any)
+
+      // Exclude modules the agent has already completed
+      const { data: completions } = await (supabase as any)
+        .from('campaign_training_completions')
+        .select('module_id')
+        .eq('agent_id', user!.id);
+
+      const completedModuleIds: string[] = (completions ?? []).map(
+        (c: { module_id: string }) => c.module_id,
+      );
+
+      let query = (supabase as any)
         .from('campaign_training_assignments')
         .select('id', { count: 'exact', head: true })
         .eq('agent_id', user!.id)
         .not('due_date', 'is', null)
         .lte('due_date', cutoff.toISOString());
+
+      if (completedModuleIds.length > 0) {
+        query = query.not('module_id', 'in', `(${completedModuleIds.join(',')})`);
+      }
+
+      const { count, error } = await query;
       if (error) return 0;
       return count ?? 0;
     },

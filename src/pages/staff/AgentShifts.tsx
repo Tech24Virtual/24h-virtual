@@ -19,11 +19,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from '@/hooks/use-toast';
 
-const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-  active: { label: 'Active', variant: 'default' },
-  completed: { label: 'Completed', variant: 'secondary' },
-  approved: { label: 'Approved', variant: 'outline' },
-  voided: { label: 'Voided', variant: 'destructive' },
+const statusConfig: Record<string, { label: string; className: string }> = {
+  active:    { label: 'Active',    className: 'bg-blue-100 text-blue-800 border border-blue-200' },
+  completed: { label: 'Completed', className: 'bg-amber-100 text-amber-800 border border-amber-200' },
+  approved:  { label: 'Approved',  className: 'bg-green-100 text-green-800 border border-green-200' },
+  voided:    { label: 'Voided',    className: 'bg-red-100 text-red-800 border border-red-200' },
 };
 
 // Generate semi-monthly pay periods (last 6 months)
@@ -189,6 +189,7 @@ export default function AgentShifts() {
 
   return (
     <StaffLayout role="agent">
+      <div className="min-h-full bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -271,11 +272,11 @@ export default function AgentShifts() {
                         <TableCell>
                           {shift.status === 'voided' && shift.void_reason ? (
                             <Tooltip>
-                              <TooltipTrigger><Badge variant={cfg.variant}>{cfg.label}</Badge></TooltipTrigger>
+                              <TooltipTrigger><Badge className={cfg.className}>{cfg.label}</Badge></TooltipTrigger>
                               <TooltipContent className="max-w-xs">{shift.void_reason}</TooltipContent>
                             </Tooltip>
                           ) : (
-                            <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                            <Badge className={cfg.className}>{cfg.label}</Badge>
                           )}
                         </TableCell>
                         <TableCell>
@@ -392,6 +393,7 @@ export default function AgentShifts() {
             netHours={netMins / 60}
           />
         )}
+      </div>
       </div>
     </StaffLayout>
   );

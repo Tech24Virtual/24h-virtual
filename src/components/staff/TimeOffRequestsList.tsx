@@ -27,7 +27,8 @@ export function TimeOffRequestsList({ role }: Props) {
   const [postCoverage, setPostCoverage] = useState<Record<string, boolean>>({});
 
   const { data: requests = [], isLoading } = useQuery({
-    queryKey: ['time-off-requests', role],
+    queryKey: ['time-off-requests', role, user?.id],
+    enabled: !!user?.id,
     queryFn: async () => {
       let q = supabase.from('time_off_requests').select('*').order('created_at', { ascending: false });
       if (role === 'agent') q = q.eq('agent_id', user!.id);

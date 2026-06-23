@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,8 +23,16 @@ const POLICY_KIND_LABELS: Record<string, string> = {
 
 export default function AgentScripts() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [faqSearch, setFaqSearch]       = useState('');
   const [policySearch, setPolicySearch] = useState('');
+
+  // Stamp the visit time so the sidebar FAQ badge clears immediately on arrival
+  useEffect(() => {
+    if (!user?.id) return;
+    localStorage.setItem(`faq-last-viewed-${user.id}`, new Date().toISOString());
+    queryClient.invalidateQueries({ queryKey: ['new-faqs-sidebar', user.id] });
+  }, [user?.id, queryClient]);
 
   // ── Agent's assigned client IDs ──────────────────────────────────────────
   const { data: assignments = [] } = useQuery({

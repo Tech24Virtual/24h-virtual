@@ -29,6 +29,7 @@ export default function AgentSchedule() {
 
   return (
     <StaffLayout role="agent">
+      <div className="min-h-full bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -60,6 +61,7 @@ export default function AgentSchedule() {
         </Tabs>
 
         <TimeOffRequestDialog open={showTimeOff} onOpenChange={setShowTimeOff} />
+      </div>
       </div>
     </StaffLayout>
   );

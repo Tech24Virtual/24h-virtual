@@ -93,7 +93,10 @@ export function StaffSidebar({ role }: StaffSidebarProps) {
     queryKey: ['new-faqs-sidebar', user?.id],
     staleTime: 120_000,
     queryFn: async () => {
-      const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      // Use the timestamp from when the agent last visited the Scripts page.
+      // Falls back to 7 days ago on first visit so genuinely new FAQs still surface.
+      const lastViewed = localStorage.getItem(`faq-last-viewed-${user?.id}`);
+      const since = lastViewed ?? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const { count } = await supabase
         .from('campaign_faq_entries')
         .select('*', { count: 'exact', head: true })

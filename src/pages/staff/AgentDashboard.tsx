@@ -427,7 +427,7 @@ export default function AgentDashboard() {
               </Card>
             </Link>
 
-            <Link to="/staff/agent/messages" className="block">
+            <Link to="/staff/agent/notifications" className="block">
               <Card className="shadow-sm rounded-2xl hover:shadow-md hover:border-purple-200 dark:hover:border-purple-800 transition-all cursor-pointer h-full">
                 <CardContent className="flex items-center gap-4 p-5">
                   <div className="h-12 w-12 shrink-0 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
@@ -438,7 +438,7 @@ export default function AgentDashboard() {
                       <p className="text-3xl font-bold leading-none">{unreadCount}</p>
                       {unreadCount > 0 && <Badge className="h-5 px-1.5 text-xs">New</Badge>}
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground">Unread Messages</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Notifications</p>
                   </div>
                 </CardContent>
               </Card>
