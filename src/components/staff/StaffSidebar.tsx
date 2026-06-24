@@ -24,6 +24,7 @@ export function StaffSidebar({ role }: StaffSidebarProps) {
   const activeShiftTime = useActiveShiftTime(role === 'agent');
 
   const isAgent = role === 'agent';
+  const isSupervisor = role === 'supervisor';
 
   // ── Agent-only badge counts ───────────────────────────────────────────────
 
@@ -152,6 +153,66 @@ export function StaffSidebar({ role }: StaffSidebarProps) {
     enabled: !!user?.id && isAgent,
   });
 
+  // ── Supervisor-only badge counts ─────────────────────────────────────────────
+
+  const { data: openEscalations = 0 } = useQuery({
+    queryKey: ['open-escalations-badge', user?.id],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('supervisor_escalations' as any)
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'open');
+      return count ?? 0;
+    },
+    enabled: !!user?.id && isSupervisor,
+  });
+
+  const { data: pendingSignoffsCount = 0 } = useQuery({
+    queryKey: ['pending-signoffs-badge', user?.id],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const [completionsResult, signoffsResult] = await Promise.all([
+        supabase.from('campaign_training_completions').select('id'),
+        (supabase as any).from('campaign_training_signoffs').select('completion_id'),
+      ]);
+      const signedIds = new Set(
+        (signoffsResult.data ?? []).map((s: { completion_id: string }) => s.completion_id),
+      );
+      return (completionsResult.data ?? []).filter(
+        (c: { id: string }) => !signedIds.has(c.id),
+      ).length;
+    },
+    enabled: !!user?.id && isSupervisor,
+  });
+
+  const { data: pendingShiftReviews = 0 } = useQuery({
+    queryKey: ['pending-shift-reviews-badge', user?.id],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('shift_invoices' as any)
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'submitted');
+      return count ?? 0;
+    },
+    enabled: !!user?.id && isSupervisor,
+  });
+
+  const { data: supervisorTickets = 0 } = useQuery({
+    queryKey: ['supervisor-tickets-badge', user?.id],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('support_tickets')
+        .select('*', { count: 'exact', head: true })
+        .eq('work_queue', 'supervisor')
+        .in('status', ['open', 'in_progress']);
+      return count ?? 0;
+    },
+    enabled: !!user?.id && isSupervisor,
+  });
+
   // ── Onboarding completion — hide Onboarding + Training nav items when done ──
 
   const { data: agentOnboarding } = useQuery({
@@ -175,7 +236,23 @@ export function StaffSidebar({ role }: StaffSidebarProps) {
   // Group-level dots are auto-computed by DrilldownSidebar from children badges —
   // no separate agentBadges map needed.
   const navGroups = useMemo(() => {
-    if (!isAgent) return groups;
+    if (!isAgent && !isSupervisor) return groups;
+
+    if (isSupervisor) {
+      const supervisorBadgeMap: Record<string, number> = {
+        Escalations:    openEscalations,
+        Signoffs:       pendingSignoffsCount,
+        'Shift Reviews': pendingShiftReviews,
+        Tickets:        supervisorTickets,
+      };
+      return groups.map(g => ({
+        ...g,
+        children: g.children.map(c => {
+          const badge = supervisorBadgeMap[c.name];
+          return badge ? { ...c, badge } : c;
+        }),
+      }));
+    }
 
     // Scripts aggregates Policies + new FAQs (both live on the same page as tabs)
     const childBadgeMap: Record<string, number> = {
@@ -201,7 +278,8 @@ export function StaffSidebar({ role }: StaffSidebarProps) {
       return { ...g, children: childrenWithBadges };
     });
   }, [
-    groups, isAgent, onboardingComplete,
+    groups, isAgent, isSupervisor, onboardingComplete,
+    openEscalations, pendingSignoffsCount, pendingShiftReviews, supervisorTickets,
     openTaskCount, openTicketCount, urgentTrainingCount, pendingTimeOff,
     unreadMessages, pendingInvoices, unacknowledgedPolicies, newFaqs,
   ]);

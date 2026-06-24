@@ -319,7 +319,7 @@ function ShiftReviewsPane({ itemId, onSelect }: { itemId: string | null; onSelec
               </Badge>
             </DrawerSection>
             <DrawerSection title="Submitted">
-              <p>{format(new Date(selected.submitted_at), 'MMM d, h:mm a')}</p>
+              <p>{selected.submitted_at ? format(new Date(selected.submitted_at), 'MMM d, h:mm a') : 'Not submitted'}</p>
             </DrawerSection>
             {selected.payout_date && (
               <DrawerSection title="Payout date">

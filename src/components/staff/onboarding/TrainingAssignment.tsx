@@ -74,7 +74,7 @@ export function TrainingAssignment({ onboarding, onRefresh, canCheck = false }: 
         await supabase.from('notifications').insert({
           user_id: onboarding.supervisor_id,
           title: 'Agent Training Complete',
-          message: `${onboarding.profiles?.full_name || 'An agent'} has completed all self-training items. Schedule live training.`,
+          message: `${onboarding.agent_name || 'An agent'} has completed all self-training items. Schedule live training.`,
           category: 'onboarding',
           action_url: '/staff/supervisor/agent-onboarding',
         });

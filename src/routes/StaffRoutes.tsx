@@ -38,6 +38,7 @@ const SupervisorDashboard = lazy(() => import("@/pages/staff/SupervisorDashboard
 const SupervisorWorkspace = lazy(() => import("@/pages/staff/SupervisorWorkspace"));
 const SupervisorSchedule = lazy(() => import("@/pages/staff/SupervisorSchedule"));
 const SupervisorAgents = lazy(() => import("@/pages/staff/SupervisorAgents"));
+const SupervisorAgentDetail = lazy(() => import("@/pages/staff/SupervisorAgentDetail"));
 const SupervisorTasks = lazy(() => import("@/pages/staff/SupervisorTasks"));
 const SupervisorTickets = lazy(() => import("@/pages/staff/SupervisorTickets"));
 const SupervisorOutboundCalls = lazy(() => import("@/pages/staff/SupervisorOutboundCalls"));
@@ -127,6 +128,7 @@ export const StaffRoutes = (
     <Route path="/staff/supervisor" element={guard("supervisor", <SupervisorDashboard />)} />
     <Route path="/staff/supervisor/workspace" element={guard("supervisor", <SupervisorWorkspace />)} />
     <Route path="/staff/supervisor/agents" element={guard("supervisor", <SupervisorAgents />)} />
+    <Route path="/staff/supervisor/agents/:userId" element={guard("supervisor", <SupervisorAgentDetail />)} />
     <Route path="/staff/supervisor/tasks" element={guard("supervisor", <SupervisorTasks />)} />
     <Route path="/staff/supervisor/schedule" element={guard("supervisor", <SupervisorSchedule />)} />
     <Route path="/staff/supervisor/messages" element={guard("supervisor", <SupervisorMessages />)} />

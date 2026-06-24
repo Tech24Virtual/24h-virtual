@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, CheckCircle, Circle, Send, FileSignature, Landmark,
-  Mail, Phone, MessageSquare, BookOpen, Video, Hash, Loader2, UserCheck
+  Mail, Phone, MessageSquare, BookOpen, Video, Hash, Loader2, UserCheck, ExternalLink
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -133,11 +134,19 @@ export function AgentOnboardingDetail({ onboarding, onBack, onRefresh }: AgentOn
         </Button>
         <div>
           <h2 className="text-xl font-bold">
-            {onboarding.profiles?.full_name || 'Agent'}
+            {onboarding.agent_name || 'Agent'}
           </h2>
           <p className="text-sm text-muted-foreground">
             Started {format(new Date(onboarding.created_at), 'MMMM d, yyyy')}
           </p>
+          {onboarding.applicant_user_id && (
+            <Link
+              to={`/staff/supervisor/agents/${onboarding.applicant_user_id}`}
+              className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline mt-0.5"
+            >
+              View Agent Profile <ExternalLink className="w-3 h-3" />
+            </Link>
+          )}
         </div>
       </div>
 
@@ -252,7 +261,10 @@ export function AgentOnboardingDetail({ onboarding, onBack, onRefresh }: AgentOn
                   />
                   <Button
                     size="sm"
-                    onClick={() => scheduleMutation.mutate(new Date(scheduledAt).toISOString())}
+                    onClick={() => {
+                      if (!scheduledAt || isNaN(new Date(scheduledAt).getTime())) return;
+                      scheduleMutation.mutate(new Date(scheduledAt).toISOString());
+                    }}
                     disabled={!scheduledAt || scheduleMutation.isPending}
                   >
                     {scheduleMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Schedule'}

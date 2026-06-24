@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Users, Plus, Search, Filter } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SendOfferDialog } from '@/components/staff/onboarding/SendOfferDialog';
 import { AgentOnboardingDetail } from '@/components/staff/onboarding/AgentOnboardingDetail';
@@ -20,6 +21,7 @@ const statusLabels: Record<string, string> = {
   provisioning: 'Provisioning',
   training: 'Training',
   live_training: 'Live Training',
+  activation_in_progress: 'Activating',
   completed: 'Completed',
 };
 
@@ -31,6 +33,7 @@ const statusColors: Record<string, string> = {
   provisioning: 'bg-purple-100 text-purple-800',
   training: 'bg-cyan-100 text-cyan-800',
   live_training: 'bg-teal-100 text-teal-800',
+  activation_in_progress: 'bg-blue-100 text-blue-800',
   completed: 'bg-green-100 text-green-800',
 };
 
@@ -77,6 +80,14 @@ export default function SupervisorAgentOnboarding() {
     return matchesSearch && matchesStatus;
   });
 
+  const stageCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    (onboardings || []).forEach((o: any) => {
+      counts[o.status] = (counts[o.status] || 0) + 1;
+    });
+    return counts;
+  }, [onboardings]);
+
   const selected = selectedId ? (onboardings || []).find((o: any) => o.id === selectedId) : null;
 
   if (selected) {
@@ -108,6 +119,28 @@ export default function SupervisorAgentOnboarding() {
           </Button>
         </div>
 
+        {/* Pipeline summary pills */}
+        {!isLoading && (onboardings || []).length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(statusLabels)
+              .filter(([key]) => stageCounts[key])
+              .map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setFilterStatus(filterStatus === key ? 'all' : key)}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
+                    filterStatus === key
+                      ? `${statusColors[key]} border-transparent ring-2 ring-offset-1 ring-current`
+                      : `${statusColors[key]} border-transparent opacity-80 hover:opacity-100`
+                  }`}
+                >
+                  <span className="font-bold">{stageCounts[key]}</span>
+                  {label}
+                </button>
+              ))}
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -133,7 +166,21 @@ export default function SupervisorAgentOnboarding() {
         </div>
 
         {isLoading ? (
-          <div className="text-center py-12 text-muted-foreground">Loading...</div>
+          <div className="space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i}>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-36" />
+                      <Skeleton className="h-3 w-56" />
+                    </div>
+                    <Skeleton className="h-6 w-24 rounded-full" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         ) : filtered.length === 0 ? (
           <Card>
             <CardContent className="p-12 text-center">
