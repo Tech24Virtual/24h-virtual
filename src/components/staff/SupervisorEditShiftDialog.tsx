@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 interface SupervisorEditShiftDialogProps {
   shift: {
@@ -68,12 +68,12 @@ export function SupervisorEditShiftDialog({ shift, open, onOpenChange }: Supervi
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shift-invoices-all'] });
       queryClient.invalidateQueries({ queryKey: ['invoice-shifts'] });
-      toast({ title: 'Shift updated', description: 'Clock times have been adjusted.' });
+      toast.success('Shift updated. Clock times have been adjusted.');
       setReason('');
       onOpenChange(false);
     },
     onError: () => {
-      toast({ title: 'Error', description: 'Failed to update shift.', variant: 'destructive' });
+      toast.error('Failed to update shift.');
     },
   });
 

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Clock, User, AlertTriangle, CheckCircle } from 'lucide-react';
@@ -7,6 +8,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface Props {
   role: 'agent' | 'supervisor';
@@ -15,6 +21,7 @@ interface Props {
 export function OpenShiftBoard({ role }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
 
   const { data: shifts = [], isLoading } = useQuery({
     queryKey: ['open-shifts'],
@@ -103,6 +110,7 @@ export function OpenShiftBoard({ role }: Props) {
   if (isLoading) return <p className="text-sm text-muted-foreground py-4">Loading...</p>;
 
   return (
+    <>
     <div className="space-y-3">
       {displayed.length === 0 ? (
         <Card><CardContent className="p-8 text-center text-muted-foreground">No open shifts</CardContent></Card>
@@ -147,7 +155,14 @@ export function OpenShiftBoard({ role }: Props) {
                       )
                     )}
                     {role === 'supervisor' && shift.status === 'open' && (
-                      <Button variant="ghost" size="sm" onClick={() => cancelMutation.mutate(shift.id)}>Cancel</Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setConfirmCancelId(shift.id)}
+                      >
+                        Cancel Shift
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -157,5 +172,29 @@ export function OpenShiftBoard({ role }: Props) {
         })
       )}
     </div>
+
+    <AlertDialog
+      open={!!confirmCancelId}
+      onOpenChange={open => { if (!open) setConfirmCancelId(null); }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Cancel this open shift?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Agents who have arranged their schedules around this shift will be affected. This cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={() => confirmCancelId && cancelMutation.mutate(confirmCancelId)}
+          >
+            Cancel Shift
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

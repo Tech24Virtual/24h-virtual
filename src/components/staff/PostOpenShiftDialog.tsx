@@ -49,6 +49,23 @@ export function PostOpenShiftDialog({ open, onOpenChange, prefill }: Props) {
         posted_by: user!.id,
       } as any);
       if (error) throw error;
+
+      // Notify all agents so they can claim the shift
+      const { data: agentRoles } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'agent');
+      if (agentRoles?.length) {
+        await (supabase as any).from('notifications').insert(
+          agentRoles.map((a: { user_id: string }) => ({
+            user_id: a.user_id,
+            title: 'New Open Shift Available',
+            message: `A shift on ${date} from ${startTime} to ${endTime} is available to claim. Check the Open Shifts board.`,
+            category: 'scheduling',
+            action_url: '/staff/agent/schedule',
+          })),
+        );
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['open-shifts'] });

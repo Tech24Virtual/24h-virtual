@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 interface SubmitInvoiceDialogProps {
   open: boolean;
@@ -20,34 +20,52 @@ interface SubmitInvoiceDialogProps {
 }
 
 export function SubmitInvoiceDialog({
-  open, onOpenChange, periodStart, periodEnd, totalHours, totalBreakMinutes, netHours
+  open, onOpenChange, periodStart, periodEnd, totalHours, totalBreakMinutes, netHours,
 }: SubmitInvoiceDialogProps) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState('');
 
   const submitMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from('shift_invoices').insert({
-        agent_id: user!.id,
-        period_start: format(periodStart, 'yyyy-MM-dd'),
-        period_end: format(periodEnd, 'yyyy-MM-dd'),
-        total_hours: totalHours,
+      const { error } = await (supabase as any).from('shift_invoices').insert({
+        agent_id:            user!.id,
+        period_start:        format(periodStart, 'yyyy-MM-dd'),
+        period_end:          format(periodEnd, 'yyyy-MM-dd'),
+        total_hours:         totalHours,
         total_break_minutes: totalBreakMinutes,
-        net_hours: netHours,
-        agent_notes: notes || null,
+        net_hours:           netHours,
+        agent_notes:         notes || null,
+        status:              'submitted',
+        submitted_at:        new Date().toISOString(),
       });
       if (error) throw error;
+
+      // Notify all supervisors so the Pending tab badge lights up
+      const { data: supervisors } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'supervisor');
+
+      if (supervisors?.length) {
+        await (supabase as any).from('notifications').insert(
+          supervisors.map((s: { user_id: string }) => ({
+            user_id:    s.user_id,
+            title:      'New Shift Invoice Submitted',
+            message:    `${profile?.full_name || 'An agent'} has submitted a shift invoice for review.`,
+            category:   'billing',
+            action_url: '/staff/supervisor/shift-reviews',
+          }))
+        );
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shift-invoices'] });
       queryClient.invalidateQueries({ queryKey: ['agent-shifts'] });
-      toast({ title: 'Invoice submitted', description: 'Your shift invoice has been sent for supervisor review.' });
+      toast.success('Invoice submitted. Your supervisor has been notified.');
       onOpenChange(false);
     },
-    onError: (err: any) => {
-      toast({ title: 'Error', description: err.message || 'Failed to submit invoice.', variant: 'destructive' });
-    },
+    onError: (err: Error) => toast.error(err.message || 'Failed to submit invoice.'),
   });
 
   return (
@@ -89,7 +107,7 @@ export function SubmitInvoiceDialog({
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending}>
-            {submitMutation.isPending ? 'Submitting...' : 'Submit for Review'}
+            {submitMutation.isPending ? 'Submitting…' : 'Submit for Review'}
           </Button>
         </DialogFooter>
       </DialogContent>

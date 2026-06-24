@@ -113,7 +113,7 @@ export function ScheduleBuilder({ open, onOpenChange }: ScheduleBuilderProps) {
     setRecurrenceDays(2); setRecurrenceEndDate('');
   };
 
-  const isValid = agentId && shiftDate && startTime && endTime && startTime < endTime && (!repeat || recurrenceEndDate);
+  const isValid = agentId && shiftDate && startTime && endTime && startTime !== endTime && (!repeat || recurrenceEndDate);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

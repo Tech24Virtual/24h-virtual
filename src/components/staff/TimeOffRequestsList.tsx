@@ -1,4 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { CalendarOff, Thermometer, Check, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,6 +30,7 @@ export function TimeOffRequestsList({ role }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [postCoverage, setPostCoverage] = useState<Record<string, boolean>>({});
+  const [confirmApprove, setConfirmApprove] = useState<{ id: string; agentId: string; startDate: string; endDate: string } | null>(null);
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['time-off-requests', role, user?.id],
@@ -136,7 +142,11 @@ export function TimeOffRequestsList({ role }: Props) {
                       <Label htmlFor={`coverage-${req.id}`} className="text-xs">Post for coverage</Label>
                     </div>
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={() => reviewMutation.mutate({ id: req.id, status: 'approved', agentId: req.agent_id, startDate: req.start_date, endDate: req.end_date })} disabled={reviewMutation.isPending}>
+                      <Button
+                        size="sm"
+                        onClick={() => setConfirmApprove({ id: req.id, agentId: req.agent_id, startDate: req.start_date, endDate: req.end_date })}
+                        disabled={reviewMutation.isPending}
+                      >
                         <Check className="h-3.5 w-3.5 mr-1" /> Approve
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => reviewMutation.mutate({ id: req.id, status: 'denied', agentId: req.agent_id, startDate: req.start_date, endDate: req.end_date })} disabled={reviewMutation.isPending}>
@@ -179,6 +189,35 @@ export function TimeOffRequestsList({ role }: Props) {
       {requests.length === 0 && (
         <Card><CardContent className="p-8 text-center text-muted-foreground">No time off requests</CardContent></Card>
       )}
+
+      <AlertDialog
+        open={!!confirmApprove}
+        onOpenChange={open => { if (!open) setConfirmApprove(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Approve this time-off request?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will cancel all of the agent's scheduled shifts in this date range.
+              {postCoverage[confirmApprove?.id ?? ''] && ' Open shifts will be posted for coverage.'}
+              {' '}This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmApprove) {
+                  reviewMutation.mutate({ ...confirmApprove, status: 'approved' });
+                  setConfirmApprove(null);
+                }
+              }}
+            >
+              Approve
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

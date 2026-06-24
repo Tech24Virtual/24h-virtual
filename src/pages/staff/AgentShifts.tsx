@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   active:    { label: 'Active',    className: 'bg-blue-100 text-blue-800 border border-blue-200' },
@@ -117,9 +117,9 @@ export default function AgentShifts() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agent-shifts'] });
-      toast({ title: 'Shift approved', description: 'Hours confirmed for payroll.' });
+      toast.success('Shift approved. Hours confirmed for payroll.');
     },
-    onError: () => toast({ title: 'Error', description: 'Failed to approve shift.', variant: 'destructive' }),
+    onError: () => toast.error('Failed to approve shift.'),
   });
 
   // Bulk approve all completed shifts in the period (for contractors)
@@ -134,9 +134,9 @@ export default function AgentShifts() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agent-shifts'] });
-      toast({ title: 'All shifts approved', description: 'All completed shifts in this period have been approved.' });
+      toast.success('All completed shifts in this period have been approved.');
     },
-    onError: () => toast({ title: 'Error', description: 'Failed to bulk approve.', variant: 'destructive' }),
+    onError: () => toast.error('Failed to bulk approve.'),
   });
 
   // Filter shifts for selected period
