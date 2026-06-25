@@ -76,15 +76,13 @@ export default function SupervisorFulfillmentDetail() {
     );
   }
 
-  // Supervisor: cannot close, cannot reach 'closed' transitions
+  // Supervisor: cannot close or activate — those steps are admin-only
   const allStatuses: IntakeStatus[] = [
     'new_submission',
     'received',
     'under_review',
     'needs_partner_update',
     'approved',
-    'activation_in_progress',
-    'activated',
   ];
 
   // Supervisor: cannot set urgent

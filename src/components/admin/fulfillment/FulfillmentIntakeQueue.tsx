@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, AlertCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -44,7 +44,7 @@ interface Props {
 }
 
 export function FulfillmentIntakeQueue({ mode = 'admin' }: Props = {}) {
-  const { data: intakes, isLoading } = useFulfillmentIntakes();
+  const { data: intakes, isLoading, isError, refetch } = useFulfillmentIntakes();
   const [searchParams] = useSearchParams();
   const detailBase =
     mode === 'supervisor' ? '/staff/supervisor/fulfillment' : '/admin/fulfillment-intake';
@@ -104,6 +104,15 @@ export function FulfillmentIntakeQueue({ mode = 'admin' }: Props = {}) {
     const snap = i.snapshot_json as unknown as SnapshotShape;
     return snap?.client?.name ?? '—';
   };
+
+  if (isError) return (
+    <Card className="p-8 text-center">
+      <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-3" />
+      <p className="font-medium">Failed to load fulfillment intakes</p>
+      <p className="text-sm text-muted-foreground mt-1">Check your permissions or try refreshing</p>
+      <Button variant="outline" className="mt-4" onClick={() => refetch()}>Retry</Button>
+    </Card>
+  );
 
   return (
     <div className="space-y-6">
