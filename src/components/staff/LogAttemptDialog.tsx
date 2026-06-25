@@ -3,12 +3,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
+import { Calendar } from 'lucide-react';
 
 interface LogAttemptDialogProps {
   open: boolean;
@@ -16,36 +16,47 @@ interface LogAttemptDialogProps {
   request: {
     id: string;
     contact_name: string;
+    contact_phone: string;
+    reason: string | null;
     attempt_count: number;
     max_attempts: number;
+    claimed_by: string | null;
   };
+  handlerRole?: string;
 }
 
-const RETRY_INTERVALS = [
-  { label: '15 minutes', value: '15' },
-  { label: '30 minutes', value: '30' },
-  { label: '1 hour', value: '60' },
-  { label: '2 hours', value: '120' },
-  { label: '4 hours', value: '240' },
-];
+const CALL_OUTCOMES = [
+  { value: 'completed',    label: 'Call Complete',  description: 'No follow up needed',             requiresFollowUp: false, icon: '✅' },
+  { value: 'no_answer',   label: 'No Answer',       description: 'Follow up needed',                requiresFollowUp: true,  icon: '📵' },
+  { value: 'voicemail',   label: 'Voicemail Left',  description: 'Follow up needed',                requiresFollowUp: true,  icon: '📬' },
+  { value: 'busy',        label: 'Busy',            description: 'Follow up needed',                requiresFollowUp: true,  icon: '🔄' },
+  { value: 'wrong_number', label: 'Wrong Number',   description: 'Creates task for correct number', requiresFollowUp: false, icon: '❌' },
+  { value: 'follow_up',   label: 'Follow Up',       description: 'Follow up needed',                requiresFollowUp: true,  icon: '📋' },
+] as const;
 
-export function LogAttemptDialog({ open, onClose, request }: LogAttemptDialogProps) {
+function toLocalDatetimeValue(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+export function LogAttemptDialog({ open, onClose, request, handlerRole }: LogAttemptDialogProps) {
   const { user, profile } = useAuth();
   const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
   const [outcome, setOutcome] = useState('');
   const [notes, setNotes] = useState('');
-  const [retryInterval, setRetryInterval] = useState('30');
-  const [skipRetry, setSkipRetry] = useState(false);
+  const defaultCallback = toLocalDatetimeValue(new Date(Date.now() + 60 * 60 * 1000));
+  const [scheduledCallbackAt, setScheduledCallbackAt] = useState(defaultCallback);
 
   const nextAttempt = request.attempt_count + 1;
-  const isMaxReached = nextAttempt >= request.max_attempts;
-  const showRetryOptions = ['no_answer', 'voicemail', 'busy'].includes(outcome) && !isMaxReached;
+  const selectedOutcome = CALL_OUTCOMES.find((o) => o.value === outcome);
+  const requiresFollowUp = selectedOutcome?.requiresFollowUp ?? false;
 
-  const getDefaultInterval = () => {
-    if (nextAttempt <= 1) return '30';
-    if (nextAttempt === 2) return '120';
-    return '240';
+  const handleClose = () => {
+    setOutcome('');
+    setNotes('');
+    setScheduledCallbackAt(defaultCallback);
+    onClose();
   };
 
   const handleSave = async () => {
@@ -53,63 +64,77 @@ export function LogAttemptDialog({ open, onClose, request }: LogAttemptDialogPro
       toast.error('Please select an outcome');
       return;
     }
+    if (requiresFollowUp && !scheduledCallbackAt) {
+      toast.error('Please choose a callback date/time');
+      return;
+    }
 
     setIsSaving(true);
     try {
       const now = new Date();
-      let retryAt: string | null = null;
-      let newStatus = 'in_progress';
+      let newStatus: string;
+      let scheduledCbAt: string | null = null;
 
-      if (outcome === 'connected') {
+      if (outcome === 'completed') {
         newStatus = 'completed';
       } else if (outcome === 'wrong_number') {
         newStatus = 'failed';
-      } else if (isMaxReached || skipRetry) {
-        newStatus = 'failed';
+      } else if (requiresFollowUp) {
+        newStatus = 'pending';
+        scheduledCbAt = scheduledCallbackAt
+          ? new Date(scheduledCallbackAt).toISOString()
+          : new Date(Date.now() + 60 * 60 * 1000).toISOString();
       } else {
-        newStatus = 'retry_pending';
-        const intervalMinutes = parseInt(retryInterval || getDefaultInterval());
-        retryAt = new Date(now.getTime() + intervalMinutes * 60 * 1000).toISOString();
+        newStatus = 'pending';
       }
 
-      // Insert attempt record
-      await supabase.from('outbound_call_attempts').insert({
+      // Insert attempt record with digital signature
+      await (supabase as any).from('outbound_call_attempts').insert({
         request_id: request.id,
         agent_id: user.id,
         agent_name: profile?.full_name || user.email || 'Agent',
         attempt_number: nextAttempt,
         outcome,
         notes: notes.trim() || null,
-        retry_scheduled_for: retryAt,
+        retry_scheduled_for: scheduledCbAt,
+        handler_id: user.id,
+        handler_name: profile?.full_name || null,
+        handler_role: handlerRole || null,
       });
 
-      // Update request record
+      // Build update payload
       const updateData: Record<string, unknown> = {
         status: newStatus,
         attempt_count: nextAttempt,
         last_attempt_at: now.toISOString(),
         last_attempt_outcome: outcome,
+        current_handler_id: null,
       };
 
-      if (retryAt) updateData.next_retry_at = retryAt;
       if (newStatus === 'completed') {
         updateData.completed_at = now.toISOString();
         updateData.outcome = outcome;
         updateData.outcome_notes = notes.trim() || null;
-
-        // Trigger Reach59 post-call SMS notification (fire-and-forget)
+        updateData.claimed_by = null;
+        updateData.claimed_at = null;
+        updateData.scheduled_callback_at = null;
+        // Trigger post-call SMS (fire-and-forget)
         supabase.functions.invoke('trigger-post-call-notification', {
           body: { request_id: request.id },
-        }).then(({ error: notifyError }) => {
-          if (notifyError) {
-            console.warn('Reach59 notification failed (non-blocking):', notifyError);
-          }
-        });
-      }
-      if (newStatus === 'failed') {
+        }).catch(() => {});
+      } else if (newStatus === 'failed') {
         updateData.completed_at = now.toISOString();
-        updateData.outcome = isMaxReached ? 'no_answer_max_retries' : outcome;
+        updateData.outcome = outcome;
         updateData.outcome_notes = notes.trim() || null;
+        updateData.claimed_by = null;
+        updateData.claimed_at = null;
+        updateData.scheduled_callback_at = null;
+      } else if (requiresFollowUp) {
+        // Re-queue with scheduled callback time — clear owner so any agent can pick it up
+        updateData.scheduled_callback_at = scheduledCbAt;
+        updateData.next_retry_at = null;
+        updateData.claimed_by = null;
+        updateData.claimed_at = null;
       }
 
       const { error } = await supabase
@@ -119,22 +144,33 @@ export function LogAttemptDialog({ open, onClose, request }: LogAttemptDialogPro
 
       if (error) throw error;
 
-      toast.success(
-        outcome === 'connected'
-          ? 'Call completed!'
-          : newStatus === 'retry_pending'
-          ? 'Retry scheduled'
-          : 'Request marked as ' + newStatus
-      );
+      // wrong_number → task to get the correct number
+      if (outcome === 'wrong_number') {
+        (async () => {
+          try {
+            await (supabase as any).from('crm_tasks').insert({
+              title: `Get correct phone number — ${request.contact_name}`,
+              description: `Wrong number was called for outbound request. Please get the correct number from the client.`,
+              assigned_to: request.claimed_by || null,
+              status: 'open',
+              priority: 'high',
+            });
+          } catch {}
+        })();
+      }
 
+      const toastMsg =
+        outcome === 'completed'    ? 'Call completed!' :
+        outcome === 'wrong_number' ? 'Marked as wrong number — task created' :
+        requiresFollowUp           ? `Callback scheduled for ${new Date(scheduledCbAt!).toLocaleString()}` :
+                                     'Attempt logged';
+
+      toast.success(toastMsg);
       queryClient.invalidateQueries({ queryKey: ['outbound-requests'] });
       queryClient.invalidateQueries({ queryKey: ['outbound-stats'] });
-      setOutcome('');
-      setNotes('');
-      setSkipRetry(false);
-      onClose();
-    } catch (error) {
-      console.error('Error logging attempt:', error);
+      handleClose();
+    } catch (err) {
+      console.error('Error logging attempt:', err);
       toast.error('Failed to log attempt');
     } finally {
       setIsSaving(false);
@@ -142,98 +178,91 @@ export function LogAttemptDialog({ open, onClose, request }: LogAttemptDialogPro
   };
 
   return (
-    <Dialog open={open} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-md">
+    <Dialog open={open} onOpenChange={() => handleClose()}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            Log Call Attempt — {request.contact_name}
-          </DialogTitle>
+          <DialogTitle>Log Call — {request.contact_name}</DialogTitle>
           <p className="text-sm text-muted-foreground">
             Attempt {nextAttempt} of {request.max_attempts}
           </p>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-5 py-3">
+          {/* Outcome cards */}
           <div className="space-y-2">
-            <Label>Call Outcome *</Label>
-            <RadioGroup value={outcome} onValueChange={setOutcome} className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="connected" id="connected" />
-                <Label htmlFor="connected" className="cursor-pointer">✅ Connected</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="no_answer" id="no_answer" />
-                <Label htmlFor="no_answer" className="cursor-pointer">📵 No Answer</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="voicemail" id="voicemail" />
-                <Label htmlFor="voicemail" className="cursor-pointer">📩 Voicemail Left</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="busy" id="busy" />
-                <Label htmlFor="busy" className="cursor-pointer">🔴 Busy</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="wrong_number" id="wrong_number" />
-                <Label htmlFor="wrong_number" className="cursor-pointer">❌ Wrong Number</Label>
-              </div>
-            </RadioGroup>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              placeholder={outcome === 'connected' ? 'Summary of the call...' : 'Any additional notes...'}
-              rows={3}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
-
-          {showRetryOptions && (
-            <div className="space-y-3 p-3 bg-muted rounded-lg">
-              <Label>Schedule Retry</Label>
-              <Select value={retryInterval} onValueChange={setRetryInterval}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select interval" />
-                </SelectTrigger>
-                <SelectContent>
-                  {RETRY_INTERVALS.map((i) => (
-                    <SelectItem key={i.value} value={i.value}>{i.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-destructive"
-                onClick={() => setSkipRetry(true)}
-              >
-                No more retries — mark as failed
-              </Button>
-              {skipRetry && (
-                <p className="text-xs text-destructive">
-                  Request will be marked as failed. 
-                  <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={() => setSkipRetry(false)}>
-                    Undo
-                  </Button>
-                </p>
-              )}
+            <Label>Call Outcome <span className="text-destructive">*</span></Label>
+            <div className="grid grid-cols-1 gap-2">
+              {CALL_OUTCOMES.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => setOutcome(o.value)}
+                  className={`flex items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors ${
+                    outcome === o.value
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                      : 'border-border hover:border-muted-foreground/40 hover:bg-muted/30'
+                  }`}
+                >
+                  <span className="text-lg leading-none">{o.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{o.label}</p>
+                    <p className="text-xs text-muted-foreground">{o.description}</p>
+                  </div>
+                  {outcome === o.value && (
+                    <Badge variant="default" className="shrink-0 text-xs">Selected</Badge>
+                  )}
+                </button>
+              ))}
             </div>
-          )}
+          </div>
 
-          {isMaxReached && ['no_answer', 'voicemail', 'busy'].includes(outcome) && (
-            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-              <p className="text-sm text-destructive">
-                Maximum attempts ({request.max_attempts}) reached. This request will be marked as failed.
+          {/* Callback scheduler — shown for follow-up outcomes */}
+          {requiresFollowUp && (
+            <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
+              <Label htmlFor="callback-at" className="flex items-center gap-1.5 text-sm">
+                <Calendar className="h-3.5 w-3.5 text-primary" />
+                Schedule callback for <span className="text-destructive">*</span>
+              </Label>
+              <input
+                id="callback-at"
+                type="datetime-local"
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                value={scheduledCallbackAt}
+                onChange={(e) => setScheduledCallbackAt(e.target.value)}
+                min={toLocalDatetimeValue(new Date())}
+              />
+              <p className="text-xs text-muted-foreground">
+                This call will reappear in the queue at the scheduled time.
               </p>
             </div>
           )}
+
+          {/* Wrong number warning */}
+          {outcome === 'wrong_number' && (
+            <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3">
+              <p className="text-sm font-medium text-destructive">A task will be created to get the correct number.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">This request will be marked as failed.</p>
+            </div>
+          )}
+
+          {/* Notes */}
+          <div className="space-y-1.5">
+            <Label htmlFor="attempt-notes">
+              Notes <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+            </Label>
+            <Textarea
+              id="attempt-notes"
+              placeholder={outcome === 'completed' ? 'Summary of the call...' : 'Any additional notes...'}
+              rows={3}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="resize-none"
+            />
+          </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" onClick={handleClose} disabled={isSaving}>Cancel</Button>
           <Button onClick={handleSave} disabled={isSaving || !outcome}>
             {isSaving ? 'Saving...' : 'Log Attempt'}
           </Button>

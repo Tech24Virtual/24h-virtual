@@ -9,7 +9,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRealtimeOutboundRequests } from '@/hooks/useRealtimeOutboundRequests';
 import { LogAttemptDialog } from './LogAttemptDialog';
-import { formatDistanceToNow } from 'date-fns';
+import { OutboundCallDetailDrawer } from './OutboundCallDetailDrawer';
+import { formatDistanceToNow, format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -17,15 +18,32 @@ interface OutboundCallQueueProps {
   role: 'agent' | 'supervisor' | 'admin';
 }
 
-const statusFilters = ['all', 'pending', 'retry_pending', 'in_progress', 'completed', 'failed'] as const;
+interface ClaimPayload {
+  id: string;
+  contact_name: string;
+  contact_phone: string;
+  reason: string | null;
+  urgency: string;
+}
+
+const STATUS_TABS = ['all', 'pending', 'scheduled', 'retry_pending', 'in_progress', 'completed', 'failed'] as const;
 
 export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
   const { user, profile } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<string>('all');
+  const [drawer, setDrawer] = useState<{ open: boolean; requestId: string | null }>({ open: false, requestId: null });
   const [attemptDialog, setAttemptDialog] = useState<{
     open: boolean;
-    request: { id: string; contact_name: string; attempt_count: number; max_attempts: number } | null;
+    request: {
+      id: string;
+      contact_name: string;
+      contact_phone: string;
+      reason: string | null;
+      attempt_count: number;
+      max_attempts: number;
+      claimed_by: string | null;
+    } | null;
   }>({ open: false, request: null });
 
   useRealtimeOutboundRequests();
@@ -33,25 +51,40 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['outbound-requests', activeTab],
     queryFn: async () => {
+      const now = new Date();
+
       let query = supabase
         .from('outbound_call_requests')
         .select('*, leads(name, company)')
         .order('created_at', { ascending: false });
 
-      if (activeTab !== 'all') {
+      // For "scheduled" we query pending rows and filter client-side
+      if (activeTab === 'scheduled') {
+        query = query.eq('status', 'pending');
+      } else if (activeTab !== 'all') {
         query = query.eq('status', activeTab);
       }
 
       const { data, error } = await query;
       if (error) throw error;
 
-      // Sort: urgent first, then retry_due, then by created_at
-      return (data || []).sort((a, b) => {
-        // Urgent first
+      let rows = (data || []) as any[];
+
+      if (activeTab === 'pending') {
+        // Only calls ready to be worked (no scheduled time, or scheduled time has arrived)
+        rows = rows.filter((r) => !r.scheduled_callback_at || new Date(r.scheduled_callback_at) <= now);
+      } else if (activeTab === 'scheduled') {
+        // Future scheduled callbacks
+        rows = rows.filter((r) => r.scheduled_callback_at && new Date(r.scheduled_callback_at) > now);
+        // Sort ascending by scheduled time so earliest callbacks appear first
+        return rows.sort((a, b) =>
+          new Date(a.scheduled_callback_at).getTime() - new Date(b.scheduled_callback_at).getTime()
+        );
+      }
+
+      return rows.sort((a, b) => {
         if (a.urgency === 'urgent' && b.urgency !== 'urgent') return -1;
         if (b.urgency === 'urgent' && a.urgency !== 'urgent') return 1;
-        // Retry due (past next_retry_at) second
-        const now = new Date();
         const aRetryDue = a.status === 'retry_pending' && a.next_retry_at && new Date(a.next_retry_at) <= now;
         const bRetryDue = b.status === 'retry_pending' && b.next_retry_at && new Date(b.next_retry_at) <= now;
         if (aRetryDue && !bRetryDue) return -1;
@@ -87,18 +120,31 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
   });
 
   const claimMutation = useMutation({
-    mutationFn: async (requestId: string) => {
+    mutationFn: async (payload: ClaimPayload) => {
       const { data: claimed, error } = await supabase.rpc('claim_outbound_request', {
-        p_request_id: requestId,
+        p_request_id: payload.id,
         p_agent_id: user!.id,
       });
       if (error) throw error;
       if (!claimed) throw new Error('This request was just claimed by another agent.');
+      return payload;
     },
-    onSuccess: () => {
+    onSuccess: (payload) => {
       queryClient.invalidateQueries({ queryKey: ['outbound-requests'] });
       queryClient.invalidateQueries({ queryKey: ['outbound-stats'] });
       toast.success('Request claimed');
+      // Fire-and-forget task creation
+      (async () => {
+        try {
+          await (supabase as any).from('crm_tasks').insert({
+            title: `Outbound Call — ${payload.contact_name}`,
+            description: `Call ${payload.contact_phone}. Reason: ${payload.reason || 'N/A'}`,
+            assigned_to: user!.id,
+            status: 'open',
+            priority: payload.urgency === 'urgent' ? 'high' : 'medium',
+          });
+        } catch {}
+      })();
     },
     onError: (err: Error) => toast.error(err.message || 'Failed to claim request'),
   });
@@ -125,9 +171,8 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
     toast.success('Phone number copied');
   };
 
-  const isRetryDue = (req: typeof requests[0]) => {
-    return req.status === 'retry_pending' && req.next_retry_at && new Date(req.next_retry_at) <= new Date();
-  };
+  const isRetryDue = (req: any) =>
+    req.status === 'retry_pending' && req.next_retry_at && new Date(req.next_retry_at) <= new Date();
 
   return (
     <div className="space-y-6">
@@ -142,9 +187,7 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold text-foreground">
-              {role === 'supervisor' || role === 'admin'
-                ? (stats?.totalActive ?? 0)
-                : (stats?.myActive ?? 0)}
+              {role === 'supervisor' || role === 'admin' ? (stats?.totalActive ?? 0) : (stats?.myActive ?? 0)}
             </p>
             <p className="text-xs text-muted-foreground">
               {role === 'supervisor' || role === 'admin' ? 'Active' : 'My Active'}
@@ -168,9 +211,9 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
       {/* Filter Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap">
-          {statusFilters.map((f) => (
+          {STATUS_TABS.map((f) => (
             <TabsTrigger key={f} value={f} className="capitalize">
-              {f === 'retry_pending' ? 'Retry Due' : f}
+              {f === 'retry_pending' ? 'Retry Due' : f === 'in_progress' ? 'In Progress' : f}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -186,10 +229,16 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
               <PhoneOutgoing className="w-8 h-8 text-muted-foreground" />
             </div>
             <p className="text-base font-medium text-foreground mb-1">
-              {activeTab === 'all' ? 'No outbound calls assigned' : `No ${activeTab.replace('_', ' ')} calls`}
+              {activeTab === 'scheduled'
+                ? 'No scheduled callbacks'
+                : activeTab === 'all'
+                ? 'No outbound calls assigned'
+                : `No ${activeTab.replace(/_/g, ' ')} calls`}
             </p>
             <p className="text-sm text-muted-foreground max-w-xs">
-              {activeTab === 'all'
+              {activeTab === 'scheduled'
+                ? 'Callbacks scheduled for future times will appear here.'
+                : activeTab === 'all'
                 ? 'Outbound call requests submitted by clients appear here. Claim a request to call the contact on behalf of your client.'
                 : 'Try switching to the "All" tab to see the full queue.'}
             </p>
@@ -197,10 +246,10 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
         </Card>
       ) : (
         <div className="space-y-3">
-          {requests.map((req) => {
+          {requests.map((req: any) => {
             const retryDue = isRetryDue(req);
             const leadInfo = req.leads as { name: string; company: string } | null;
-            const canClaim = req.status === 'pending';
+            const canClaim = req.status === 'pending' && !req.scheduled_callback_at;
             const canLog = ['claimed', 'in_progress', 'retry_pending'].includes(req.status) &&
               (req.claimed_by === user?.id || role === 'supervisor' || role === 'admin');
             const canStart = req.status === 'claimed' && req.claimed_by === user?.id;
@@ -210,10 +259,11 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
               <Card
                 key={req.id}
                 className={cn(
-                  'transition-all',
+                  'transition-all cursor-pointer hover:shadow-md',
                   retryDue && 'border-primary/50 shadow-sm',
                   req.urgency === 'urgent' && req.status !== 'completed' && req.status !== 'failed' && 'border-destructive/40'
                 )}
+                onClick={() => setDrawer({ open: true, requestId: req.id })}
               >
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -247,6 +297,12 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
                             Retry {req.next_retry_at ? formatDistanceToNow(new Date(req.next_retry_at), { addSuffix: true }) : 'scheduled'}
                           </Badge>
                         )}
+                        {req.scheduled_callback_at && req.status === 'pending' && (
+                          <Badge variant="outline" className="gap-1 text-primary border-primary/30">
+                            <Clock className="w-3 h-3" />
+                            Callback {format(new Date(req.scheduled_callback_at), 'MMM d, h:mm a')}
+                          </Badge>
+                        )}
                         {['completed', 'failed', 'cancelled'].includes(req.status) && (
                           <Badge variant={req.status === 'completed' ? 'default' : 'destructive'}>
                             {req.status === 'completed' ? <Check className="w-3 h-3 mr-1" /> : <X className="w-3 h-3 mr-1" />}
@@ -256,9 +312,14 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
                       </div>
 
                       {/* Phone */}
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                         <span className="text-sm font-mono text-muted-foreground">{req.contact_phone}</span>
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyPhone(req.contact_phone)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => copyPhone(req.contact_phone)}
+                        >
                           <Copy className="w-3 h-3" />
                         </Button>
                       </div>
@@ -281,12 +342,21 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
                       )}
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex flex-row sm:flex-col gap-2">
+                    {/* Actions — stop propagation so clicks don't open drawer */}
+                    <div
+                      className="flex flex-row sm:flex-col gap-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       {canClaim && (
                         <Button
                           size="sm"
-                          onClick={() => claimMutation.mutate(req.id)}
+                          onClick={() => claimMutation.mutate({
+                            id: req.id,
+                            contact_name: req.contact_name,
+                            contact_phone: req.contact_phone,
+                            reason: req.reason ?? null,
+                            urgency: req.urgency,
+                          })}
                           disabled={claimMutation.isPending}
                         >
                           Claim
@@ -311,8 +381,11 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
                             request: {
                               id: req.id,
                               contact_name: req.contact_name,
+                              contact_phone: req.contact_phone,
+                              reason: req.reason ?? null,
                               attempt_count: req.attempt_count,
                               max_attempts: req.max_attempts,
+                              claimed_by: req.claimed_by,
                             },
                           })}
                         >
@@ -322,9 +395,9 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
                     </div>
                   </div>
 
-                  {/* Dial helper — visible while agent has the request claimed/in-progress */}
+                  {/* Dial helper */}
                   {showDialHelper && (
-                    <div className="mt-4 pt-4 border-t">
+                    <div className="mt-4 pt-4 border-t" onClick={(e) => e.stopPropagation()}>
                       <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-4 space-y-2">
                         <p className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide flex items-center gap-1">
                           <Phone className="w-3 h-3" />
@@ -357,13 +430,23 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
         </div>
       )}
 
+      {/* Log Attempt Dialog */}
       {attemptDialog.request && (
         <LogAttemptDialog
           open={attemptDialog.open}
           onClose={() => setAttemptDialog({ open: false, request: null })}
           request={attemptDialog.request}
+          handlerRole={role}
         />
       )}
+
+      {/* Call Detail Drawer */}
+      <OutboundCallDetailDrawer
+        open={drawer.open}
+        onClose={() => setDrawer({ open: false, requestId: null })}
+        requestId={drawer.requestId}
+        role={role}
+      />
     </div>
   );
 }
