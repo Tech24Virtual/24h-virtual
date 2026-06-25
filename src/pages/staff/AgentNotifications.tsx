@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
@@ -43,6 +44,19 @@ export default function AgentNotifications() {
     queryClient.invalidateQueries({ queryKey: ['agent-unread-notifications'] });
     queryClient.invalidateQueries({ queryKey: ['unread-messages-sidebar'] });
   };
+
+  // Mark all as read the moment the agent opens this page — sidebar badge clears immediately
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', user.id)
+      .eq('is_read', false)
+      .then(() => invalidate());
+  // invalidate is stable (no deps) — intentionally excluded from dep array
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const markAsRead = async (id: string) => {
     await supabase.from('notifications').update({ is_read: true }).eq('id', id).eq('user_id', user!.id);

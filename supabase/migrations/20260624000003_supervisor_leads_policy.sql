@@ -26,3 +26,7 @@ GRANT SELECT ON public.agent_skills TO authenticated;
 -- Performance page: supervisors need to create, edit, and delete reviews.
 -- Without INSERT/UPDATE, both "Save Draft" and "Publish" silently fail.
 GRANT INSERT, UPDATE, DELETE ON public.agent_performance_reviews TO authenticated;
+
+-- Campaign OS script documents were created without explicit DML grants.
+-- Clients and agents reading Campaign OS scripts would hit PostgREST 403s before RLS fires.
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.campaign_script_documents TO authenticated;

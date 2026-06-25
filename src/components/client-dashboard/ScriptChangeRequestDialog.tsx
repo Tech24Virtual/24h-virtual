@@ -83,6 +83,25 @@ export function ScriptChangeRequestDialog({ open, onClose, script }: ScriptChang
       toast.success('Change request submitted! Your supervisor will review it shortly.');
       resetForm();
       onClose(true);
+
+      // Fire-and-forget: notify all supervisors (non-blocking — dialog already closed)
+      supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'supervisor')
+        .then(({ data: supervisors }) => {
+          if (!supervisors?.length) return;
+          return supabase.from('notifications').insert(
+            supervisors.map(s => ({
+              user_id: s.user_id,
+              title: 'New Script Change Request',
+              message: `A client has submitted a script change request for review.`,
+              category: 'script',
+              action_url: '/staff/supervisor/script-reviews',
+            }))
+          );
+        })
+        .catch(() => {});  // Notification failure must not surface to the user
     } catch (error) {
       console.error('Error submitting change request:', error);
       toast.error('Failed to submit change request');

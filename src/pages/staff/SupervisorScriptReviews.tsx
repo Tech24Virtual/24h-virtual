@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { FileText, CheckCircle, XCircle, MessageSquare, Clock } from 'lucide-react';
+import { FileText, CheckCircle, MessageSquare, Clock, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
 import { StaffLayout } from '@/components/staff/StaffLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -120,6 +121,9 @@ export default function SupervisorScriptReviews() {
   });
 
   const pendingCount = requests.filter(r => ['pending', 'in_review', 'needs_info'].includes(r.status)).length;
+  const actionNeededCount = requests.filter(r => ['pending', 'in_review'].includes(r.status)).length;
+  const needsInfoCount = requests.filter(r => r.status === 'needs_info').length;
+  const resolvedCount = requests.filter(r => ['approved', 'rejected'].includes(r.status)).length;
 
   if (selectedRequest) {
     return (
@@ -134,6 +138,58 @@ export default function SupervisorScriptReviews() {
 
   return (
     <StaffLayout role="supervisor">
+      <div className="bg-gradient-to-br from-slate-50 via-white to-blue-50/30 rounded-2xl border border-border p-6 mb-6">
+        <div className="flex items-center gap-3">
+          <FileText className="h-6 w-6 text-primary" />
+          <div>
+            <h1 className="text-2xl font-bold">Script Change Requests</h1>
+            <p className="text-muted-foreground mt-0.5">Review and action client script change requests</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
+                <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{actionNeededCount}</p>
+                <p className="text-xs text-muted-foreground">Pending Review</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                <AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{needsInfoCount}</p>
+                <p className="text-xs text-muted-foreground">Needs Info</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{resolvedCount}</p>
+                <p className="text-xs text-muted-foreground">Resolved</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="pending" className="gap-2">
@@ -156,11 +212,30 @@ export default function SupervisorScriptReviews() {
             </CardHeader>
             <CardContent>
               {isLoading ? (
-                <p className="text-center py-8 text-muted-foreground">Loading...</p>
+                <div className="space-y-3">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="space-y-2 flex-1">
+                        <Skeleton className="h-4 w-1/2" />
+                        <Skeleton className="h-3 w-1/3" />
+                      </div>
+                      <Skeleton className="h-4 w-4 rounded" />
+                    </div>
+                  ))}
+                </div>
               ) : filteredRequests.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p>No {activeTab === 'pending' ? 'pending' : ''} script change requests</p>
+                  <h3 className="text-base font-medium text-heading mb-1">
+                    {activeTab === 'pending' ? 'No pending requests' : activeTab === 'resolved' ? 'No resolved requests' : 'No requests yet'}
+                  </h3>
+                  <p className="text-sm">
+                    {activeTab === 'pending'
+                      ? 'All change requests are up to date.'
+                      : activeTab === 'resolved'
+                      ? 'Approved and rejected requests will appear here.'
+                      : 'Client script change requests will appear here once submitted.'}
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-3">

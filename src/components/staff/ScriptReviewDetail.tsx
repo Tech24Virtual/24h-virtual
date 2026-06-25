@@ -57,7 +57,10 @@ export function ScriptReviewDetail({ request, onBack }: ScriptReviewDetailProps)
         .select('id, name, greeting, faqs')
         .eq('id', request.script_id)
         .single()
-        .then(({ data }) => { if (data) setCurrentScript(data); });
+        .then(({ data, error }) => {
+          if (error) console.error('Failed to load script context:', error);
+          if (data) setCurrentScript(data);
+        });
     }
   }, [request.script_id]);
 
@@ -66,36 +69,54 @@ export function ScriptReviewDetail({ request, onBack }: ScriptReviewDetailProps)
     setIsProcessing(true);
 
     try {
-      const updates: Record<string, unknown> = {
-        status: action,
-        reviewed_by: user.id,
-        reviewer_notes: reviewerNotes || null,
-      };
-
-      if (action === 'approved' || action === 'rejected') {
-        updates.resolved_at = new Date().toISOString();
-      }
-
-      const { error } = await supabase
-        .from('script_change_requests')
-        .update(updates)
-        .eq('id', request.id);
-
-      if (error) throw error;
-
-      // If approved, apply changes to the script and bridge to Campaign OS
+      // Step 1: Apply content changes BEFORE writing status so that if this
+      // throws, the status stays unchanged and the supervisor sees the real error.
       if (action === 'approved') {
         if (request.script_id) await applyChanges();
         await applyFaqBridge();
       }
 
-      // Add a system comment
+      // Step 2: Write status only after changes succeeded
+      const updates: Record<string, unknown> = {
+        status: action,
+        reviewed_by: user.id,
+        reviewer_notes: reviewerNotes || null,
+      };
+      if (action === 'approved' || action === 'rejected') {
+        updates.resolved_at = new Date().toISOString();
+      }
+      const { error } = await supabase
+        .from('script_change_requests')
+        .update(updates)
+        .eq('id', request.id);
+      if (error) throw error;
+
+      // Step 3: System comment (non-blocking — Supabase returns {data,error}, doesn't throw)
       const actionLabel = action === 'approved' ? 'approved' : action === 'rejected' ? 'rejected' : 'requested more information on';
       await supabase.from('script_change_comments').insert({
         request_id: request.id,
         author_id: user.id,
         author_name: 'Supervisor',
         message: `Request ${actionLabel}.${reviewerNotes ? ` Notes: ${reviewerNotes}` : ''}`,
+      });
+
+      // Step 4: Notify client (non-blocking)
+      const notifTitle =
+        action === 'approved' ? 'Script Change Approved'
+        : action === 'rejected' ? 'Script Change Rejected'
+        : 'More Info Needed on Script Request';
+      const notifMessage =
+        action === 'approved'
+          ? 'Your script change request has been approved and applied.'
+          : action === 'rejected'
+          ? `Your script change request was rejected.${reviewerNotes ? ` Reason: ${reviewerNotes}` : ''}`
+          : 'Your supervisor needs more information about your script change request. Check the conversation thread.';
+      await supabase.from('notifications').insert({
+        user_id: request.client_id,
+        title: notifTitle,
+        message: notifMessage,
+        category: 'script',
+        action_url: '/client-dashboard/scripts',
       });
 
       setCurrentRequest({ ...currentRequest, status: action, reviewer_notes: reviewerNotes });

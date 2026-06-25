@@ -199,6 +199,19 @@ export function StaffSidebar({ role }: StaffSidebarProps) {
     enabled: !!user?.id && isSupervisor,
   });
 
+  const { data: pendingScriptReviews = 0 } = useQuery({
+    queryKey: ['pending-script-reviews', user?.id],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('script_change_requests')
+        .select('*', { count: 'exact', head: true })
+        .in('status', ['pending', 'needs_info']);
+      return count ?? 0;
+    },
+    enabled: !!user?.id && isSupervisor,
+  });
+
   const { data: supervisorTickets = 0 } = useQuery({
     queryKey: ['supervisor-tickets-badge', user?.id],
     staleTime: 60_000,
@@ -240,10 +253,11 @@ export function StaffSidebar({ role }: StaffSidebarProps) {
 
     if (isSupervisor) {
       const supervisorBadgeMap: Record<string, number> = {
-        Escalations:    openEscalations,
-        Signoffs:       pendingSignoffsCount,
-        'Shift Reviews': pendingShiftReviews,
-        Tickets:        supervisorTickets,
+        Escalations:      openEscalations,
+        Signoffs:         pendingSignoffsCount,
+        'Shift Reviews':  pendingShiftReviews,
+        'Script Reviews': pendingScriptReviews,
+        Tickets:          supervisorTickets,
       };
       return groups.map(g => ({
         ...g,
@@ -279,7 +293,7 @@ export function StaffSidebar({ role }: StaffSidebarProps) {
     });
   }, [
     groups, isAgent, isSupervisor, onboardingComplete,
-    openEscalations, pendingSignoffsCount, pendingShiftReviews, supervisorTickets,
+    openEscalations, pendingSignoffsCount, pendingShiftReviews, pendingScriptReviews, supervisorTickets,
     openTaskCount, openTicketCount, urgentTrainingCount, pendingTimeOff,
     unreadMessages, pendingInvoices, unacknowledgedPolicies, newFaqs,
   ]);
