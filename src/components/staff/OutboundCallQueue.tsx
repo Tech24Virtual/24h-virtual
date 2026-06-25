@@ -69,15 +69,19 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
 
       const { data, error } = await supabase
         .from('outbound_call_requests')
-        .select('status, claimed_by, completed_at, next_retry_at');
+        .select('status, claimed_by, completed_at, last_attempt_at, next_retry_at');
       if (error) throw error;
 
-      const now = new Date();
       return {
         pending: (data || []).filter(r => r.status === 'pending').length,
         myActive: (data || []).filter(r => r.claimed_by === user?.id && ['claimed', 'in_progress', 'retry_pending'].includes(r.status)).length,
-        retryDue: (data || []).filter(r => r.status === 'retry_pending' && r.next_retry_at && new Date(r.next_retry_at) <= now).length,
-        completedToday: (data || []).filter(r => r.status === 'completed' && r.completed_at && new Date(r.completed_at) >= today).length,
+        totalActive: (data || []).filter(r => ['claimed', 'in_progress'].includes(r.status)).length,
+        retryDue: (data || []).filter(r => r.status === 'retry_pending').length,
+        completedToday: (data || []).filter(r => {
+          if (r.status !== 'completed') return false;
+          const ts = r.completed_at ?? r.last_attempt_at;
+          return !!ts && new Date(ts) >= today;
+        }).length,
       };
     },
   });
@@ -137,8 +141,14 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-foreground">{stats?.myActive ?? 0}</p>
-            <p className="text-xs text-muted-foreground">My Active</p>
+            <p className="text-2xl font-bold text-foreground">
+              {role === 'supervisor' || role === 'admin'
+                ? (stats?.totalActive ?? 0)
+                : (stats?.myActive ?? 0)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {role === 'supervisor' || role === 'admin' ? 'Active' : 'My Active'}
+            </p>
           </CardContent>
         </Card>
         <Card>

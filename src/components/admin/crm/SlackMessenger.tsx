@@ -32,7 +32,7 @@ export function SlackMessenger() {
   });
 
   // Fetch channels filtered by user's membership
-  const { data: channels = [], isLoading: channelsLoading } = useQuery({
+  const { data: channels = [], isLoading: channelsLoading, isError: channelsError, refetch: refetchChannels } = useQuery({
     queryKey: ['slack-channels', userMapping?.slack_user_id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -79,6 +79,17 @@ export function SlackMessenger() {
         <p className="text-sm text-muted-foreground">
           Your account hasn't been mapped to a Slack user yet. Ask an admin to link your account in Settings → Integrations.
         </p>
+      </Card>
+    );
+  }
+
+  if (channelsError) {
+    return (
+      <Card className="p-8 text-center">
+        <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-3" />
+        <p className="font-medium">Failed to load Slack channels</p>
+        <p className="text-sm text-muted-foreground mt-1">Check your Slack integration or try refreshing</p>
+        <Button variant="outline" className="mt-4" onClick={() => refetchChannels()}>Retry</Button>
       </Card>
     );
   }

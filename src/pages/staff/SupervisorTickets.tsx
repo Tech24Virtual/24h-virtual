@@ -4,7 +4,7 @@ import { TicketList, SubmitTicketDialog } from '@/components/tickets';
 import { CreatedTicketsList } from '@/components/tickets/CreatedTicketsList';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Ticket, Users, Plus } from 'lucide-react';
+import { Ticket, Users, Plus, MessageSquare } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeTickets } from '@/hooks/useRealtimeTickets';
@@ -25,7 +25,7 @@ export default function SupervisorTickets() {
       const { data, error } = await supabase
         .from('support_tickets')
         .select('id, status, resolved_at')
-        .eq('source', 'client_portal');
+        .eq('work_queue', 'supervisor');
       
       if (error) throw error;
       
@@ -43,17 +43,20 @@ export default function SupervisorTickets() {
   return (
     <StaffLayout role="supervisor">
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Team Tickets</h1>
-            <p className="text-muted-foreground">
-              Oversee and manage all client support tickets
-            </p>
+        <div className="rounded-2xl border border-border p-6 bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Ticket className="h-6 w-6 text-primary" />
+              <div>
+                <h1 className="text-2xl font-bold">Team Tickets</h1>
+                <p className="text-muted-foreground mt-0.5">Oversee and manage all client support tickets</p>
+              </div>
+            </div>
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Ticket
+            </Button>
           </div>
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Create Ticket
-          </Button>
         </div>
 
         <div className="grid md:grid-cols-3 gap-4">

@@ -6,10 +6,29 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { Search, CheckCircle2, Clock, AlertCircle, ListTodo, AlertTriangle } from 'lucide-react';
+import {
+  Search,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  ListTodo,
+  AlertTriangle,
+  Plus,
+  Loader2,
+  CheckSquare,
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { getExpirationStatus } from '@/lib/taskPriority';
 import { toast } from 'sonner';
@@ -28,13 +47,28 @@ interface Task {
   lead?: { name: string; company: string | null } | null;
 }
 
+interface AgentProfile {
+  id: string;
+  full_name: string | null;
+}
+
+const EMPTY_FORM = {
+  title: '',
+  description: '',
+  assignedTo: 'none',
+  priority: 'medium',
+  dueDate: '',
+};
+
 export default function SupervisorTasks() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('pending');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const [newTaskOpen, setNewTaskOpen] = useState(false);
+  const [taskForm, setTaskForm] = useState(EMPTY_FORM);
 
-  const { data: tasks, isLoading } = useQuery({
+  const { data: tasks, isLoading, isError, refetch } = useQuery({
     queryKey: ['supervisor-tasks'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -44,6 +78,26 @@ export default function SupervisorTasks() {
       if (error) throw error;
       return data as Task[];
     },
+  });
+
+  const { data: agentProfiles = [] } = useQuery<AgentProfile[]>({
+    queryKey: ['agent-profiles-for-tasks'],
+    queryFn: async () => {
+      const { data: roles, error } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'agent');
+      if (error) throw error;
+      if (!roles?.length) return [];
+      const ids = roles.map((r: { user_id: string }) => r.user_id);
+      const { data: profiles, error: pe } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', ids);
+      if (pe) throw pe;
+      return (profiles ?? []) as AgentProfile[];
+    },
+    enabled: newTaskOpen,
   });
 
   const toggleStatus = useMutation({
@@ -59,6 +113,27 @@ export default function SupervisorTasks() {
       queryClient.invalidateQueries({ queryKey: ['supervisor-tasks'] });
       toast.success('Task updated');
     },
+  });
+
+  const createTask = useMutation({
+    mutationFn: async (form: typeof EMPTY_FORM) => {
+      const { error } = await (supabase as any).from('crm_tasks').insert({
+        title: form.title,
+        description: form.description || null,
+        assigned_to: form.assignedTo !== 'none' ? form.assignedTo : null,
+        priority: form.priority,
+        due_date: form.dueDate ? new Date(form.dueDate).toISOString() : null,
+        status: 'pending',
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['supervisor-tasks'] });
+      toast.success('Task created');
+      setNewTaskOpen(false);
+      setTaskForm(EMPTY_FORM);
+    },
+    onError: () => toast.error('Failed to create task'),
   });
 
   const filtered = tasks?.filter(task => {
@@ -86,29 +161,75 @@ export default function SupervisorTasks() {
     return c ? <Badge className={c.className}>{c.label}</Badge> : <Badge variant="secondary">{priority}</Badge>;
   };
 
+  if (isError) return (
+    <StaffLayout role="supervisor">
+      <Card className="p-8 text-center">
+        <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-3" />
+        <p className="font-medium">Failed to load tasks</p>
+        <p className="text-sm text-muted-foreground mt-1">Check your permissions or try refreshing</p>
+        <Button variant="outline" className="mt-4" onClick={() => refetch()}>Retry</Button>
+      </Card>
+    </StaffLayout>
+  );
+
   return (
     <StaffLayout role="supervisor">
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">Team Tasks</h1>
-          <p className="text-muted-foreground">All tasks across the team</p>
+        <div className="rounded-2xl border border-border p-6 bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <CheckSquare className="h-6 w-6 text-primary" />
+              <div>
+                <h1 className="text-2xl font-bold">Team Tasks</h1>
+                <p className="text-muted-foreground mt-0.5">All tasks across the team</p>
+              </div>
+            </div>
+            <Button onClick={() => setNewTaskOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              New Task
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
-          <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total</CardTitle><ListTodo className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{stats.total}</div></CardContent></Card>
-          <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Pending</CardTitle><Clock className="h-4 w-4 text-yellow-500" /></CardHeader><CardContent><div className="text-2xl font-bold">{stats.pending}</div></CardContent></Card>
-          <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Completed</CardTitle><CheckCircle2 className="h-4 w-4 text-green-500" /></CardHeader><CardContent><div className="text-2xl font-bold">{stats.completed}</div></CardContent></Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total</CardTitle>
+              <ListTodo className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent><div className="text-2xl font-bold">{stats.total}</div></CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pending</CardTitle>
+              <Clock className="h-4 w-4 text-yellow-500" />
+            </CardHeader>
+            <CardContent><div className="text-2xl font-bold">{stats.pending}</div></CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Completed</CardTitle>
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+            </CardHeader>
+            <CardContent><div className="text-2xl font-bold">{stats.completed}</div></CardContent>
+          </Card>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search tasks..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
+            <Input
+              placeholder="Search tasks..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[150px]"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="open">Open</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="in_progress">In Progress</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
@@ -131,10 +252,20 @@ export default function SupervisorTasks() {
             <div className="divide-y">
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="p-4 flex items-center gap-4"><Skeleton className="h-5 w-5 rounded" /><div className="flex-1 space-y-2"><Skeleton className="h-4 w-48" /><Skeleton className="h-3 w-32" /></div><Skeleton className="h-6 w-16" /></div>
+                  <div key={i} className="p-4 flex items-center gap-4">
+                    <Skeleton className="h-5 w-5 rounded" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-48" />
+                      <Skeleton className="h-3 w-32" />
+                    </div>
+                    <Skeleton className="h-6 w-16" />
+                  </div>
                 ))
               ) : filtered?.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground"><AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50" /><p>No tasks found</p></div>
+                <div className="p-8 text-center text-muted-foreground">
+                  <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>No tasks found</p>
+                </div>
               ) : (
                 filtered?.map((task) => {
                   const expirationStatus = getExpirationStatus(task.due_date, task.created_at, task.status);
@@ -151,7 +282,9 @@ export default function SupervisorTasks() {
                       <button
                         className={cn(
                           'w-5 h-5 rounded border-2 flex items-center justify-center mt-1 shrink-0',
-                          task.status === 'completed' ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground/30'
+                          task.status === 'completed'
+                            ? 'bg-primary border-primary text-primary-foreground'
+                            : 'border-muted-foreground/30'
                         )}
                         onClick={() => toggleStatus.mutate({ id: task.id, currentStatus: task.status })}
                       >
@@ -159,13 +292,22 @@ export default function SupervisorTasks() {
                       </button>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className={cn('font-medium', task.status === 'completed' && 'line-through text-muted-foreground')}>{task.title}</p>
+                          <p className={cn('font-medium', task.status === 'completed' && 'line-through text-muted-foreground')}>
+                            {task.title}
+                          </p>
                           {expirationStatus === 'expired' && <AlertTriangle className="h-4 w-4 text-destructive" />}
                           {expirationStatus === 'warning' && <Clock className="h-4 w-4 text-yellow-600" />}
                         </div>
-                        {task.lead && <p className="text-sm text-muted-foreground">{task.lead.name}{task.lead.company && ` • ${task.lead.company}`}</p>}
+                        {task.lead && (
+                          <p className="text-sm text-muted-foreground">
+                            {task.lead.name}{task.lead.company && ` • ${task.lead.company}`}
+                          </p>
+                        )}
                         {task.due_date && (
-                          <p className={cn('text-xs mt-1', expirationStatus === 'expired' ? 'text-destructive font-medium' : 'text-muted-foreground')}>
+                          <p className={cn(
+                            'text-xs mt-1',
+                            expirationStatus === 'expired' ? 'text-destructive font-medium' : 'text-muted-foreground'
+                          )}>
                             Due: {format(new Date(task.due_date), 'MMM d, h:mm a')}
                           </p>
                         )}
@@ -179,6 +321,93 @@ export default function SupervisorTasks() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog
+        open={newTaskOpen}
+        onOpenChange={(open) => {
+          setNewTaskOpen(open);
+          if (!open) setTaskForm(EMPTY_FORM);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New Task</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label>
+                Title <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                value={taskForm.title}
+                onChange={e => setTaskForm(f => ({ ...f, title: e.target.value }))}
+                placeholder="Task title"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Description</Label>
+              <Textarea
+                value={taskForm.description}
+                onChange={e => setTaskForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="Optional details"
+                rows={3}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Assignee</Label>
+              <Select
+                value={taskForm.assignedTo}
+                onValueChange={v => setTaskForm(f => ({ ...f, assignedTo: v }))}
+              >
+                <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Unassigned</SelectItem>
+                  {agentProfiles.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.full_name ?? 'Unknown'}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label>Priority</Label>
+                <Select
+                  value={taskForm.priority}
+                  onValueChange={v => setTaskForm(f => ({ ...f, priority: v }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Due date</Label>
+                <Input
+                  type="date"
+                  value={taskForm.dueDate}
+                  onChange={e => setTaskForm(f => ({ ...f, dueDate: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewTaskOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => createTask.mutate(taskForm)}
+              disabled={!taskForm.title.trim() || createTask.isPending}
+            >
+              {createTask.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating…</>
+              ) : (
+                'Create Task'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </StaffLayout>
   );
 }

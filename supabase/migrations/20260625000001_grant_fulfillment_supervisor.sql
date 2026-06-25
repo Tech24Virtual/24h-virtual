@@ -71,3 +71,9 @@ CREATE POLICY "Supervisors can view handoff requests"
     has_role(auth.uid(), 'supervisor'::app_role) OR
     has_role(auth.uid(), 'admin'::app_role)
   );
+
+-- Slack tables were created without GRANT to authenticated, so every browser
+-- query 403'd before RLS evaluated. The RLS policies already exist; these
+-- grants let them fire.
+GRANT SELECT           ON public.slack_channels TO authenticated;
+GRANT SELECT, INSERT   ON public.slack_messages TO authenticated;
