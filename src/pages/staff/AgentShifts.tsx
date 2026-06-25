@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, differenceInMinutes, startOfMonth, endOfMonth, setDate, isAfter, isBefore, addMonths } from 'date-fns';
 import { Clock, Ban, CheckCircle, Pencil, AlertCircle, Send, ChevronDown } from 'lucide-react';
@@ -109,6 +109,72 @@ export default function AgentShifts() {
     enabled: !!user?.id,
   });
 
+  const { data: breakSettings = [] } = useQuery<{ setting_key: string; setting_value: string }[]>({
+    queryKey: ['shift-break-settings'],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('shift_break_settings')
+        .select('setting_key, setting_value');
+      return data ?? [];
+    },
+  });
+
+  const lunchAllowance = parseInt(
+    breakSettings.find((s) => s.setting_key === 'lunch_break_minutes')?.setting_value ?? '30',
+  );
+  const bathroomAllowance = parseInt(
+    breakSettings.find((s) => s.setting_key === 'bathroom_break_allowance_minutes')?.setting_value ?? '5',
+  );
+
+  const shiftIds = useMemo(() => shifts?.map((s) => s.id) ?? [], [shifts]);
+
+  const { data: periodBreaks = [] } = useQuery<
+    { shift_id: string; break_type: string | null; started_at: string; ended_at: string }[]
+  >({
+    queryKey: ['period-breaks', shiftIds],
+    queryFn: async () => {
+      if (!shiftIds.length) return [];
+      const { data } = await (supabase as any)
+        .from('agent_shift_breaks')
+        .select('shift_id, break_type, started_at, ended_at')
+        .in('shift_id', shiftIds)
+        .not('ended_at', 'is', null);
+      return data ?? [];
+    },
+    enabled: shiftIds.length > 0,
+  });
+
+  const breaksByShift = useMemo(() => {
+    const map = new Map<string, typeof periodBreaks>();
+    for (const b of periodBreaks) {
+      if (!map.has(b.shift_id)) map.set(b.shift_id, []);
+      map.get(b.shift_id)!.push(b);
+    }
+    return map;
+  }, [periodBreaks]);
+
+  const calcBreakDeduction = useCallback(
+    (shiftId: string): number => {
+      const breaks = breaksByShift.get(shiftId) ?? [];
+      if (!breaks.length) return 0;
+      let deductedMinutes = 0;
+      for (const b of breaks) {
+        if (!b.started_at || !b.ended_at) continue;
+        const mins =
+          (new Date(b.ended_at).getTime() - new Date(b.started_at).getTime()) / 60000;
+        if (b.break_type === 'lunch') {
+          deductedMinutes += mins;
+        } else if (b.break_type === 'bathroom') {
+          deductedMinutes += Math.max(0, mins - bathroomAllowance);
+        } else {
+          deductedMinutes += mins;
+        }
+      }
+      return deductedMinutes;
+    },
+    [breaksByShift, bathroomAllowance],
+  );
+
   const approveMutation = useMutation({
     mutationFn: async (shiftId: string) => {
       const { error } = await supabase.from('agent_shifts')
@@ -166,19 +232,34 @@ export default function AgentShifts() {
     if (!shift.clock_out) return '—';
     const totalMins = differenceInMinutes(new Date(shift.clock_out), new Date(shift.clock_in));
     const deduction = shift.manual_deduction_minutes || 0;
-    const netMins = breaksPaid ? Math.max(0, totalMins - deduction) : Math.max(0, totalMins - (shift.total_break_minutes ?? 0) - deduction);
+    const breakDeduct = breaksPaid
+      ? 0
+      : breaksByShift.has(shift.id)
+      ? calcBreakDeduction(shift.id)
+      : (shift.total_break_minutes ?? 0);
+    const netMins = Math.max(0, totalMins - breakDeduct - deduction);
     return `${Math.floor(netMins / 60)}h ${netMins % 60}m`;
   };
 
   // Calculate totals for submit dialog
   const approvedPeriodShifts = periodShifts.filter(s => s.status === 'approved');
-  const totalMins = (approvedPeriodShifts ?? []).reduce((acc, s) => {
+  const totalMins = approvedPeriodShifts.reduce((acc, s) => {
     if (!s.clock_out) return acc;
     return acc + differenceInMinutes(new Date(s.clock_out), new Date(s.clock_in));
   }, 0);
-  const totalBreakMins = (approvedPeriodShifts ?? []).reduce((acc, s) => acc + (s.total_break_minutes ?? 0), 0);
-  const totalDeductMins = (approvedPeriodShifts ?? []).reduce((acc, s) => acc + (s.manual_deduction_minutes ?? 0), 0);
-  const netMins = breaksPaid ? Math.max(0, totalMins - totalDeductMins) : Math.max(0, totalMins - totalBreakMins - totalDeductMins);
+  const totalBreakMins = approvedPeriodShifts.reduce((acc, s) => acc + (s.total_break_minutes ?? 0), 0);
+  const totalDeductMins = approvedPeriodShifts.reduce((acc, s) => acc + (s.manual_deduction_minutes ?? 0), 0);
+  const netMins = approvedPeriodShifts.reduce((acc, s) => {
+    if (!s.clock_out) return acc;
+    const rawMins = differenceInMinutes(new Date(s.clock_out), new Date(s.clock_in));
+    const deduction = s.manual_deduction_minutes || 0;
+    const breakDeduct = breaksPaid
+      ? 0
+      : breaksByShift.has(s.id)
+      ? calcBreakDeduction(s.id)
+      : (s.total_break_minutes ?? 0);
+    return acc + Math.max(0, rawMins - breakDeduct - deduction);
+  }, 0);
 
   const invoiceStatusBadge: Record<string, { label: string; className: string }> = {
     submitted: { label: 'Submitted', className: 'bg-amber-100 text-amber-800' },
@@ -264,7 +345,19 @@ export default function AgentShifts() {
                         <TableCell>{shift.clock_out ? format(new Date(shift.clock_out), 'h:mm a') : '—'}</TableCell>
                         <TableCell>{calcDuration(shift)}</TableCell>
                         <TableCell>
-                          {shift.total_break_minutes || 0} min
+                          {breaksByShift.has(shift.id) ? (
+                            <div className="space-y-0.5">
+                              {(breaksByShift.get(shift.id) ?? []).map((b, i) => {
+                                const mins = b.ended_at && b.started_at
+                                  ? Math.round((new Date(b.ended_at).getTime() - new Date(b.started_at).getTime()) / 60000)
+                                  : 0;
+                                const icon = b.break_type === 'lunch' ? '🍽️' : b.break_type === 'bathroom' ? '🚻' : '⏸️';
+                                return <span key={i} className="block text-xs">{icon} {mins}m</span>;
+                              })}
+                            </div>
+                          ) : (
+                            <span>{shift.total_break_minutes || 0} min</span>
+                          )}
                           {(shift.manual_deduction_minutes || 0) > 0 && (
                             <span className="block text-xs text-orange-600">-{shift.manual_deduction_minutes}m deducted</span>
                           )}

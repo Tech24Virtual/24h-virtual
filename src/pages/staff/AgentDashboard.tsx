@@ -30,7 +30,8 @@ interface ActiveShift {
 interface ActiveBreak {
   id: string;
   shift_id: string;
-  break_type: number;
+  break_duration_minutes: number | null;
+  break_type: string | null;
   started_at: string;
   ended_at: string | null;
 }
@@ -59,12 +60,6 @@ function formatHMS(totalSeconds: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-/** MM:SS countdown for the on-break card */
-function formatBreakCountdown(totalSeconds: number): string {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')} remaining`;
-}
 
 function getTimeOfDay(): string {
   const h = new Date().getHours();
@@ -78,7 +73,7 @@ export default function AgentDashboard() {
   const { user, profile } = useAuth();
   const queryClient = useQueryClient();
   const [elapsed, setElapsed] = useState(0);
-  const [breakRemaining, setBreakRemaining] = useState(0);
+  const [breakElapsed, setBreakElapsed] = useState(0);
 
   const firstName = profile?.full_name?.split(' ')[0] || 'Agent';
   const todayLabel = format(new Date(), 'EEEE, MMMM d');
@@ -124,9 +119,7 @@ export default function AgentDashboard() {
   useEffect(() => {
     if (!activeBreak) return;
     const startedAt = new Date(activeBreak.started_at).getTime();
-    const duration = activeBreak.break_type * 60 * 1000;
-    const tick = () =>
-      setBreakRemaining(Math.max(0, Math.floor((startedAt + duration - Date.now()) / 1000)));
+    const tick = () => setBreakElapsed(Math.floor((Date.now() - startedAt) / 1000));
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
@@ -198,6 +191,25 @@ export default function AgentDashboard() {
     onError: (err: unknown) => {
       const msg = err instanceof Error ? err.message : 'Could not end your shift.';
       toast({ title: 'Clock-out failed', description: msg, variant: 'destructive' });
+    },
+  });
+
+  const startBreakMutation = useMutation({
+    mutationFn: async (breakType: 'lunch' | 'bathroom') => {
+      const { error } = await (supabase as any).from('agent_shift_breaks').insert({
+        shift_id: activeShift!.id,
+        started_at: new Date().toISOString(),
+        break_type: breakType,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['active-break'] });
+      toast({ title: 'Break started', description: 'Enjoy your break!' });
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : 'Failed to start break';
+      toast({ title: 'Break failed', description: msg, variant: 'destructive' });
     },
   });
 
@@ -345,11 +357,16 @@ export default function AgentDashboard() {
                   <div className="flex items-center gap-2 mb-1.5">
                     <span className="h-2 w-2 rounded-full bg-orange-500 animate-pulse shrink-0" />
                     <p className="text-sm font-medium text-muted-foreground">
-                      On Break — {activeBreak.break_type}m · Shift started {clockInLabel}
+                      {activeBreak.break_type === 'lunch'
+                        ? '🍽️ Lunch Break'
+                        : activeBreak.break_type === 'bathroom'
+                        ? '🚻 Bathroom Break'
+                        : 'On Break'}{' '}
+                      · Shift started {clockInLabel}
                     </p>
                   </div>
                   <p className="text-3xl font-mono font-bold text-orange-600 dark:text-orange-400">
-                    {formatBreakCountdown(breakRemaining)}
+                    {formatHMS(breakElapsed)}
                   </p>
                 </div>
                 <Button
@@ -377,15 +394,32 @@ export default function AgentDashboard() {
                     {formatHMS(elapsed)}
                   </p>
                 </div>
-                <Button
-                  variant="outline"
-                  className="shrink-0"
-                  onClick={() => clockOutMutation.mutate()}
-                  disabled={clockOutMutation.isPending}
-                >
-                  <Square className="h-4 w-4 mr-2" />
-                  Clock Out
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => startBreakMutation.mutate('lunch')}
+                    disabled={startBreakMutation.isPending}
+                  >
+                    🍽️ Lunch Break
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => startBreakMutation.mutate('bathroom')}
+                    disabled={startBreakMutation.isPending}
+                  >
+                    🚻 Bathroom Break
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => clockOutMutation.mutate()}
+                    disabled={clockOutMutation.isPending}
+                  >
+                    <Square className="h-4 w-4 mr-2" />
+                    Clock Out
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ) : (

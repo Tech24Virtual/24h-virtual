@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Save, Loader2, Plug, Banknote, Eye, EyeOff, CheckCircle, MessageSquare, RefreshCw, Copy, FlaskConical, ArrowRight } from 'lucide-react';
+import { Save, Loader2, Plug, Banknote, Eye, EyeOff, CheckCircle, MessageSquare, RefreshCw, Copy, FlaskConical, ArrowRight, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -157,6 +157,10 @@ export default function AdminSettings() {
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="affiliates">Affiliates</TabsTrigger>
           <TabsTrigger value="lead-scoring">Lead Scoring</TabsTrigger>
+          <TabsTrigger value="shifts" className="flex items-center gap-1">
+            <Clock className="w-4 h-4" />
+            Shifts
+          </TabsTrigger>
           <TabsTrigger value="integrations" className="flex items-center gap-1">
             <Plug className="w-4 h-4" />
             Integrations
@@ -271,6 +275,10 @@ export default function AdminSettings() {
           <LeadScoringConfig />
         </TabsContent>
 
+        <TabsContent value="shifts" className="space-y-6 mt-6">
+          <ShiftBreakSettingsCard />
+        </TabsContent>
+
         <TabsContent value="integrations" className="space-y-6 mt-6">
           <PabblySettings />
 
@@ -354,6 +362,111 @@ export default function AdminSettings() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function ShiftBreakSettingsCard() {
+  const { toast } = useToast();
+  const [lunchMinutes, setLunchMinutes] = useState(30);
+  const [bathroomMinutes, setBathroomMinutes] = useState(5);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const { data } = await (supabase as any)
+        .from('shift_break_settings')
+        .select('setting_key, setting_value');
+      if (data) {
+        const map: Record<string, string> = {};
+        (data as { setting_key: string; setting_value: string }[]).forEach((row) => {
+          map[row.setting_key] = row.setting_value;
+        });
+        setLunchMinutes(parseInt(map.lunch_break_minutes ?? '30'));
+        setBathroomMinutes(parseInt(map.bathroom_break_allowance_minutes ?? '5'));
+      }
+      setIsLoading(false);
+    };
+    fetchSettings();
+  }, []);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    const { user } = (await supabase.auth.getUser()).data;
+    const results = await Promise.all([
+      (supabase as any).from('shift_break_settings').upsert(
+        { setting_key: 'lunch_break_minutes', setting_value: String(lunchMinutes), updated_by: user?.id ?? null, updated_at: new Date().toISOString() },
+        { onConflict: 'setting_key' },
+      ),
+      (supabase as any).from('shift_break_settings').upsert(
+        { setting_key: 'bathroom_break_allowance_minutes', setting_value: String(bathroomMinutes), updated_by: user?.id ?? null, updated_at: new Date().toISOString() },
+        { onConflict: 'setting_key' },
+      ),
+    ]);
+    setIsSaving(false);
+    if (results.every((r: any) => !r.error)) {
+      toast({ title: 'Break settings saved', description: 'Break deduction rules updated for all agents.' });
+    } else {
+      toast({ title: 'Error', description: 'Failed to save break settings.', variant: 'destructive' });
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center h-32">
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Clock className="w-5 h-5" />
+          Shift &amp; Break Settings
+        </CardTitle>
+        <CardDescription>
+          Configure break durations and deduction rules for agent timesheets
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="lunch-minutes">Lunch Break Duration (minutes)</Label>
+          <Input
+            id="lunch-minutes"
+            type="number"
+            min="0"
+            max="120"
+            value={lunchMinutes}
+            onChange={(e) => setLunchMinutes(parseInt(e.target.value) || 0)}
+          />
+          <p className="text-sm text-muted-foreground">
+            The full lunch duration is deducted from billable hours.
+          </p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="bathroom-minutes">Bathroom Break Allowance (minutes)</Label>
+          <Input
+            id="bathroom-minutes"
+            type="number"
+            min="0"
+            max="30"
+            value={bathroomMinutes}
+            onChange={(e) => setBathroomMinutes(parseInt(e.target.value) || 0)}
+          />
+          <p className="text-sm text-muted-foreground">
+            Only bathroom time over this allowance is deducted from billable hours.
+          </p>
+        </div>
+        <Button onClick={handleSave} disabled={isSaving}>
+          {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+          Save Break Settings
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 
