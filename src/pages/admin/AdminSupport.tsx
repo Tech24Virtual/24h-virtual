@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Clock, CheckCircle, AlertTriangle, Bot } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -35,27 +36,21 @@ interface SupportRequest {
 }
 
 export default function AdminSupport() {
-  const [requests, setRequests] = useState<SupportRequest[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [selectedRequest, setSelectedRequest] = useState<SupportRequest | null>(null);
 
-  useEffect(() => {
-    fetchRequests();
-  }, []);
-
-  const fetchRequests = async () => {
-    setIsLoading(true);
-    const { data, error } = await supabase
-      .from('support_requests')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50);
-
-    if (!error && data) {
-      setRequests(data);
-    }
-    setIsLoading(false);
-  };
+  const { data: requests = [], isLoading } = useQuery<SupportRequest[]>({
+    queryKey: ['admin-support-requests'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('support_requests')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -115,7 +110,7 @@ export default function AdminSupport() {
         </TabsList>
 
         <TabsContent value="new" className="mt-6">
-          <PiPAssistant dashboardContext="admin" onRequestCreated={fetchRequests} />
+          <PiPAssistant dashboardContext="admin" onRequestCreated={() => queryClient.invalidateQueries({ queryKey: ['admin-support-requests'] })} />
         </TabsContent>
 
         <TabsContent value="history" className="mt-6">
