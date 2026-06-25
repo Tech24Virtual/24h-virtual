@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CheckCircle2, XCircle, GraduationCap, RefreshCw, UserPlus } from 'lucide-react';
+import { CheckCircle2, XCircle, GraduationCap, RefreshCw, UserPlus, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { StaffLayout } from '@/components/staff/StaffLayout';
 import { useCampaignCompletions, useDeleteCompletion, type TrainingCompletion } from '@/hooks/campaign-os/useTrainingCompletions';
@@ -29,6 +29,16 @@ import { useSignoffs, useCreateSignoff } from '@/hooks/campaign-os/useTrainingSi
 import { useAssignTraining, usePublishedModulesForAssign, useAgentsForAssign } from '@/hooks/campaign-os/useTrainingAssignments';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 // ── Inline queries ─────────────────────────────────────────────────────────────
 
@@ -60,11 +70,12 @@ function useSignoffsWithExpiry() {
 
 function useAllPublishedModules() {
   return useQuery({
-    queryKey: ['campaign-os', 'all-published-modules'],
+    queryKey: ['campaign-os', 'all-published-modules-active'],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('campaign_training_modules')
-        .select('id, title, campaign_id, required');
+        .select('id, title, campaign_id, required')
+        .eq('status', 'published');
       if (error) throw error;
       return data as Array<{ id: string; title: string; campaign_id: string; required: boolean }>;
     },
@@ -205,39 +216,57 @@ function ReviewDialog({
   rejecting: boolean;
 }) {
   const [note, setNote] = useState('');
+  const [rejectConfirmOpen, setRejectConfirmOpen] = useState(false);
   if (!completion) return null;
 
   return (
-    <Dialog open onOpenChange={o => !o && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Review completion</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3 text-sm">
-          <div><strong>Module:</strong> {moduleName}</div>
-          <div><strong>Agent:</strong> {agentName}</div>
-          <div><strong>Completed:</strong> {new Date(completion.completed_at).toLocaleString()}</div>
-          {completion.agent_notes && (
+    <>
+      <Dialog open onOpenChange={o => !o && onClose()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Review completion</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div><strong>Module:</strong> {moduleName}</div>
+            <div><strong>Agent:</strong> {agentName}</div>
+            <div><strong>Completed:</strong> {new Date(completion.completed_at).toLocaleString()}</div>
+            {completion.agent_notes && (
+              <div>
+                <strong>Agent notes:</strong>
+                <div className="italic text-muted-foreground mt-1">"{completion.agent_notes}"</div>
+              </div>
+            )}
             <div>
-              <strong>Agent notes:</strong>
-              <div className="italic text-muted-foreground mt-1">"{completion.agent_notes}"</div>
+              <label className="font-medium">Signoff note (optional)</label>
+              <Textarea rows={3} value={note} onChange={e => setNote(e.target.value)} />
             </div>
-          )}
-          <div>
-            <label className="font-medium">Signoff note (optional)</label>
-            <Textarea rows={3} value={note} onChange={e => setNote(e.target.value)} />
           </div>
-        </div>
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={onReject} disabled={rejecting}>
-            <XCircle className="h-4 w-4 mr-1" />Reject
-          </Button>
-          <Button onClick={() => onApprove(note)} disabled={approving}>
-            <CheckCircle2 className="h-4 w-4 mr-1" />Approve
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setRejectConfirmOpen(true)} disabled={rejecting}>
+              <XCircle className="h-4 w-4 mr-1" />Reject
+            </Button>
+            <Button onClick={() => onApprove(note)} disabled={approving}>
+              <CheckCircle2 className="h-4 w-4 mr-1" />Approve
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={rejectConfirmOpen} onOpenChange={setRejectConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reject completion?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will clear the completion. The agent will need to review the material and resubmit.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={onReject}>Reject</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -299,42 +328,68 @@ export default function SupervisorTrainingSignoffs() {
         agent_id: active.agent_id,
         signoff_note: note || undefined,
       });
+
+      // Fire-and-forget: notify the agent their completion was approved
+      const moduleName = moduleMap.get(active.module_id)?.title ?? 'the module';
+      supabase.from('notifications').insert({
+        user_id: active.agent_id,
+        title: 'Training Module Approved',
+        message: `Your completion of "${moduleName}" has been approved by your supervisor.`,
+        type: 'training',
+        action_url: '/staff/agent/training',
+      }).catch(() => {});
+
       toast.success('Signed off');
       setActive(null);
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e ?? '');
+      if (msg.includes('unique') || msg.includes('duplicate')) {
+        toast.error('This completion has already been signed off.');
+      } else {
+        toast.error('Failed to approve completion.');
+      }
     }
   };
 
   const rejectActive = async () => {
     if (!active) return;
-    if (!confirm('Reject this completion? The agent will need to mark the module complete again.')) return;
     try {
       await deleteCompletion.mutateAsync(active.id);
+
+      // Fire-and-forget: notify the agent their completion was not approved
+      const moduleName = moduleMap.get(active.module_id)?.title ?? 'the module';
+      supabase.from('notifications').insert({
+        user_id: active.agent_id,
+        title: 'Training Completion Rejected',
+        message: `Your completion of "${moduleName}" was not approved. Please review the material and resubmit.`,
+        type: 'training',
+        action_url: '/staff/agent/training',
+      }).catch(() => {});
+
       toast.success('Completion cleared');
       setActive(null);
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e ?? '');
+      toast.error(msg || 'Failed to reject completion.');
     }
   };
 
   return (
     <StaffLayout role="supervisor">
       <div className="space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-bold flex items-center gap-2">
-              <GraduationCap className="h-5 w-5" />
-              Training Signoffs
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Review agent completions and manage training assignments.
-            </p>
+        <div className="rounded-2xl border border-border p-6 bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <GraduationCap className="h-6 w-6 text-primary" />
+              <div>
+                <h1 className="text-2xl font-bold">Training Signoffs</h1>
+                <p className="text-muted-foreground mt-0.5">Review and approve agent training completions</p>
+              </div>
+            </div>
+            <Button onClick={() => setAssignOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" /> Assign Training
+            </Button>
           </div>
-          <Button size="sm" onClick={() => setAssignOpen(true)}>
-            <UserPlus className="h-4 w-4 mr-1.5" />
-            Assign Training
-          </Button>
         </div>
 
         <Tabs defaultValue="pending">

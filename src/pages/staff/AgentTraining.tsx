@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import Markdown from 'react-markdown';
 import { isAfter } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 import { BookOpen, CheckCircle2, Clock, GraduationCap, RefreshCw, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -409,6 +410,26 @@ function TrainingDialog({
         campaign_id: mod?.campaign_id ?? '',
       });
       toast.success('Module submitted for supervisor approval.');
+
+      // Fire-and-forget: notify all supervisors — non-blocking
+      supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'supervisor')
+        .then(({ data: supervisors }) => {
+          if (!supervisors?.length) return;
+          return supabase.from('notifications').insert(
+            supervisors.map(s => ({
+              user_id: s.user_id,
+              title: 'Training Completion Pending Review',
+              message: `An agent has completed a training module and needs your sign-off.`,
+              type: 'training',
+              action_url: '/staff/supervisor/training-signoffs',
+            }))
+          );
+        })
+        .catch(() => {});
+
       onClose();
     } catch {
       toast.error('Failed to mark complete. Please try again.');
