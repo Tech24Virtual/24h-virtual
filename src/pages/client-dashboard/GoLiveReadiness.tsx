@@ -21,6 +21,7 @@ import {
   PhoneCall,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import { useMyClientGoLiveReadiness, useConfirmGoLive } from '@/hooks/campaign-os/useClientGoLive';
 import type { GoLiveSnapshot } from '@/hooks/campaign-os/useGoLiveSnapshot';
 
@@ -92,6 +93,26 @@ function CampaignReadinessCard({
       await confirm.mutateAsync(campaignId);
       toast.success('Confirmed! Your team will review and give final sign-off.');
       setConfirmOpen(false);
+
+      // Fire-and-forget: notify all supervisors
+      (async () => {
+        try {
+          const { data: supervisors } = await supabase
+            .from('user_roles')
+            .select('user_id')
+            .eq('role', 'supervisor');
+          if (!supervisors?.length) return;
+          await supabase.from('notifications').insert(
+            supervisors.map((s: { user_id: string }) => ({
+              user_id: s.user_id,
+              title: 'Client Ready for Go-Live',
+              message: `A client has confirmed readiness for campaign "${campaignName}". Please review and approve in Go-Live Approvals.`,
+              category: 'campaign',
+              action_url: '/staff/supervisor/go-live',
+            }))
+          );
+        } catch {}
+      })();
     } catch (e: any) {
       toast.error(e?.message ?? 'Failed to confirm');
     }
