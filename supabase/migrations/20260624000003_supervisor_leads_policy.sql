@@ -30,3 +30,35 @@ GRANT INSERT, UPDATE, DELETE ON public.agent_performance_reviews TO authenticate
 -- Campaign OS script documents were created without explicit DML grants.
 -- Clients and agents reading Campaign OS scripts would hit PostgREST 403s before RLS fires.
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.campaign_script_documents TO authenticated;
+
+-- notifications: SELECT/UPDATE/DELETE were granted but INSERT was never added.
+-- Every client-side supabase.from('notifications').insert(...) call across the entire app
+-- was silently 403ing before RLS even fired. This fixes all cross-portal notification delivery.
+GRANT INSERT ON public.notifications TO authenticated;
+
+-- crm_tasks: no table-level grants existed at all, and the INSERT policy covered only
+-- agents and admins — not supervisors. EscalationsMode "Create follow-up task" always 403'd.
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.crm_tasks TO authenticated;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename = 'crm_tasks'
+      AND policyname = 'Supervisors can manage tasks'
+  ) THEN
+    EXECUTE $policy$
+      CREATE POLICY "Supervisors can manage tasks"
+        ON public.crm_tasks FOR ALL TO authenticated
+        USING (
+          has_role(auth.uid(), 'supervisor'::app_role) OR
+          has_role(auth.uid(), 'admin'::app_role)
+        )
+        WITH CHECK (
+          has_role(auth.uid(), 'supervisor'::app_role) OR
+          has_role(auth.uid(), 'admin'::app_role)
+        )
+    $policy$;
+  END IF;
+END
+$$;
