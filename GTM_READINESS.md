@@ -1,5 +1,5 @@
 # GTM Readiness
-Last updated: 2026-06-24
+Last updated: 2026-06-26
 
 ## 🔖 CONTEXT FOR NEW CHAT
 
@@ -12,7 +12,7 @@ Last updated: 2026-06-24
 **All test passwords:** QATestPass123!
 
 **Last session summary:**
-Agent portal fully redesigned and fixed — Dashboard, Training, Onboarding, Support, Tasks, Notifications, Schedule, Clients, Outbound all working. PiP AI rewritten with Anthropic. All missing grants applied. Bookii.io integrated. Five9 report retrieval working. Currently working on dashboard redesign — Agent done, Supervisor next.
+Supervisor portal fully audited and redesigned across all 15 tabs. Paul's feedback implemented — outbound flow redesign, break time system, task fixes, call logs notes, available shifts logic, agent calendar. Critical systemic fix: GRANT INSERT ON notifications applied. Currently working on Admin Dashboard redesign.
 
 **Key gotchas:**
 - `white_label_partners` uses `partner_slug` column (not `portal_slug`)
@@ -27,6 +27,10 @@ Agent portal fully redesigned and fixed — Dashboard, Training, Onboarding, Sup
 - NMI: use `customer_vault=add_customer` not `type=add_customer` when adding vault entries
 - Five9 v13 renames all pattern params: `skillNamePattern`, `campaignNamePattern`, `dispositionNamePattern`
 - Five9 username must be `TechTeam` (no spaces) — confirmed with Five9 support, FIVE9_USERNAME secret updated
+- Supabase UPDATE returns `{data: null, error: null}` on RLS block — always add `.select()` and check `data.length === 0`
+- `agent_shifts` columns are `clock_in` / `clock_out` (NOT `clock_in_at` / `clock_out_at`)
+- `open_shifts.posted_by` is NOT NULL — must always be supplied on INSERT
+- All client-side notification inserts require `GRANT INSERT ON notifications TO authenticated`
 
 **When starting new chat say:**
 > "Continue 24H Virtual project. I am Suman. Read GTM_READINESS.md for full context. All passwords: QATestPass123!"
@@ -155,6 +159,30 @@ Agent portal fully redesigned and fixed — Dashboard, Training, Onboarding, Sup
 | Missing grants sweep | agent_onboarding, agent_schedules, time_off_requests, open_shifts, client_agent_assignments, shift_invoices, support_requests, agent_performance_reviews, agent_banking, campaign_training_* tables | multiple migrations |
 | FAQ badge clears on Scripts visit | localStorage timestamp, invalidates on page visit | AgentScripts.tsx |
 | Training badge clears on completion | Excludes completed module_ids from urgent count | useTrainingAssignments.ts |
+| Supervisor portal — full audit and redesign | All 15 sidebar tabs redesigned: Dashboard, Workspace, Team, Quality, Training, Fulfillment, Comms, Support | SupervisorDashboard.tsx + all tabs |
+| Supervisor Agents page | Redesign, agent detail page, RLS fix | SupervisorAgents.tsx + SupervisorAgentDetail.tsx |
+| Supervisor Onboarding | Grants, pipeline pills, agent name fix | SupervisorAgentOnboarding.tsx |
+| Supervisor Assignments | Leads data source fix, delete confirmation, agent filter | SupervisorClientAssignments.tsx |
+| Supervisor Schedule | Team calendar, overnight shifts, agent notifications | SupervisorSchedule.tsx |
+| Supervisor Performance | Grants, full redesign, edit/delete drafts, publish confirmation | SupervisorPerformance.tsx |
+| Supervisor Shift Reviews | Notifications fix, status tabs, payout info | SupervisorShiftReviews.tsx |
+| Supervisor Script Reviews | Approve order fix, client/supervisor notifications | SupervisorScriptReviews.tsx |
+| Supervisor Escalations | Grants, notifications, redesign | SupervisorEscalations.tsx |
+| Supervisor Training Signoffs | Notifications, AlertDialog, gradient header | SupervisorTrainingSignoffs.tsx |
+| Supervisor Go-Live Approvals | AlertDialog, client/supervisor notifications, Five9 pill | SupervisorGoLiveApprovals.tsx |
+| Supervisor Fulfillment | Grants, RLS policies, error state | SupervisorFulfillment.tsx |
+| Supervisor Comms | Tickets stats fix, create task, gradient headers | SupervisorTasks.tsx + SupervisorMessages.tsx |
+| Supervisor Support | Unified all roles, PiP knowledge seeded | StaffSupport.tsx |
+| Outbound call flow redesign | New outcomes, detail drawer, digital signatures, scheduled callbacks, task creation on claim | AgentOutboundCalls.tsx + SupervisorOutboundCalls.tsx |
+| Break time system | Lunch/bathroom breaks, deduction logic, admin settings | ShiftClockWidget.tsx + shift_break_settings table |
+| Task system fixes | RLS policies, visibility constraint, notes permissions, clickable dialogs in agent + supervisor | crm_tasks migration + TaskDetailDialog.tsx |
+| Call logs — detail sheet | Clickable rows, slide-in sheet, agent notes, search by name/phone/disposition | AgentCallLogs.tsx + migration |
+| Available shifts — smart coverage | 80% client coverage threshold, split shifts (2×4h blocks), 12h daily limit, conflict check, reset-to-pending | OpenShiftBoard.tsx + TimeOffRequestsList.tsx + migration |
+| Agent calendar — weekly schedule view | Mon–Sun grid, 4 data sources (schedules/shifts/time-off/claimed), prev/next week nav | AgentCalendar.tsx |
+| Agent nav — Appointments rename | Calendar renamed to Appointments (Bookii), My Calendar added for schedule view | staffNav.ts + AgentAppointments.tsx |
+| Agent schedule — 7-day lookback | Past shifts shown (dimmed), upcoming highlighted, no longer shows empty | AgentScheduleView.tsx |
+| GRANT INSERT ON notifications | Systemic fix — all client-side notification inserts now work across all portals | migration applied |
+| platform_knowledge seeded | PiP AI context seeded for supervisor, admin, sales, HR, white_label roles | staging DB |
 
 ---
 
@@ -162,10 +190,10 @@ Agent portal fully redesigned and fixed — Dashboard, Training, Onboarding, Sup
 
 | Task | Priority | Notes |
 |------|----------|-------|
-| Dashboard redesign — Supervisor | HIGH | Agent portal done, Supervisor next |
-| Dashboard redesign — Admin | HIGH | After Supervisor |
+| Dashboard redesign — Admin | HIGH | Next up after supervisor portal complete |
 | Dashboard redesign — Client | MEDIUM | After Admin |
 | Dashboard redesign — Sales/HR/WL | LOW | After Client |
+| Google Calendar integration | MEDIUM | Waiting on Paul's Google Workspace API credentials |
 | NMI go-live | HIGH | Waiting on Paul + Ryker (PlatPay) — need merchant account + live API key |
 | Notification badges for all portals | MEDIUM | Currently only agent portal has badges |
 | Stripe → NMI migration | MEDIUM | Phase 2 — Paul to set crossover date |
