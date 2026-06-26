@@ -101,7 +101,7 @@ export function EscalationsMode({ itemId, onSelect }: Props) {
         status: 'pending',
         created_by: user.id,
         assigned_to: user.id,
-        visibility: 'team',
+        visibility: 'universal',
         due_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       });
       if (error) throw error;

@@ -136,12 +136,14 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
       // Fire-and-forget task creation
       (async () => {
         try {
-          await (supabase as any).from('crm_tasks').insert({
+          await supabase.from('crm_tasks').insert({
             title: `Outbound Call — ${payload.contact_name}`,
             description: `Call ${payload.contact_phone}. Reason: ${payload.reason || 'N/A'}`,
             assigned_to: user!.id,
-            status: 'open',
+            created_by: user!.id,
+            status: 'pending',
             priority: payload.urgency === 'urgent' ? 'high' : 'medium',
+            visibility: 'universal',
           });
         } catch {}
       })();

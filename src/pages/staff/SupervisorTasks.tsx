@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { StaffLayout } from '@/components/staff/StaffLayout';
+import { TaskDetailDialog } from '@/components/staff/TaskDetailDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import {
   Search,
@@ -41,6 +43,7 @@ interface Task {
   status: string;
   due_date: string | null;
   created_at: string;
+  created_by: string | null;
   assigned_to: string | null;
   lead_id: string | null;
   visibility: string | null;
@@ -61,12 +64,14 @@ const EMPTY_FORM = {
 };
 
 export default function SupervisorTasks() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [newTaskOpen, setNewTaskOpen] = useState(false);
   const [taskForm, setTaskForm] = useState(EMPTY_FORM);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   const { data: tasks, isLoading, isError, refetch } = useQuery({
     queryKey: ['supervisor-tasks'],
@@ -103,27 +108,43 @@ export default function SupervisorTasks() {
   const toggleStatus = useMutation({
     mutationFn: async ({ id, currentStatus }: { id: string; currentStatus: string }) => {
       const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
-      const { error } = await supabase.from('crm_tasks').update({
-        status: newStatus,
-        completed_at: newStatus === 'completed' ? new Date().toISOString() : null,
-      }).eq('id', id);
-      if (error) throw error;
+      const { data, error } = await supabase
+        .from('crm_tasks')
+        .update({
+          status: newStatus,
+          completed_at: newStatus === 'completed' ? new Date().toISOString() : null,
+        })
+        .eq('id', id)
+        .select('id');
+      if (error) {
+        console.error('crm_tasks toggle error:', error);
+        throw error;
+      }
+      if (!data || data.length === 0) {
+        throw new Error('Task not found or you do not have permission to update it');
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['supervisor-tasks'] });
       toast.success('Task updated');
     },
+    onError: (error) => {
+      console.error('Task toggle error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to update task');
+    },
   });
 
   const createTask = useMutation({
     mutationFn: async (form: typeof EMPTY_FORM) => {
-      const { error } = await (supabase as any).from('crm_tasks').insert({
+      const { error } = await supabase.from('crm_tasks').insert({
         title: form.title,
         description: form.description || null,
         assigned_to: form.assignedTo !== 'none' ? form.assignedTo : null,
+        created_by: user?.id ?? null,
         priority: form.priority,
         due_date: form.dueDate ? new Date(form.dueDate).toISOString() : null,
         status: 'pending',
+        visibility: 'universal',
       });
       if (error) throw error;
     },
@@ -133,7 +154,10 @@ export default function SupervisorTasks() {
       setNewTaskOpen(false);
       setTaskForm(EMPTY_FORM);
     },
-    onError: () => toast.error('Failed to create task'),
+    onError: (error) => {
+      console.error('Task create error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to create task');
+    },
   });
 
   const filtered = tasks?.filter(task => {
@@ -286,11 +310,17 @@ export default function SupervisorTasks() {
                             ? 'bg-primary border-primary text-primary-foreground'
                             : 'border-muted-foreground/30'
                         )}
-                        onClick={() => toggleStatus.mutate({ id: task.id, currentStatus: task.status })}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleStatus.mutate({ id: task.id, currentStatus: task.status });
+                        }}
                       >
                         {task.status === 'completed' && <CheckCircle2 className="h-3 w-3" />}
                       </button>
-                      <div className="flex-1 min-w-0">
+                      <div
+                        className="flex-1 min-w-0 cursor-pointer"
+                        onClick={() => setSelectedTask(task)}
+                      >
                         <div className="flex items-center gap-2">
                           <p className={cn('font-medium', task.status === 'completed' && 'line-through text-muted-foreground')}>
                             {task.title}
@@ -312,7 +342,9 @@ export default function SupervisorTasks() {
                           </p>
                         )}
                       </div>
-                      {getPriorityBadge(task.priority)}
+                      <div onClick={() => setSelectedTask(task)} className="cursor-pointer">
+                        {getPriorityBadge(task.priority)}
+                      </div>
                     </div>
                   );
                 })
@@ -408,6 +440,11 @@ export default function SupervisorTasks() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <TaskDetailDialog
+        task={selectedTask}
+        open={!!selectedTask}
+        onOpenChange={(open) => { if (!open) setSelectedTask(null); }}
+      />
     </StaffLayout>
   );
 }

@@ -24,7 +24,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { User, Calendar, AlertCircle, MessageSquare, Send } from 'lucide-react';
+import { User, Calendar, MessageSquare, Send } from 'lucide-react';
 
 interface Task {
   id: string;
@@ -81,7 +81,8 @@ export function TaskDetailDialog({ task, open, onOpenChange }: TaskDetailDialogP
   }, [task]);
 
   const isCreator = task?.created_by === user?.id;
-  const canComplete = isCreator;
+  const isAssignee = task?.assigned_to === user?.id;
+  const canComplete = isCreator || isAssignee;
 
   // Fetch task notes
   const { data: notes = [] } = useQuery({
@@ -139,15 +140,23 @@ export function TaskDetailDialog({ task, open, onOpenChange }: TaskDetailDialogP
         updateData.completed_at = null;
       }
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('crm_tasks')
         .update(updateData)
-        .eq('id', task!.id);
+        .eq('id', task!.id)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('crm_tasks UPDATE error:', error);
+        throw error;
+      }
+      if (!data || data.length === 0) {
+        throw new Error('Task not found or you do not have permission to edit it');
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agent-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['supervisor-tasks'] });
       toast.success('Task updated successfully');
       setIsEditing(false);
     },
@@ -211,14 +220,7 @@ export function TaskDetailDialog({ task, open, onOpenChange }: TaskDetailDialogP
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            Task Details
-            {!canComplete && (
-              <span className="text-xs font-normal text-muted-foreground">
-                (Read-only completion)
-              </span>
-            )}
-          </DialogTitle>
+          <DialogTitle>Task Details</DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-4 pr-2">
@@ -275,19 +277,13 @@ export function TaskDetailDialog({ task, open, onOpenChange }: TaskDetailDialogP
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="in_progress">In Progress</SelectItem>
                       <SelectItem value="completed" disabled={!canComplete}>
-                        Completed {!canComplete && '(Creator only)'}
+                        Completed
                       </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
-              {!canComplete && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>Only the task creator can mark this as completed</span>
-                </div>
-              )}
             </div>
           ) : (
             <div className="space-y-3">

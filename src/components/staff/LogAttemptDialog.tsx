@@ -148,12 +148,14 @@ export function LogAttemptDialog({ open, onClose, request, handlerRole }: LogAtt
       if (outcome === 'wrong_number') {
         (async () => {
           try {
-            await (supabase as any).from('crm_tasks').insert({
+            await supabase.from('crm_tasks').insert({
               title: `Get correct phone number — ${request.contact_name}`,
               description: `Wrong number was called for outbound request. Please get the correct number from the client.`,
               assigned_to: request.claimed_by || null,
-              status: 'open',
+              created_by: user?.id ?? null,
+              status: 'pending',
               priority: 'high',
+              visibility: 'universal',
             });
           } catch {}
         })();

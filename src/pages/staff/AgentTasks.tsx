@@ -136,20 +136,36 @@ export default function AgentTasks() {
       setIsDialogOpen(false);
       setNewTask({ title: '', description: '', priority: 'medium', lead_id: '', task_type: 'general', visibility: 'universal' });
     },
-    onError: () => toast.error('Failed to create task'),
+    onError: (error) => {
+      console.error('Task create error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to create task');
+    },
   });
 
   const completeTask = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('crm_tasks').update({ status: 'completed' }).eq('id', id);
-      if (error) throw error;
+      const { data, error } = await supabase
+        .from('crm_tasks')
+        .update({ status: 'completed' })
+        .eq('id', id)
+        .select('id');
+      if (error) {
+        console.error('crm_tasks complete error:', error);
+        throw error;
+      }
+      if (!data || data.length === 0) {
+        throw new Error('Task not found or you do not have permission to complete it');
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agent-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['agent-open-tasks'] });
       toast.success('Task marked complete');
     },
-    onError: () => toast.error('Failed to update task'),
+    onError: (error) => {
+      console.error('Task complete error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to update task');
+    },
   });
 
   const isActive = (status: string) => status === 'open' || status === 'pending' || status === 'in_progress';
