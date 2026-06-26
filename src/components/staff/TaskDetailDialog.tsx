@@ -140,7 +140,7 @@ export function TaskDetailDialog({ task, open, onOpenChange }: TaskDetailDialogP
         updateData.completed_at = null;
       }
 
-      const { data, error } = await supabase
+      const { data: updateResult, error } = await supabase
         .from('crm_tasks')
         .update(updateData)
         .eq('id', task!.id)
@@ -150,7 +150,7 @@ export function TaskDetailDialog({ task, open, onOpenChange }: TaskDetailDialogP
         console.error('crm_tasks UPDATE error:', error);
         throw error;
       }
-      if (!data || data.length === 0) {
+      if (!updateResult || updateResult.length === 0) {
         throw new Error('Task not found or you do not have permission to edit it');
       }
     },
