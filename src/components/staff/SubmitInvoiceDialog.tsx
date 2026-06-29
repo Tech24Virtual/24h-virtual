@@ -9,6 +9,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 
+interface BreakBreakdown {
+  lunchMinutes: number;
+  bathroomActualMinutes: number;
+  bathroomDeductedMinutes: number;
+  bathroomAllowanceMinutes: number;
+}
+
 interface SubmitInvoiceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -17,10 +24,11 @@ interface SubmitInvoiceDialogProps {
   totalHours: number;
   totalBreakMinutes: number;
   netHours: number;
+  breakBreakdown?: BreakBreakdown | null;
 }
 
 export function SubmitInvoiceDialog({
-  open, onOpenChange, periodStart, periodEnd, totalHours, totalBreakMinutes, netHours,
+  open, onOpenChange, periodStart, periodEnd, totalHours, totalBreakMinutes, netHours, breakBreakdown,
 }: SubmitInvoiceDialogProps) {
   const { user, profile } = useAuth();
   const queryClient = useQueryClient();
@@ -89,10 +97,45 @@ export function SubmitInvoiceDialog({
               <p className="font-medium">{totalHours.toFixed(2)} hrs</p>
             </div>
             <div>
-              <p className="text-muted-foreground">Break Time</p>
-              <p className="font-medium">{totalBreakMinutes} min</p>
+              <p className="text-muted-foreground">Total Deducted</p>
+              <p className="font-medium">
+                {breakBreakdown
+                  ? `${breakBreakdown.lunchMinutes + breakBreakdown.bathroomDeductedMinutes} min`
+                  : `${totalBreakMinutes} min`}
+              </p>
             </div>
           </div>
+
+          {breakBreakdown && (breakBreakdown.lunchMinutes > 0 || breakBreakdown.bathroomActualMinutes > 0) && (
+            <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm space-y-1.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Break Breakdown</p>
+              {breakBreakdown.lunchMinutes > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Lunch Break</span>
+                  <span className="font-medium">
+                    {breakBreakdown.lunchMinutes} min{' '}
+                    <span className="text-muted-foreground font-normal text-xs">(deducted)</span>
+                  </span>
+                </div>
+              )}
+              {breakBreakdown.bathroomActualMinutes > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Bathroom Break</span>
+                  <span className="font-medium">
+                    {breakBreakdown.bathroomActualMinutes} min{' '}
+                    <span className="text-muted-foreground font-normal text-xs">
+                      ({breakBreakdown.bathroomDeductedMinutes} min deducted,{' '}
+                      {breakBreakdown.bathroomAllowanceMinutes} min allowance per break)
+                    </span>
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between border-t pt-1.5 font-semibold">
+                <span>Total Deducted</span>
+                <span>{breakBreakdown.lunchMinutes + breakBreakdown.bathroomDeductedMinutes} min</span>
+              </div>
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="notes">Notes (optional)</Label>
             <Textarea

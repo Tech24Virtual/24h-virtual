@@ -119,9 +119,6 @@ export default function AgentShifts() {
     },
   });
 
-  const lunchAllowance = parseInt(
-    breakSettings.find((s) => s.setting_key === 'lunch_break_minutes')?.setting_value ?? '30',
-  );
   const bathroomAllowance = parseInt(
     breakSettings.find((s) => s.setting_key === 'bathroom_break_allowance_minutes')?.setting_value ?? '5',
   );
@@ -260,6 +257,31 @@ export default function AgentShifts() {
       : (s.total_break_minutes ?? 0);
     return acc + Math.max(0, rawMins - breakDeduct - deduction);
   }, 0);
+
+  const breakBreakdown = (() => {
+    if (breaksPaid) return null;
+    let lunchMinutes = 0;
+    let bathroomActualMinutes = 0;
+    let bathroomDeductedMinutes = 0;
+    for (const s of approvedPeriodShifts) {
+      for (const b of breaksByShift.get(s.id) ?? []) {
+        if (!b.started_at || !b.ended_at) continue;
+        const mins = (new Date(b.ended_at).getTime() - new Date(b.started_at).getTime()) / 60000;
+        if (b.break_type === 'lunch') {
+          lunchMinutes += mins;
+        } else if (b.break_type === 'bathroom') {
+          bathroomActualMinutes += mins;
+          bathroomDeductedMinutes += Math.max(0, mins - bathroomAllowance);
+        }
+      }
+    }
+    return {
+      lunchMinutes: Math.round(lunchMinutes),
+      bathroomActualMinutes: Math.round(bathroomActualMinutes),
+      bathroomDeductedMinutes: Math.round(bathroomDeductedMinutes),
+      bathroomAllowanceMinutes: bathroomAllowance,
+    };
+  })();
 
   const invoiceStatusBadge: Record<string, { label: string; className: string }> = {
     submitted: { label: 'Submitted', className: 'bg-amber-100 text-amber-800' },
@@ -484,6 +506,7 @@ export default function AgentShifts() {
             totalHours={totalMins / 60}
             totalBreakMinutes={totalBreakMins}
             netHours={netMins / 60}
+            breakBreakdown={breakBreakdown}
           />
         )}
       </div>

@@ -223,6 +223,7 @@ export function OpenShiftBoard({ role }: Props) {
           displayed.map(shift => {
             const claimError = role === 'agent' ? getClaimError(shift) : null;
             const isSplitShift = (shift.total_blocks ?? 1) > 1;
+            // TODO: Block numbering assumes max 2 blocks. Update if 3+ block splits are needed.
             const blockNumber = isSplitShift ? (shift.parent_shift_id ? 2 : 1) : null;
 
             return (
