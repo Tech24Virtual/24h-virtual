@@ -12,11 +12,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Check, Archive, Pencil, History } from 'lucide-react';
+import { Plus, Check, Archive, Pencil, History, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import type { CampaignScope } from '@/lib/campaign-os/types';
@@ -229,6 +230,14 @@ export default function CampaignOsPolicies() {
 
       {!departmentId ? (
         <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">Select a call flow to see its policies.</CardContent></Card>
+      ) : effective.error ? (
+        <Card>
+          <CardContent className="py-8 text-center text-destructive/80">
+            <AlertTriangle className="w-6 h-6 mx-auto mb-2 opacity-60" />
+            <p className="text-sm font-medium">Failed to load policies</p>
+            <p className="text-xs text-muted-foreground mt-1">Check GRANT SELECT on public.campaign_policy_blocks</p>
+          </CardContent>
+        </Card>
       ) : (
         <Tabs defaultValue="effective" data-testid="policies-tabs">
           <TabsList>
@@ -236,7 +245,20 @@ export default function CampaignOsPolicies() {
             <TabsTrigger value="candidates">Candidates ({candidates.data?.length ?? 0})</TabsTrigger>
           </TabsList>
           <TabsContent value="effective" className="space-y-2 mt-4">
-            {effective.data?.map((p) => (
+            {effective.isLoading && (
+              <div className="space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i}>
+                    <CardHeader className="pb-2"><Skeleton className="h-5 w-64" /></CardHeader>
+                    <CardContent className="pt-0">
+                      <Skeleton className="h-4 w-full mb-1" />
+                      <Skeleton className="h-4 w-3/4" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+            {!effective.isLoading && effective.data?.map((p) => (
               <Card key={p.id}>
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -263,7 +285,17 @@ export default function CampaignOsPolicies() {
             ))}
           </TabsContent>
           <TabsContent value="candidates" className="space-y-2 mt-4">
-            {candidates.data?.map((p) => (
+            {candidates.isLoading && (
+              <div className="space-y-2">
+                {[1, 2].map((i) => (
+                  <Card key={i}>
+                    <CardHeader className="pb-2"><Skeleton className="h-5 w-64" /></CardHeader>
+                    <CardContent className="pt-0"><Skeleton className="h-4 w-full" /></CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+            {!candidates.isLoading && candidates.data?.map((p) => (
               <Card key={p.id}>
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between gap-2 flex-wrap">

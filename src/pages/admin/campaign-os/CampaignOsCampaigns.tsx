@@ -7,9 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Archive, ExternalLink, Info, Layers } from 'lucide-react';
+import { Plus, Archive, ExternalLink, Info, Layers, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ClientDepartment, Campaign } from '@/lib/campaign-os/types';
 
@@ -37,6 +39,8 @@ export default function CampaignOsCampaigns() {
   const [editTarget, setEditTarget] = useState<Campaign | null>(null);
   const [editName, setEditName] = useState('');
   const [editStatus, setEditStatus] = useState<'draft' | 'active' | 'paused' | 'archived'>('draft');
+
+  const [archiveTarget, setArchiveTarget] = useState<Campaign | null>(null);
 
   const openCreate = (dept: ClientDepartment) => {
     setCreateDept(dept);
@@ -83,11 +87,12 @@ export default function CampaignOsCampaigns() {
     }
   };
 
-  const handleArchive = async (c: Campaign) => {
-    if (!confirm(`Archive "${c.display_name}"?`)) return;
+  const handleArchive = async () => {
+    if (!archiveTarget) return;
     try {
-      await archive.mutateAsync(c.id);
+      await archive.mutateAsync(archiveTarget.id);
       toast.success('Campaign archived');
+      setArchiveTarget(null);
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -112,8 +117,35 @@ export default function CampaignOsCampaigns() {
           </div>
         </CardHeader>
         <CardContent className="space-y-2">
-          {campaigns.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
-          {!campaigns.isLoading && (campaigns.data?.length ?? 0) === 0 && (
+          {campaigns.isLoading && (
+            <>
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center justify-between rounded-md border p-3 gap-3">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="flex-1 min-w-0">
+                      <Skeleton className="h-4 w-48 mb-1" />
+                      <Skeleton className="h-3 w-32" />
+                    </div>
+                    <Skeleton className="h-5 w-14" />
+                    <Skeleton className="h-5 w-20" />
+                  </div>
+                  <div className="flex gap-2">
+                    <Skeleton className="h-8 w-16" />
+                    <Skeleton className="h-8 w-20" />
+                    <Skeleton className="h-8 w-16" />
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+          {campaigns.error && (
+            <div className="text-center py-6 text-destructive/80">
+              <AlertTriangle className="w-6 h-6 mx-auto mb-2 opacity-60" />
+              <p className="text-sm font-medium">Failed to load campaigns</p>
+              <p className="text-xs text-muted-foreground mt-1">Check GRANT SELECT on public.campaigns</p>
+            </div>
+          )}
+          {!campaigns.isLoading && !campaigns.error && (campaigns.data?.length ?? 0) === 0 && (
             <p className="text-sm text-muted-foreground">No campaigns yet. Each call flow gets exactly one campaign — create one from an eligible call flow below, or add a new call flow from a client.</p>
           )}
           {campaigns.data?.map((c) => (
@@ -134,7 +166,7 @@ export default function CampaignOsCampaigns() {
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="outline" onClick={() => openEdit(c)}>Edit</Button>
                 {c.status !== 'archived' && (
-                  <Button size="sm" variant="ghost" onClick={() => handleArchive(c)}>
+                  <Button size="sm" variant="ghost" onClick={() => setArchiveTarget(c)}>
                     <Archive className="h-3.5 w-3.5 mr-1" />Archive
                   </Button>
                 )}
@@ -156,7 +188,19 @@ export default function CampaignOsCampaigns() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
-          {eligible.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+          {eligible.isLoading && (
+            <>
+              {[1, 2].map((i) => (
+                <div key={i} className="flex items-center justify-between rounded-md border p-3 gap-3">
+                  <div>
+                    <Skeleton className="h-4 w-40 mb-1" />
+                    <Skeleton className="h-3 w-28" />
+                  </div>
+                  <Skeleton className="h-8 w-44" />
+                </div>
+              ))}
+            </>
+          )}
           {!eligible.isLoading && (eligible.data?.length ?? 0) === 0 && (
             <p className="text-sm text-muted-foreground">No eligible call flows. Either every eligible call flow already has a campaign, or no call flows are at the required lifecycle yet.</p>
           )}
@@ -237,6 +281,23 @@ export default function CampaignOsCampaigns() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!archiveTarget} onOpenChange={(o) => { if (!o) setArchiveTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive campaign?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will hide <strong>{archiveTarget?.display_name}</strong> from agents and clients. You can restore it later by editing the campaign status.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleArchive} disabled={archive.isPending}>
+              {archive.isPending ? 'Archiving…' : 'Archive'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -13,9 +13,10 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, Pencil, Archive } from 'lucide-react';
+import { Plus, Pencil, Archive, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import type { CampaignFieldType, CampaignScope } from '@/lib/campaign-os/types';
 
@@ -53,7 +54,9 @@ export default function CampaignOsFields() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<FieldFormState>(EMPTY_FORM);
 
-  const { data: groups = [], isLoading: loadingGroups } = useQuery({
+  const [archiveTarget, setArchiveTarget] = useState<{ id: string; display_label: string } | null>(null);
+
+  const { data: groups = [], isLoading: loadingGroups, error: groupsError } = useQuery({
     queryKey: ['campaign-os', 'field-groups', departmentId],
     enabled: !!departmentId,
     queryFn: async () => {
@@ -67,7 +70,7 @@ export default function CampaignOsFields() {
     },
   });
 
-  const { data: fields = [], isLoading: loadingFields } = useQuery({
+  const { data: fields = [], isLoading: loadingFields, error: fieldsError } = useQuery({
     queryKey: ['campaign-os', 'fields-list', departmentId],
     enabled: !!departmentId,
     queryFn: async () => {
@@ -126,11 +129,12 @@ export default function CampaignOsFields() {
     }
   };
 
-  const handleArchive = async (id: string) => {
-    if (!confirm('Archive this field? It will stop appearing in the resolver.')) return;
+  const handleArchive = async () => {
+    if (!archiveTarget) return;
     try {
-      await archive.mutateAsync(id);
+      await archive.mutateAsync(archiveTarget.id);
       toast.success('Field archived');
+      setArchiveTarget(null);
     } catch (e: any) {
       toast.error(e.message ?? 'Failed to archive field');
     }
@@ -235,8 +239,28 @@ export default function CampaignOsFields() {
 
       {!departmentId ? (
         <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">Select a call flow to view its field groups and fields.</CardContent></Card>
-      ) : loadingGroups || loadingFields ? (
-        <Skeleton className="h-40 w-full" />
+      ) : (groupsError || fieldsError) ? (
+        <Card>
+          <CardContent className="py-8 text-center text-destructive/80">
+            <AlertTriangle className="w-6 h-6 mx-auto mb-2 opacity-60" />
+            <p className="text-sm font-medium">Failed to load fields</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Run: <code className="font-mono">GRANT SELECT, INSERT, UPDATE, DELETE ON public.campaign_fields TO authenticated</code>
+            </p>
+          </CardContent>
+        </Card>
+      ) : (loadingGroups || loadingFields) ? (
+        <div className="space-y-3">
+          {[1, 2].map((i) => (
+            <Card key={i}>
+              <CardHeader><Skeleton className="h-5 w-40" /></CardHeader>
+              <CardContent className="space-y-2">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       ) : (
         <div className="space-y-4">
           {groups.map((g: any) => (
@@ -260,7 +284,7 @@ export default function CampaignOsFields() {
                         <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
                       </Button>
                       {f.status !== 'archived' && (
-                        <Button size="sm" variant="ghost" onClick={() => handleArchive(f.id)} disabled={archive.isPending}>
+                        <Button size="sm" variant="ghost" onClick={() => setArchiveTarget({ id: f.id, display_label: f.display_label })}>
                           <Archive className="h-3.5 w-3.5 mr-1" /> Archive
                         </Button>
                       )}
@@ -295,7 +319,7 @@ export default function CampaignOsFields() {
                         <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
                       </Button>
                       {f.status !== 'archived' && (
-                        <Button size="sm" variant="ghost" onClick={() => handleArchive(f.id)} disabled={archive.isPending}>
+                        <Button size="sm" variant="ghost" onClick={() => setArchiveTarget({ id: f.id, display_label: f.display_label })}>
                           <Archive className="h-3.5 w-3.5 mr-1" /> Archive
                         </Button>
                       )}
@@ -311,6 +335,23 @@ export default function CampaignOsFields() {
           )}
         </div>
       )}
+
+      <AlertDialog open={!!archiveTarget} onOpenChange={(o) => { if (!o) setArchiveTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive field?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{archiveTarget?.display_label}</strong> will stop appearing in the resolver. You can restore it by editing the field status.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleArchive} disabled={archive.isPending}>
+              {archive.isPending ? 'Archiving…' : 'Archive'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
