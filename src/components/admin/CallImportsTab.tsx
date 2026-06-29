@@ -40,8 +40,9 @@ const statusConfig: Record<string, { icon: React.ReactNode; variant: 'default' |
 };
 
 export function CallImportsTab() {
-  const { data: imports, isLoading, refetch, isRefetching } = useQuery({
+  const { data: imports, isLoading, error, refetch, isRefetching } = useQuery({
     queryKey: ['call-report-imports'],
+    staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('call_report_imports')
@@ -106,6 +107,17 @@ export function CallImportsTab() {
             <Skeleton className="h-12 w-full" />
             <Skeleton className="h-12 w-full" />
             <Skeleton className="h-12 w-full" />
+          </div>
+        ) : error ? (
+          <div className="text-center py-12 text-destructive/80">
+            <AlertCircle className="h-10 w-10 mx-auto mb-3 opacity-60" />
+            <p className="font-medium">Failed to load import history</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Verify <code className="font-mono">GRANT SELECT ON public.call_report_imports</code> is applied.
+            </p>
+            <Button variant="outline" size="sm" className="mt-4" onClick={() => refetch()}>
+              Retry
+            </Button>
           </div>
         ) : !imports?.length ? (
           <div className="text-center py-12 text-muted-foreground">

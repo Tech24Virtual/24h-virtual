@@ -32,42 +32,43 @@ export default function AdminBilling() {
   const [showCreateClientDialog, setShowCreateClientDialog] = useState(false);
 
   // Fetch active subscriptions count
-  const { data: subscriptionStats, isLoading: statsLoading } = useQuery({
+  const { data: subscriptionStats, isLoading: statsLoading, error: statsError } = useQuery({
     queryKey: ['subscription-stats'],
+    staleTime: 60_000,
     queryFn: async () => {
       const { data: leads, error } = await supabase
         .from('leads')
         .select('id, stripe_subscription_id, service_type, plan_minutes')
         .not('stripe_subscription_id', 'is', null);
-      
+
       if (error) throw error;
-      
-      const activeCount = leads?.length || 0;
-      
+
       return {
-        activeSubscriptions: activeCount,
+        activeSubscriptions: leads?.length || 0,
         estimatedMRR: 0,
       };
     },
   });
 
   // Fetch payment failures count
-  const { data: failuresCount } = useQuery({
+  const { data: failuresCount, error: failuresCountError } = useQuery({
     queryKey: ['payment-failures-count'],
+    staleTime: 60_000,
     queryFn: async () => {
       const { count, error } = await supabase
         .from('payment_failures')
         .select('*', { count: 'exact', head: true })
         .is('resolved_at', null);
-      
+
       if (error) throw error;
       return count || 0;
     },
   });
 
   // Fetch custom plans
-  const { data: customPlans, isLoading: customPlansLoading } = useQuery({
+  const { data: customPlans, isLoading: customPlansLoading, error: customPlansError } = useQuery({
     queryKey: ['custom-plans'],
+    staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('custom_plans')
@@ -77,23 +78,24 @@ export default function AdminBilling() {
         `)
         .eq('is_active', true)
         .order('created_at', { ascending: false });
-      
+
       if (error) throw error;
       return data;
     },
   });
 
   // Fetch client add-ons summary
-  const { data: addOnsSummary, isLoading: addOnsLoading } = useQuery({
+  const { data: addOnsSummary, isLoading: addOnsLoading, error: addOnsError } = useQuery({
     queryKey: ['addons-summary'],
+    staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('client_addons')
         .select('addon_slug, addon_name, price, quantity')
         .eq('is_active', true);
-      
+
       if (error) throw error;
-      
+
       const summary: Record<string, { count: number; revenue: number; name: string }> = {};
       data?.forEach(addon => {
         if (!summary[addon.addon_slug]) {
@@ -102,7 +104,7 @@ export default function AdminBilling() {
         summary[addon.addon_slug].count += addon.quantity || 1;
         summary[addon.addon_slug].revenue += (addon.price || 0) * (addon.quantity || 1);
       });
-      
+
       return Object.entries(summary).map(([slug, data]) => ({
         slug,
         name: data.name,
@@ -116,26 +118,27 @@ export default function AdminBilling() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Billing Management</h1>
-          <p className="text-muted-foreground">
-            Manage subscriptions, add-ons, and custom plans
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowCreateClientDialog(true)}>
-            <UserPlus className="w-4 h-4 mr-2" />
-            Create Client
-          </Button>
-          <Button variant="outline" onClick={() => setShowLinkDialog(true)}>
-            <Link2 className="w-4 h-4 mr-2" />
-            Link Stripe Customer
-          </Button>
-          <Button onClick={() => setShowCustomPlanDialog(true)}>
-            <Settings2 className="w-4 h-4 mr-2" />
-            Create Custom Plan
-          </Button>
+      {/* Gradient header */}
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border p-6">
+        <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-bold text-heading">Billing Management</h1>
+            <p className="text-muted-foreground mt-1">Manage subscriptions, add-ons, and custom plans</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => setShowCreateClientDialog(true)}>
+              <UserPlus className="w-4 h-4 mr-2" />
+              Create Client
+            </Button>
+            <Button variant="outline" onClick={() => setShowLinkDialog(true)}>
+              <Link2 className="w-4 h-4 mr-2" />
+              Link Stripe Customer
+            </Button>
+            <Button onClick={() => setShowCustomPlanDialog(true)}>
+              <Settings2 className="w-4 h-4 mr-2" />
+              Create Custom Plan
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -147,54 +150,74 @@ export default function AdminBilling() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {statsLoading ? (
+            {statsError ? (
+              <div className="flex items-center gap-1.5 text-destructive text-sm">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                <span>Failed to load</span>
+              </div>
+            ) : statsLoading ? (
               <Skeleton className="h-8 w-20" />
             ) : (
               <div className="text-2xl font-bold">{subscriptionStats?.activeSubscriptions || 0}</div>
             )}
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Add-On Revenue</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {addOnsLoading ? (
+            {addOnsError ? (
+              <div className="flex items-center gap-1.5 text-destructive text-sm">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                <span>Failed to load</span>
+              </div>
+            ) : addOnsLoading ? (
               <Skeleton className="h-8 w-20" />
             ) : (
               <div className="text-2xl font-bold">${totalAddOnRevenue.toLocaleString()}/mo</div>
             )}
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Custom Plans</CardTitle>
             <Settings2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {customPlansLoading ? (
+            {customPlansError ? (
+              <div className="flex items-center gap-1.5 text-destructive text-sm">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                <span>Failed to load</span>
+              </div>
+            ) : customPlansLoading ? (
               <Skeleton className="h-8 w-20" />
             ) : (
               <div className="text-2xl font-bold">{customPlans?.length || 0}</div>
             )}
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Payment Issues</CardTitle>
             <AlertTriangle className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {failuresCount || 0}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Requiring attention
-            </p>
+            {failuresCountError ? (
+              <div className="flex items-center gap-1.5 text-destructive text-sm">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                <span>Failed to load</span>
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{failuresCount || 0}</div>
+                <p className="text-xs text-muted-foreground">Requiring attention</p>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -39,8 +39,9 @@ export function PaymentFailures() {
   const { toast } = useToast();
   const [processingId, setProcessingId] = useState<string | null>(null);
 
-  const { data: failures, isLoading, refetch } = useQuery({
+  const { data: failures, isLoading, error, refetch } = useQuery({
     queryKey: ["payment-failures"],
+    staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("payment_failures")
@@ -139,6 +140,29 @@ export function PaymentFailures() {
             <Skeleton className="h-12 w-full" />
             <Skeleton className="h-12 w-full" />
           </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="border-destructive/50 bg-destructive/5">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-destructive">
+            <AlertTriangle className="h-5 w-5" />
+            Payment Issues
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="text-center py-8 text-destructive/80">
+          <p className="font-medium">Failed to load payment failures</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Verify <code className="font-mono">GRANT SELECT ON public.payment_failures</code> is applied.
+          </p>
+          <Button variant="outline" size="sm" className="mt-4" onClick={() => refetch()}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry
+          </Button>
         </CardContent>
       </Card>
     );
