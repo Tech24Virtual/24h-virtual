@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -6,12 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ExternalLink, Eye } from 'lucide-react';
+import { Search, Eye, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { 
-  servicePricingMap, 
-  type ServicePricing 
-} from '@/lib/pricingData';
+import { servicePricingMap } from '@/lib/pricingData';
 
 interface ActiveSubscriptionsListProps {
   searchTerm: string;
@@ -19,14 +15,15 @@ interface ActiveSubscriptionsListProps {
 }
 
 export function ActiveSubscriptionsList({ searchTerm, onSearchChange }: ActiveSubscriptionsListProps) {
-  const { data: subscriptions, isLoading } = useQuery({
+  const { data: subscriptions, isLoading, error } = useQuery({
     queryKey: ['active-subscriptions', searchTerm],
+    staleTime: 60_000,
     queryFn: async () => {
       let query = supabase
         .from('leads')
-        .select('*')
-        .not('stripe_subscription_id', 'is', null)
-        .order('subscription_started_at', { ascending: false });
+        .select('id, name, email, company, service_type, plan_minutes, pipeline_stage, payment_processor, nmi_card_last_four, nmi_card_type')
+        .eq('pipeline_stage', 'active')
+        .order('created_at', { ascending: false });
 
       if (searchTerm) {
         query = query.or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,company.ilike.%${searchTerm}%`);
@@ -55,10 +52,8 @@ export function ActiveSubscriptionsList({ searchTerm, onSearchChange }: ActiveSu
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Active Subscriptions</CardTitle>
-        <CardDescription>
-          All clients with active Stripe subscriptions
-        </CardDescription>
+        <CardTitle>Active Clients</CardTitle>
+        <CardDescription>All clients with pipeline stage: active</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Search */}
@@ -79,15 +74,21 @@ export function ActiveSubscriptionsList({ searchTerm, onSearchChange }: ActiveSu
               <Skeleton key={i} className="h-16 w-full" />
             ))}
           </div>
+        ) : error ? (
+          <div className="text-center py-8 text-destructive/80">
+            <AlertTriangle className="h-8 w-8 mx-auto mb-2 opacity-60" />
+            <p className="font-medium text-sm">Failed to load active clients</p>
+            <p className="text-xs text-muted-foreground mt-1">Check Supabase grants for the leads table.</p>
+          </div>
         ) : subscriptions?.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            {searchTerm ? 'No subscriptions match your search' : 'No active subscriptions'}
+            {searchTerm ? 'No clients match your search' : 'No active clients'}
           </div>
         ) : (
           <div className="space-y-3">
             {subscriptions?.map((lead) => (
-              <div 
-                key={lead.id} 
+              <div
+                key={lead.id}
                 className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
               >
                 <div className="min-w-0 flex-1">
@@ -97,25 +98,27 @@ export function ActiveSubscriptionsList({ searchTerm, onSearchChange }: ActiveSu
                     {lead.company && ` • ${lead.company}`}
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-4 ml-4">
                   <div className="text-right hidden sm:block">
                     <div className="text-sm font-medium">
                       {getServiceName(lead.service_type)}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {lead.plan_minutes ? `${lead.plan_minutes} min` : '-'} • {getEstimatedPrice(lead.service_type, lead.plan_minutes)}
+                      {lead.plan_minutes ? `${lead.plan_minutes} min` : '-'} •{' '}
+                      {getEstimatedPrice(lead.service_type, lead.plan_minutes)}
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
-                    <Badge 
-                      variant={lead.status === 'active' ? 'default' : 'secondary'}
-                      className="capitalize"
-                    >
-                      {lead.status}
+                    <Badge variant="default" className="capitalize">
+                      {(lead.payment_processor as string | null) ?? 'nmi'}
                     </Badge>
-                    
+                    {lead.nmi_card_last_four && (
+                      <span className="text-xs text-muted-foreground hidden md:inline">
+                        ···{lead.nmi_card_last_four}
+                      </span>
+                    )}
                     <Button variant="ghost" size="icon" asChild>
                       <Link to={`/admin/leads/${lead.id}`}>
                         <Eye className="h-4 w-4" />

@@ -6,18 +6,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  CreditCard, 
-  Users, 
+import {
+  CreditCard,
+  Users,
   ExternalLink,
   Package,
   Settings2,
-  Link2,
   AlertTriangle,
-  FileText,
-  UserPlus
+  UserPlus,
+  CheckCircle2,
 } from 'lucide-react';
-import { LinkStripeCustomer } from '@/components/admin/LinkStripeCustomer';
 import { CustomPlanBuilder } from '@/components/admin/CustomPlanBuilder';
 import { ActiveSubscriptionsList } from '@/components/admin/ActiveSubscriptionsList';
 import { AddOnsSummary } from '@/components/admin/AddOnsSummary';
@@ -27,25 +25,23 @@ import { CreateClientDialog } from '@/components/admin/CreateClientDialog';
 
 export default function AdminBilling() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [showCustomPlanDialog, setShowCustomPlanDialog] = useState(false);
   const [showCreateClientDialog, setShowCreateClientDialog] = useState(false);
 
-  // Fetch active subscriptions count
+  // Active clients — NMI clients don't have stripe_subscription_id; filter by pipeline stage
   const { data: subscriptionStats, isLoading: statsLoading, error: statsError } = useQuery({
     queryKey: ['subscription-stats'],
     staleTime: 60_000,
     queryFn: async () => {
       const { data: leads, error } = await supabase
         .from('leads')
-        .select('id, stripe_subscription_id, service_type, plan_minutes')
-        .not('stripe_subscription_id', 'is', null);
+        .select('id, service_type, plan_minutes, payment_processor')
+        .eq('pipeline_stage', 'active');
 
       if (error) throw error;
 
       return {
-        activeSubscriptions: leads?.length || 0,
-        estimatedMRR: 0,
+        activeClients: leads?.length || 0,
       };
     },
   });
@@ -130,10 +126,6 @@ export default function AdminBilling() {
               <UserPlus className="w-4 h-4 mr-2" />
               Create Client
             </Button>
-            <Button variant="outline" onClick={() => setShowLinkDialog(true)}>
-              <Link2 className="w-4 h-4 mr-2" />
-              Link Stripe Customer
-            </Button>
             <Button onClick={() => setShowCustomPlanDialog(true)}>
               <Settings2 className="w-4 h-4 mr-2" />
               Create Custom Plan
@@ -146,7 +138,7 @@ export default function AdminBilling() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Subscriptions</CardTitle>
+            <CardTitle className="text-sm font-medium">Active Clients</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -158,7 +150,7 @@ export default function AdminBilling() {
             ) : statsLoading ? (
               <Skeleton className="h-8 w-20" />
             ) : (
-              <div className="text-2xl font-bold">{subscriptionStats?.activeSubscriptions || 0}</div>
+              <div className="text-2xl font-bold">{subscriptionStats?.activeClients || 0}</div>
             )}
           </CardContent>
         </Card>
@@ -237,7 +229,7 @@ export default function AdminBilling() {
           <TabsTrigger value="addons">Add-Ons</TabsTrigger>
           <TabsTrigger value="custom-plans">Custom Plans</TabsTrigger>
           <TabsTrigger value="call-imports">Call Imports</TabsTrigger>
-          <TabsTrigger value="stripe-tools">Stripe Tools</TabsTrigger>
+          <TabsTrigger value="nmi-payment">NMI Payment</TabsTrigger>
         </TabsList>
 
         <TabsContent value="subscriptions" className="space-y-4">
@@ -266,12 +258,20 @@ export default function AdminBilling() {
                   <Skeleton className="h-12 w-full" />
                   <Skeleton className="h-12 w-full" />
                 </div>
+              ) : customPlansError ? (
+                <div className="text-center py-8 text-destructive/80">
+                  <AlertTriangle className="h-10 w-10 mx-auto mb-3 opacity-60" />
+                  <p className="font-medium">Failed to load custom plans</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Verify <code className="font-mono">GRANT SELECT ON public.custom_plans</code> is applied.
+                  </p>
+                </div>
               ) : customPlans?.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Settings2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>No custom plans configured</p>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="mt-4"
                     onClick={() => setShowCustomPlanDialog(true)}
                   >
@@ -281,14 +281,15 @@ export default function AdminBilling() {
               ) : (
                 <div className="space-y-3">
                   {customPlans?.map((plan) => (
-                    <div 
-                      key={plan.id} 
+                    <div
+                      key={plan.id}
                       className="flex items-center justify-between p-4 border rounded-lg"
                     >
                       <div>
                         <div className="font-medium">{plan.plan_name}</div>
                         <div className="text-sm text-muted-foreground">
-                          {(plan.leads as { name: string; email: string } | null)?.name || 'Unknown'} - {(plan.leads as { name: string; email: string } | null)?.email}
+                          {(plan.leads as { name: string; email: string } | null)?.name || 'Unknown'} -{' '}
+                          {(plan.leads as { name: string; email: string } | null)?.email}
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
@@ -297,14 +298,10 @@ export default function AdminBilling() {
                             {plan.plan_type}
                           </Badge>
                           {plan.minute_rate && (
-                            <div className="text-sm font-medium mt-1">
-                              ${plan.minute_rate}/min
-                            </div>
+                            <div className="text-sm font-medium mt-1">${plan.minute_rate}/min</div>
                           )}
                           {plan.fixed_amount && (
-                            <div className="text-sm font-medium mt-1">
-                              ${plan.fixed_amount}/mo
-                            </div>
+                            <div className="text-sm font-medium mt-1">${plan.fixed_amount}/mo</div>
                           )}
                         </div>
                       </div>
@@ -320,43 +317,59 @@ export default function AdminBilling() {
           <CallImportsTab />
         </TabsContent>
 
-        <TabsContent value="stripe-tools" className="space-y-4">
+        <TabsContent value="nmi-payment" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Link2 className="h-5 w-5" />
-                  Link Stripe Customer
+                  <CreditCard className="h-5 w-5 text-primary" />
+                  NMI Payment Gateway
                 </CardTitle>
                 <CardDescription>
-                  Connect an existing Stripe customer to a lead by email
+                  Active payment processor for 24H Virtual
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <Button onClick={() => setShowLinkDialog(true)}>
-                  Search & Link Customer
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="h-4 w-4 text-cta flex-shrink-0" />
+                  <span className="font-medium">NMI is the active payment processor</span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Client billing is managed through the NMI merchant portal. Use the portal
+                  to add cards, update billing details, manage Customer Vault entries, and
+                  view transaction history.
+                </p>
+                <Button onClick={() => window.open('https://secure.nmi.com', '_blank')}>
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Open NMI Portal
                 </Button>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ExternalLink className="h-5 w-5" />
-                  Stripe Dashboard
-                </CardTitle>
+                <CardTitle>Adding a Client Card</CardTitle>
                 <CardDescription>
-                  Open Stripe dashboard for advanced management
+                  How to add or update a payment method via NMI
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Button 
-                  variant="outline"
-                  onClick={() => window.open('https://dashboard.stripe.com', '_blank')}
-                >
-                  Open Stripe Dashboard
-                  <ExternalLink className="w-4 h-4 ml-2" />
-                </Button>
+                <ol className="space-y-2.5 text-sm text-muted-foreground">
+                  {[
+                    'Log in to the NMI merchant portal at secure.nmi.com',
+                    'Navigate to Customer Vault in the left menu',
+                    'Search for the client by name or email address',
+                    'Select the client record and click "Add Payment Method"',
+                    'Enter card details and save — the vault ID updates automatically',
+                  ].map((step, i) => (
+                    <li key={i} className="flex gap-3">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center mt-0.5">
+                        {i + 1}
+                      </span>
+                      <span>{step}</span>
+                    </li>
+                  ))}
+                </ol>
               </CardContent>
             </Card>
           </div>
@@ -364,14 +377,9 @@ export default function AdminBilling() {
       </Tabs>
 
       {/* Dialogs */}
-      <LinkStripeCustomer 
-        open={showLinkDialog} 
-        onOpenChange={setShowLinkDialog} 
-      />
-      
-      <CustomPlanBuilder 
-        open={showCustomPlanDialog} 
-        onOpenChange={setShowCustomPlanDialog} 
+      <CustomPlanBuilder
+        open={showCustomPlanDialog}
+        onOpenChange={setShowCustomPlanDialog}
       />
 
       <CreateClientDialog
