@@ -169,7 +169,7 @@ export function LeadPipelineBoard({ adminMode = false }: LeadPipelineBoardProps)
                       <div className="text-center py-8 text-muted-foreground text-sm border-2 border-dashed rounded-lg">No leads</div>
                     ) : (
                       stageLeads.map((lead) => (
-                        <Link key={lead.id} to={`/staff/sales/leads/${lead.id}`} className="block" draggable onDragStart={(e) => handleDragStart(e, lead)} onDragEnd={handleDragEnd}>
+                        <Link key={lead.id} to={adminMode ? `/admin/leads/${lead.id}` : `/staff/sales/leads/${lead.id}`} className="block" draggable onDragStart={(e) => handleDragStart(e, lead)} onDragEnd={handleDragEnd}>
                           <div className={`p-3 rounded-lg border bg-card hover:bg-accent/50 cursor-grab active:cursor-grabbing transition-all ${
                             draggedLead?.id === lead.id ? 'opacity-50 scale-95' : ''
                           } ${temperatureBorder[lead.lead_temperature || ''] || ''}`}>

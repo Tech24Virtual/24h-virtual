@@ -67,15 +67,17 @@ export default function AdminCRM() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">CRM Dashboard</h1>
-          <p className="text-muted-foreground">Manage tasks and track activities across all leads</p>
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border p-6">
+        <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-bold text-heading">CRM Dashboard</h1>
+            <p className="text-muted-foreground mt-1">Manage tasks and track activities across all leads</p>
+          </div>
+          <Button onClick={() => setQuickAddTaskOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Quick Add Task
+          </Button>
         </div>
-        <Button onClick={() => setQuickAddTaskOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Quick Add Task
-        </Button>
       </div>
 
       <Tabs defaultValue="overview">

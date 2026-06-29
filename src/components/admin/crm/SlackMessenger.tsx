@@ -1,13 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { SlackChannelList } from './SlackChannelList';
 import { SlackMessageThread } from './SlackMessageThread';
 import { MessageQuickActions } from './MessageQuickActions';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { Loader2, MessageSquare, AlertCircle, PanelRightClose, PanelRightOpen } from 'lucide-react';
 
 export function SlackMessenger() {
   const { user } = useAuth();
@@ -15,7 +15,7 @@ export function SlackMessenger() {
   const [showQuickActions, setShowQuickActions] = useState(false);
 
   // Get current user's Slack mapping
-  const { data: userMapping } = useQuery({
+  const { data: userMapping, isLoading: mappingLoading } = useQuery({
     queryKey: ['slack-user-mapping', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
@@ -51,35 +51,26 @@ export function SlackMessenger() {
     enabled: true,
   });
 
-  // Realtime for channel membership changes
-  useEffect(() => {
-    const channel = supabase
-      .channel('slack-channels-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'slack_channels' },
-        () => {
-          // Re-fetch channels when membership changes
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
   const selectedChannel = channels.find((ch) => ch.slack_channel_id === selectedChannelId);
+
+  // Show spinner while the mapping query is in flight — avoids flashing the
+  // "not connected" card for users who do have a mapping.
+  if (mappingLoading) {
+    return (
+      <Card className="p-8 text-center">
+        <Loader2 className="h-8 w-8 mx-auto text-muted-foreground mb-3 animate-spin" />
+        <p className="text-sm text-muted-foreground">Connecting to Slack…</p>
+      </Card>
+    );
+  }
 
   if (!userMapping) {
     return (
-      <Card className="p-8 text-center">
-        <AlertCircle className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
-        <h3 className="font-semibold mb-1">Slack Account Not Linked</h3>
-        <p className="text-sm text-muted-foreground">
-          Your account hasn't been mapped to a Slack user yet. Ask an admin to link your account in Settings → Integrations.
-        </p>
-      </Card>
+      <div className="text-center py-12">
+        <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+        <p className="font-medium">Slack not connected</p>
+        <p className="text-sm text-muted-foreground">Connect Slack in System → Integrations</p>
+      </div>
     );
   }
 

@@ -45,7 +45,7 @@ interface GlobalActivityFeedProps {
 }
 
 export function GlobalActivityFeed({ limit = 20, showTitle = true }: GlobalActivityFeedProps) {
-  const { data: activities = [], isLoading } = useQuery({
+  const { data: activities = [], isLoading, error } = useQuery({
     queryKey: ['global-crm-activities', limit],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -76,7 +76,31 @@ export function GlobalActivityFeed({ limit = 20, showTitle = true }: GlobalActiv
           </CardHeader>
         )}
         <CardContent>
-          <div className="text-center py-8 text-muted-foreground">Loading activities...</div>
+          <div className="text-center py-8 text-muted-foreground">Loading activities…</div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        {showTitle && (
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Recent Activity
+            </CardTitle>
+          </CardHeader>
+        )}
+        <CardContent>
+          <div className="text-center py-8 text-destructive/80">
+            <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm font-medium">Failed to load activities</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Verify <code className="font-mono">GRANT SELECT ON public.crm_activities</code> is applied.
+            </p>
+          </div>
         </CardContent>
       </Card>
     );
