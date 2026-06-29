@@ -1,11 +1,13 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Search, Users, Clock, AlertTriangle, UserPlus, MoreHorizontal } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
   SelectContent,
@@ -31,6 +33,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
 
+// ── Types ─────────────────────────────────────────────────────────────────
+
 interface LeadClient {
   id: string;
   name: string;
@@ -46,6 +50,8 @@ interface LeadClient {
 interface UsageMap {
   [leadId: string]: number;
 }
+
+// ── Constants ──────────────────────────────────────────────────────────────
 
 const SERVICE_LABELS: Record<string, string> = {
   virtual_receptionist: 'Virtual Receptionist',
@@ -63,6 +69,8 @@ const STAGE_STYLES: Record<string, { label: string; variant: 'default' | 'second
   onboarding: { label: 'Onboarding', variant: 'outline' },
 };
 
+// ── Helpers ────────────────────────────────────────────────────────────────
+
 function getUsageColor(pct: number) {
   if (pct >= 90) return 'text-destructive';
   if (pct >= 70) return 'text-yellow-600 dark:text-yellow-400';
@@ -75,48 +83,57 @@ function getBarColor(pct: number) {
   return '[&>div]:bg-green-500';
 }
 
+// ── Component ──────────────────────────────────────────────────────────────
+
 export default function AdminClients() {
   const navigate = useNavigate();
-  const [clients, setClients] = useState<LeadClient[]>([]);
-  const [usage, setUsage] = useState<UsageMap>({});
-  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [serviceFilter, setServiceFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // Stable for the whole month — changes key at month rollover, invalidating the cache
+  const monthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
 
-  const fetchData = async () => {
-    setIsLoading(true);
-
-    const monthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-
-    const [leadsRes, usageRes] = await Promise.all([
-      supabase
+  // ── Clients query ──────────────────────────────────────────────────────
+  const {
+    data: clients = [],
+    isLoading: loadingClients,
+    error: clientsError,
+  } = useQuery({
+    queryKey: ['admin-clients'],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from('leads')
         .select('id, name, email, company, phone, service_type, plan_minutes, pipeline_stage, subscription_started_at')
         .in('pipeline_stage', ['active', 'ready_for_billing', 'onboarding', 'churned'])
-        .order('name', { ascending: true }),
-      supabase
+        .order('name', { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as LeadClient[];
+    },
+  });
+
+  // ── Usage query (independent — a 403 here doesn't blank the client list) ─
+  const { data: usage = {} as UsageMap, isLoading: loadingUsage } = useQuery({
+    queryKey: ['admin-clients-usage', monthStart],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from('call_logs')
         .select('client_id, billable_minutes')
-        .gte('call_date', monthStart),
-    ]);
-
-    if (leadsRes.data) setClients(leadsRes.data);
-
-    if (usageRes.data) {
+        .gte('call_date', monthStart);
+      if (error) throw error;
       const map: UsageMap = {};
-      for (const row of usageRes.data) {
+      for (const row of data ?? []) {
         map[row.client_id] = (map[row.client_id] || 0) + (row.billable_minutes || 0);
       }
-      setUsage(map);
-    }
+      return map;
+    },
+  });
 
-    setIsLoading(false);
-  };
+  const isLoading = loadingClients || loadingUsage;
+
+  // ── Derived state ──────────────────────────────────────────────────────
 
   const filtered = useMemo(() => {
     return clients.filter((c) => {
@@ -132,27 +149,26 @@ export default function AdminClients() {
     });
   }, [clients, searchQuery, serviceFilter, statusFilter]);
 
-  // Stats
   const activeCount = clients.filter((c) => c.pipeline_stage === 'active').length;
   const totalMinutes = Object.values(usage).reduce((s, v) => s + v, 0);
   const overUsage = clients.filter((c) => {
     if (!c.plan_minutes || c.plan_minutes <= 0) return false;
-    const used = usage[c.id] || 0;
-    return used / c.plan_minutes >= 0.9;
+    return (usage[c.id] || 0) / c.plan_minutes >= 0.9;
   }).length;
-  const monthStart = startOfMonth(new Date());
   const newThisMonth = clients.filter(
-    (c) => c.subscription_started_at && new Date(c.subscription_started_at) >= monthStart,
+    (c) => c.subscription_started_at && new Date(c.subscription_started_at) >= new Date(monthStart),
   ).length;
 
-  const stats = [
-    { label: 'Active Clients', value: activeCount, icon: Users, color: 'text-primary', bg: 'bg-primary/10' },
-    { label: 'Minutes This Month', value: totalMinutes.toLocaleString(), icon: Clock, color: 'text-green-600 dark:text-green-400', bg: 'bg-green-500/10' },
-    { label: 'Over 90% Usage', value: overUsage, icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10' },
-    { label: 'New This Month', value: newThisMonth, icon: UserPlus, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10' },
+  const statCards = [
+    { label: 'Active Clients',      value: activeCount,                   icon: Users,         color: 'text-primary',                          bg: 'bg-primary/10' },
+    { label: 'Minutes This Month',  value: totalMinutes.toLocaleString(), icon: Clock,         color: 'text-green-600 dark:text-green-400',     bg: 'bg-green-500/10' },
+    { label: 'Over 90% Usage',      value: overUsage,                     icon: AlertTriangle, color: 'text-destructive',                       bg: 'bg-destructive/10' },
+    { label: 'New This Month',      value: newThisMonth,                  icon: UserPlus,      color: 'text-blue-600 dark:text-blue-400',       bg: 'bg-blue-500/10' },
   ];
 
   const serviceTypes = [...new Set(clients.map((c) => c.service_type).filter(Boolean))] as string[];
+
+  // ── Render ─────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
@@ -163,7 +179,7 @@ export default function AdminClients() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((s) => (
+        {statCards.map((s) => (
           <Card key={s.label}>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -172,9 +188,11 @@ export default function AdminClients() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">{s.label}</p>
-                  <p className={cn('text-2xl font-bold', s.color)}>
-                    {isLoading ? '—' : s.value}
-                  </p>
+                  {isLoading ? (
+                    <Skeleton className="h-7 w-12 mt-0.5" />
+                  ) : (
+                    <p className={cn('text-2xl font-bold', s.color)}>{s.value}</p>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -182,7 +200,21 @@ export default function AdminClients() {
         ))}
       </div>
 
-      {/* Filters */}
+      {/* Error state — shown when clients query fails */}
+      {!!clientsError && (
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardContent className="p-4 flex items-center gap-3 text-destructive">
+            <AlertTriangle className="w-5 h-5 shrink-0" />
+            <p className="text-sm">
+              Failed to load clients. Verify <code className="font-mono text-xs">GRANT SELECT ON public.leads</code> and{' '}
+              <code className="font-mono text-xs">GRANT SELECT ON public.call_logs</code> are applied to the{' '}
+              <code className="font-mono text-xs">authenticated</code> role.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Filters + Table */}
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
@@ -227,7 +259,11 @@ export default function AdminClients() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">Loading...</div>
+            <div className="space-y-2">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-14 w-full rounded-md" />
+              ))}
+            </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Users className="w-16 h-16 mx-auto mb-4 opacity-30" />
@@ -250,10 +286,14 @@ export default function AdminClients() {
                 </TableHeader>
                 <TableBody>
                   {filtered.map((client) => {
-                    const used = usage[client.id] || 0;
+                    const used  = usage[client.id] || 0;
                     const limit = client.plan_minutes || 0;
-                    const pct = limit > 0 ? Math.min(Math.round((used / limit) * 100), 100) : 0;
-                    const stage = STAGE_STYLES[client.pipeline_stage || ''] || { label: client.pipeline_stage || 'Unknown', variant: 'outline' as const };
+                    // Guard: pct is 0 when plan_minutes is null/0 — no NaN possible
+                    const pct   = limit > 0 ? Math.min(Math.round((used / limit) * 100), 100) : 0;
+                    const stage = STAGE_STYLES[client.pipeline_stage || ''] || {
+                      label: client.pipeline_stage || 'Unknown',
+                      variant: 'outline' as const,
+                    };
 
                     return (
                       <TableRow
@@ -279,10 +319,7 @@ export default function AdminClients() {
                         <TableCell>
                           {limit > 0 ? (
                             <div className="space-y-1">
-                              <Progress
-                                value={pct}
-                                className={cn('h-2', getBarColor(pct))}
-                              />
+                              <Progress value={pct} className={cn('h-2', getBarColor(pct))} />
                               <p className={cn('text-xs font-medium', getUsageColor(pct))}>
                                 {used} / {limit} min ({pct}%)
                               </p>
@@ -310,7 +347,7 @@ export default function AdminClients() {
                               <DropdownMenuItem onClick={() => navigate(`/admin/leads/${client.id}`)}>
                                 View Details
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => navigate(`/admin/leads/${client.id}`)}>
+                              <DropdownMenuItem onClick={() => navigate(`/admin/billing?client=${client.id}`)}>
                                 View Billing
                               </DropdownMenuItem>
                             </DropdownMenuContent>
