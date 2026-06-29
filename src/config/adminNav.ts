@@ -67,7 +67,7 @@ export const adminNavGroups: AdminNavGroup[] = [
       { name: 'Fulfillment', href: '/admin/fulfillment-intake' },
       { name: 'Agents', href: '/admin/agents' },
       { name: 'Users', href: '/admin/users' },
-      { name: 'Support', href: '/admin/support' },
+      { name: 'PiP', href: '/admin/support' },
       { name: 'Calendar', href: '/admin/calendar' },
     ],
   },

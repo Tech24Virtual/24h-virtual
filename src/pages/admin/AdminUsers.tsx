@@ -17,7 +17,7 @@ import { format } from 'date-fns';
 interface UserRow {
   id: string;
   full_name: string | null;
-  email: string;
+  email: string | null;
   created_at: string;
   roles: AppRole[];
   is_demo_account: boolean;
@@ -38,7 +38,7 @@ export default function AdminUsers() {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch profiles
+      // Fetch profiles — email is synced from auth.users via trigger (migration 20260629000001)
       const { data: profiles, error: pErr } = await supabase
         .from('profiles')
         .select('id, full_name, created_at, is_demo_account');
@@ -58,19 +58,15 @@ export default function AdminUsers() {
         roleMap.set(r.user_id, existing);
       });
 
-      // Merge profiles with roles; use id as fallback email
       const merged: UserRow[] = (profiles || []).map(p => ({
         id: p.id,
         full_name: p.full_name,
-        email: '',
+        email: (p as any).email ?? null,
         created_at: p.created_at,
         roles: roleMap.get(p.id) || [],
         is_demo_account: (p as any).is_demo_account ?? false,
       }));
 
-      // We can't query auth.users directly, so we'll show the profile id-based info
-      // For email display, we rely on the admin knowing the user's email from the roles context
-      // A workaround: fetch emails from a known table or accept this limitation
       setUsers(merged);
     } catch (err) {
       console.error('Error fetching users:', err);
@@ -87,6 +83,7 @@ export default function AdminUsers() {
     const q = search.toLowerCase();
     return (
       (u.full_name || '').toLowerCase().includes(q) ||
+      (u.email || '').toLowerCase().includes(q) ||
       u.id.toLowerCase().includes(q) ||
       u.roles.some(r => r.toLowerCase().includes(q))
     );
@@ -150,7 +147,7 @@ export default function AdminUsers() {
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Search by name or role…"
+          placeholder="Search by name, email, or role…"
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="pl-9"
@@ -184,7 +181,9 @@ export default function AdminUsers() {
                     <div className="flex items-center gap-2">
                       <div>
                         <p className="font-medium">{user.full_name || 'Unnamed'}</p>
-                        <p className="text-xs text-muted-foreground truncate max-w-[200px]">{user.id}</p>
+                        <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+                          {user.email ?? user.id}
+                        </p>
                       </div>
                       {user.is_demo_account && (
                         <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 text-[10px] px-1.5 py-0">Demo</Badge>
