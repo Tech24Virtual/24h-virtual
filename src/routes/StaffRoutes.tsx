@@ -54,6 +54,7 @@ const SupervisorFulfillment = lazy(() => import("@/pages/staff/SupervisorFulfill
 const SupervisorFulfillmentDetail = lazy(() => import("@/pages/staff/SupervisorFulfillmentDetail"));
 const SupervisorTrainingSignoffs = lazy(() => import("@/pages/staff/SupervisorTrainingSignoffs"));
 const SupervisorGoLiveApprovals = lazy(() => import("@/pages/staff/SupervisorGoLiveApprovals"));
+const SupervisorCallLogs = lazy(() => import("@/pages/staff/SupervisorCallLogs"));
 
 // Billing
 const BillingDashboard = lazy(() => import("@/pages/staff/BillingDashboard"));
@@ -145,6 +146,7 @@ export const StaffRoutes = (
     <Route path="/staff/supervisor/escalations" element={guard("supervisor", <SupervisorEscalations />)} />
     <Route path="/staff/supervisor/fulfillment" element={guard("supervisor", <SupervisorFulfillment />)} />
     <Route path="/staff/supervisor/fulfillment/:id" element={guard("supervisor", <SupervisorFulfillmentDetail />)} />
+    <Route path="/staff/supervisor/call-logs" element={guard("supervisor", <SupervisorCallLogs />)} />
     <Route path="/staff/supervisor/training-signoffs" element={guard("supervisor", <SupervisorTrainingSignoffs />)} />
     <Route path="/staff/supervisor/go-live" element={guard("supervisor", <SupervisorGoLiveApprovals />)} />
     <Route path="/staff/supervisor/settings" element={guard("supervisor", <StaffSettings />)} />

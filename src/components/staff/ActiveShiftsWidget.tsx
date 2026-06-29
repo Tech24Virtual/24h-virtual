@@ -24,15 +24,15 @@ export function ActiveShiftsWidget() {
         .select('id, full_name')
         .in('id', agentIds);
 
-      // Check for active breaks
+      // Check for active breaks — also fetch break_type for specific badge labels
       const shiftIds = shifts.map((s) => s.id);
-      const { data: breaks } = await supabase
+      const { data: breaks } = await (supabase as any)
         .from('agent_shift_breaks')
-        .select('shift_id')
+        .select('shift_id, break_type')
         .in('shift_id', shiftIds)
         .is('ended_at', null);
 
-      const breakShiftIds = new Set(breaks?.map((b) => b.shift_id) || []);
+      const breakTypeMap = new Map((breaks || []).map((b: any) => [b.shift_id, b.break_type as string]));
       const profileMap = new Map(profiles?.map((p) => [p.id, p.full_name]) || []);
 
       return {
@@ -41,7 +41,8 @@ export function ActiveShiftsWidget() {
           id: s.agent_id,
           name: profileMap.get(s.agent_id) || 'Unknown',
           clockIn: s.clock_in,
-          onBreak: breakShiftIds.has(s.id),
+          onBreak: breakTypeMap.has(s.id),
+          breakType: breakTypeMap.get(s.id) ?? null,
         })),
       };
     },
@@ -67,8 +68,11 @@ export function ActiveShiftsWidget() {
                     <span className="truncate">{agent.name}</span>
                     {agent.onBreak ? (
                       <Badge variant="outline" className="text-orange-600 border-orange-300 text-[10px] px-1">
-                        <Coffee className="h-2.5 w-2.5 mr-0.5" />
-                        Break
+                        {agent.breakType === 'lunch'
+                          ? '🍽️ Lunch'
+                          : agent.breakType === 'bathroom'
+                            ? '🚻 Bathroom'
+                            : <><Coffee className="h-2.5 w-2.5 mr-0.5" />Break</>}
                       </Badge>
                     ) : (
                       <Badge variant="outline" className="text-green-600 border-green-300 text-[10px] px-1">

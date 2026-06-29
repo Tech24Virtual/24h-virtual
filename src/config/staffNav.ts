@@ -181,6 +181,7 @@ export function getStaffNav(role: StaffRole): NavGroup[] {
           basePath: `${root}/comms-group`,
           children: [
             { name: 'Tickets', href: `${root}/tickets` },
+            { name: 'Call Logs', href: `${root}/call-logs` },
             { name: 'Messages', href: `${root}/messages` },
             { name: 'Tasks', href: `${root}/tasks` },
             { name: 'Outbound', href: `${root}/outbound-calls` },

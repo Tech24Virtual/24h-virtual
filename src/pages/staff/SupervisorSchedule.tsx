@@ -1,11 +1,11 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Calendar, Clock, User, Search, List, LayoutGrid, CalendarPlus, ShieldAlert, CalendarOff, ExternalLink } from 'lucide-react';
+import { Calendar, Clock, User, Search, List, LayoutGrid, CalendarPlus, ShieldAlert, CalendarOff, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ScheduleBuilder } from '@/components/staff/ScheduleBuilder';
 import { PostOpenShiftDialog } from '@/components/staff/PostOpenShiftDialog';
 import { OpenShiftBoard } from '@/components/staff/OpenShiftBoard';
 import { TimeOffRequestsList } from '@/components/staff/TimeOffRequestsList';
-import { format, startOfDay, endOfDay, endOfWeek, startOfWeek, addDays, isToday, isTomorrow } from 'date-fns';
+import { format, startOfDay, endOfDay, endOfWeek, startOfWeek, addDays, addWeeks, subWeeks, isToday, isTomorrow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { StaffLayout } from '@/components/staff/StaffLayout';
 import { MeetingsCalendarView, type CalendarMeeting } from '@/components/staff/MeetingsCalendarView';
@@ -45,20 +45,24 @@ export default function SupervisorSchedule() {
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
   const [showScheduleBuilder, setShowScheduleBuilder] = useState(false);
   const [showPostShift, setShowPostShift] = useState(false);
+  const [teamWeekStart, setTeamWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Stable date anchors — recalculated each render but week key stays stable within the week
-  const now       = new Date();
+  // Stable date anchors for meetings/stats (always current week)
+  const now        = new Date();
   const todayStart = startOfDay(now);
   const todayEnd   = endOfDay(now);
   const weekEnd    = endOfWeek(now);
-  const weekStart  = startOfWeek(now, { weekStartsOn: 1 });
-  const weekDays   = useMemo(
-    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
+
+  // Team calendar week (navigable)
+  const teamWeekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => addDays(teamWeekStart, i)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [format(weekStart, 'yyyy-MM-dd')],
+    [format(teamWeekStart, 'yyyy-MM-dd')],
   );
+  const teamWeekKey  = format(teamWeekStart, 'yyyy-MM-dd');
+  const teamRangeEnd = format(addDays(teamWeekStart, 6), 'yyyy-MM-dd');
 
   // ── Meetings ───────────────────────────────────────────────────────────────
 
@@ -102,18 +106,15 @@ export default function SupervisorSchedule() {
 
   // ── Team schedule (current week) ───────────────────────────────────────────
 
-  const weekKey = format(weekStart, 'yyyy-MM-dd');
-
   const { data: weekSchedules = [], isLoading: schedulesLoading } = useQuery({
-    queryKey: ['team-schedule-week', weekKey],
+    queryKey: ['team-schedule-week', teamWeekKey],
     staleTime: 60_000,
     queryFn: async (): Promise<WeekScheduleRow[]> => {
-      const endStr = format(addDays(weekStart, 6), 'yyyy-MM-dd');
       const { data: raw, error } = await (supabase as any)
         .from('agent_schedules')
         .select('id, agent_id, shift_date, start_time, end_time')
-        .gte('shift_date', weekKey)
-        .lte('shift_date', endStr)
+        .gte('shift_date', teamWeekKey)
+        .lte('shift_date', teamRangeEnd)
         .eq('status', 'scheduled');
       if (error) throw error;
       if (!raw?.length) return [];
@@ -147,6 +148,90 @@ export default function SupervisorSchedule() {
     });
     return grid;
   }, [weekSchedules]);
+
+  // ── Team calendar supplemental queries ────────────────────────────────────
+
+  const { data: teamActualShifts = [] } = useQuery({
+    queryKey: ['team-actual-shifts', teamWeekKey],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('agent_shifts')
+        .select('id, agent_id, clock_in, clock_out')
+        .gte('clock_in', `${teamWeekKey}T00:00:00`)
+        .lte('clock_in', `${teamRangeEnd}T23:59:59`);
+      if (error) throw error;
+      return (data ?? []) as { id: string; agent_id: string; clock_in: string; clock_out: string | null }[];
+    },
+  });
+
+  const { data: teamTimeOff = [] } = useQuery({
+    queryKey: ['team-time-off-cal', teamWeekKey],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('time_off_requests')
+        .select('id, agent_id, start_date, end_date, request_type')
+        .eq('status', 'approved')
+        .lte('start_date', teamRangeEnd)
+        .gte('end_date', teamWeekKey);
+      if (error) throw error;
+      return (data ?? []) as { id: string; agent_id: string; start_date: string; end_date: string; request_type: string }[];
+    },
+  });
+
+  const { data: teamClaimedShifts = [] } = useQuery({
+    queryKey: ['team-claimed-shifts-cal', teamWeekKey],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('open_shifts')
+        .select('id, claimed_by, shift_date, start_time, end_time')
+        .eq('status', 'claimed')
+        .gte('shift_date', teamWeekKey)
+        .lte('shift_date', teamRangeEnd)
+        .not('claimed_by', 'is', null);
+      if (error) throw error;
+      return (data ?? []) as { id: string; claimed_by: string; shift_date: string; start_time: string | null; end_time: string | null }[];
+    },
+  });
+
+  const actualByAgentDay = useMemo(() => {
+    const map = new Map<string, Map<string, { id: string; clock_in: string; clock_out: string | null }[]>>();
+    teamActualShifts.forEach(s => {
+      const date = s.clock_in.slice(0, 10);
+      if (!map.has(s.agent_id)) map.set(s.agent_id, new Map());
+      const dayMap = map.get(s.agent_id)!;
+      if (!dayMap.has(date)) dayMap.set(date, []);
+      dayMap.get(date)!.push(s);
+    });
+    return map;
+  }, [teamActualShifts]);
+
+  const timeOffByAgentDay = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    teamTimeOff.forEach(t => {
+      teamWeekDays.forEach(d => {
+        const ds = format(d, 'yyyy-MM-dd');
+        if (ds < t.start_date || ds > t.end_date) return;
+        if (!map.has(t.agent_id)) map.set(t.agent_id, new Set());
+        map.get(t.agent_id)!.add(ds);
+      });
+    });
+    return map;
+  }, [teamTimeOff, teamWeekDays]);
+
+  const claimedByAgentDay = useMemo(() => {
+    const map = new Map<string, Map<string, { id: string; start_time: string | null; end_time: string | null }[]>>();
+    teamClaimedShifts.forEach(s => {
+      const agentId = s.claimed_by;
+      if (!map.has(agentId)) map.set(agentId, new Map());
+      const dayMap = map.get(agentId)!;
+      if (!dayMap.has(s.shift_date)) dayMap.set(s.shift_date, []);
+      dayMap.get(s.shift_date)!.push(s);
+    });
+    return map;
+  }, [teamClaimedShifts]);
 
   // ── Meeting mutation ───────────────────────────────────────────────────────
 
@@ -304,19 +389,37 @@ export default function SupervisorSchedule() {
           </TabsContent>
 
           {/* ── Team Schedule tab ──────────────────────────────────────── */}
-          <TabsContent value="team-schedule" className="mt-4">
+          <TabsContent value="team-schedule" className="mt-4 space-y-4">
+            {/* Week navigation */}
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-muted-foreground">
+                {format(teamWeekStart, 'MMM d')} – {format(teamWeekDays[6], 'MMM d, yyyy')}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setTeamWeekStart(w => subWeeks(w, 1))}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setTeamWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))}>
+                  Today
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setTeamWeekStart(w => addWeeks(w, 1))}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
             <Card>
               <CardContent className="p-0 overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="min-w-[140px] sticky left-0 bg-background z-10">Agent</TableHead>
-                      {weekDays.map(d => {
+                      {teamWeekDays.map(d => {
                         const ds = format(d, 'yyyy-MM-dd');
                         return (
                           <TableHead
                             key={ds}
-                            className={`text-center min-w-[110px]${isToday(d) ? ' bg-primary/5' : ''}`}
+                            className={`text-center min-w-[120px]${isToday(d) ? ' bg-primary/5' : ''}`}
                           >
                             <div className="font-medium">{format(d, 'EEE')}</div>
                             <div className="text-xs text-muted-foreground font-normal">{format(d, 'MMM d')}</div>
@@ -335,25 +438,46 @@ export default function SupervisorSchedule() {
                     ) : agentRows.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
-                          No agents scheduled this week
+                          No agents scheduled this period
                         </TableCell>
                       </TableRow>
                     ) : agentRows.map(agent => (
                       <TableRow key={agent.id}>
                         <TableCell className="font-medium sticky left-0 bg-background z-10">{agent.name}</TableCell>
-                        {weekDays.map(d => {
+                        {teamWeekDays.map(d => {
                           const ds = format(d, 'yyyy-MM-dd');
                           const sched = scheduleGrid.get(agent.id)?.get(ds);
+                          const actualShifts = actualByAgentDay.get(agent.id)?.get(ds) ?? [];
+                          const isTimeOff = timeOffByAgentDay.get(agent.id)?.has(ds) ?? false;
+                          const claimedShifts = claimedByAgentDay.get(agent.id)?.get(ds) ?? [];
+                          const hasEvent = sched || actualShifts.length > 0 || isTimeOff || claimedShifts.length > 0;
                           return (
-                            <TableCell key={ds} className={`text-center${isToday(d) ? ' bg-primary/5' : ''}`}>
-                              {sched ? (
-                                <div className="inline-flex flex-col items-center rounded-md bg-green-100 text-green-800 px-2 py-1 text-xs">
-                                  <span className="font-medium">{sched.start_time?.slice(0, 5) ?? '?'}</span>
-                                  <span className="opacity-70">–{sched.end_time?.slice(0, 5) ?? '?'}</span>
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground/30 text-base select-none">—</span>
-                              )}
+                            <TableCell key={ds} className={`align-top py-2${isToday(d) ? ' bg-primary/5' : ''}`}>
+                              <div className="flex flex-col gap-1 min-h-[40px]">
+                                {sched && (
+                                  <div className="rounded bg-green-100 text-green-800 px-1.5 py-0.5 text-[11px] font-medium text-center">
+                                    {sched.start_time?.slice(0, 5) ?? '?'}–{sched.end_time?.slice(0, 5) ?? '?'}
+                                  </div>
+                                )}
+                                {actualShifts.map(s => (
+                                  <div key={s.id} className="rounded bg-blue-100 text-blue-800 px-1.5 py-0.5 text-[11px] text-center">
+                                    {s.clock_in.slice(11, 16)}{s.clock_out ? `–${s.clock_out.slice(11, 16)}` : ' ●'}
+                                  </div>
+                                ))}
+                                {isTimeOff && (
+                                  <div className="rounded bg-red-100 text-red-700 px-1.5 py-0.5 text-[11px] text-center">
+                                    Time Off
+                                  </div>
+                                )}
+                                {claimedShifts.map(s => (
+                                  <div key={s.id} className="rounded bg-purple-100 text-purple-800 px-1.5 py-0.5 text-[11px] text-center">
+                                    {s.start_time?.slice(0, 5) ?? '?'}–{s.end_time?.slice(0, 5) ?? '?'}
+                                  </div>
+                                ))}
+                                {!hasEvent && (
+                                  <span className="text-muted-foreground/30 text-sm text-center block select-none">—</span>
+                                )}
+                              </div>
                             </TableCell>
                           );
                         })}
@@ -363,6 +487,21 @@ export default function SupervisorSchedule() {
                 </Table>
               </CardContent>
             </Card>
+
+            {/* Legend */}
+            <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+              {[
+                { cls: 'bg-green-100', label: 'Scheduled' },
+                { cls: 'bg-blue-100', label: 'Actual Shift' },
+                { cls: 'bg-red-100', label: 'Time Off' },
+                { cls: 'bg-purple-100', label: 'Claimed Shift' },
+              ].map(({ cls, label }) => (
+                <div key={label} className="flex items-center gap-1.5">
+                  <div className={`w-3 h-3 rounded shrink-0 ${cls}`} />
+                  {label}
+                </div>
+              ))}
+            </div>
           </TabsContent>
 
           {/* ── Open Shifts tab ───────────────────────────────────────── */}
