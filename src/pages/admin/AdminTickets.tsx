@@ -5,6 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRealtimeTickets } from '@/hooks/useRealtimeTickets';
 
+const SOURCE_BREAKDOWN = [
+  { source: 'client_portal',          label: 'Client Portal', cardClass: 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800',       textClass: 'text-blue-700 dark:text-blue-400' },
+  { source: 'white_label_portal',     label: 'WL Portal',     cardClass: 'bg-purple-50 dark:bg-purple-900/10 border-purple-200 dark:border-purple-800', textClass: 'text-purple-700 dark:text-purple-400' },
+  { source: 'white_label_escalation', label: 'WL Escalation', cardClass: 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800', textClass: 'text-orange-700 dark:text-orange-400' },
+  { source: 'wl_forward',             label: 'WL Forward',    cardClass: 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800',     textClass: 'text-amber-700 dark:text-amber-400' },
+  { source: 'supervisor',             label: 'Supervisor',    cardClass: 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800',     textClass: 'text-green-700 dark:text-green-400' },
+];
+
 export default function AdminTickets() {
   // Enable real-time updates for all tickets
   useRealtimeTickets({ showNotifications: true });
@@ -25,12 +33,10 @@ export default function AdminTickets() {
         open: tickets.filter(t => t.status === 'open').length,
         inProgress: tickets.filter(t => t.status === 'in_progress').length,
         urgent: tickets.filter(t => t.priority === 'urgent' || t.priority === 'high').length,
-        bySource: {
-          sales: tickets.filter(t => t.source === 'sales').length,
-          client: tickets.filter(t => t.source === 'client_portal').length,
-          affiliate: tickets.filter(t => t.source === 'affiliate_portal').length,
-          whiteLabel: tickets.filter(t => t.source === 'white_label_portal').length,
-        },
+        bySource: SOURCE_BREAKDOWN.map(s => ({
+          source: s.source,
+          count: tickets.filter(t => t.source === s.source).length,
+        })),
       };
     },
   });
@@ -91,43 +97,21 @@ export default function AdminTickets() {
         </Card>
       </div>
 
-      {/* Source breakdown */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800">
-          <CardContent className="pt-4">
-            <div className="text-sm text-orange-700 dark:text-orange-400">Sales</div>
-            {isLoading ? <Skeleton className="h-6 w-10 mt-1" /> : (
-              <div className="text-xl font-bold">{stats?.bySource.sales || 0}</div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800">
-          <CardContent className="pt-4">
-            <div className="text-sm text-blue-700 dark:text-blue-400">Clients</div>
-            {isLoading ? <Skeleton className="h-6 w-10 mt-1" /> : (
-              <div className="text-xl font-bold">{stats?.bySource.client || 0}</div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800">
-          <CardContent className="pt-4">
-            <div className="text-sm text-green-700 dark:text-green-400">Affiliates</div>
-            {isLoading ? <Skeleton className="h-6 w-10 mt-1" /> : (
-              <div className="text-xl font-bold">{stats?.bySource.affiliate || 0}</div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="bg-purple-50 dark:bg-purple-900/10 border-purple-200 dark:border-purple-800">
-          <CardContent className="pt-4">
-            <div className="text-sm text-purple-700 dark:text-purple-400">Partners</div>
-            {isLoading ? <Skeleton className="h-6 w-10 mt-1" /> : (
-              <div className="text-xl font-bold">{stats?.bySource.whiteLabel || 0}</div>
-            )}
-          </CardContent>
-        </Card>
+      {/* Source breakdown — driven by SOURCE_BREAKDOWN constant above */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        {SOURCE_BREAKDOWN.map(def => {
+          const count = stats?.bySource?.find(s => s.source === def.source)?.count ?? 0;
+          return (
+            <Card key={def.source} className={def.cardClass}>
+              <CardContent className="pt-4">
+                <div className={`text-sm ${def.textClass}`}>{def.label}</div>
+                {isLoading ? <Skeleton className="h-6 w-10 mt-1" /> : (
+                  <div className="text-xl font-bold">{count}</div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* All Tickets List */}
