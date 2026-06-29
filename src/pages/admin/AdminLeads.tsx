@@ -46,21 +46,32 @@ const CONVERTIBLE_STAGES = new Set(['qualified', 'sales', 'new']);
 
 const PIPELINE_STAGE_COLORS: Record<string, string> = {
   new: 'bg-primary/10 text-primary',
+  qualified: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400',
   sales: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
   onboarding: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
   ready_for_billing: 'bg-cta/10 text-cta',
   active: 'bg-secondary/10 text-secondary',
+  lost: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400',
   churned: 'bg-muted text-muted-foreground',
 };
 
 const PIPELINE_STAGE_LABELS: Record<string, string> = {
   new: 'New',
+  qualified: 'Qualified',
   sales: 'Sales',
   onboarding: 'Onboarding',
   ready_for_billing: 'Ready for Billing',
   active: 'Active',
+  lost: 'Lost',
   churned: 'Churned',
 };
+
+// Defined pipeline order for sorting stage pills
+const STAGE_ORDER = ['new', 'qualified', 'sales', 'onboarding', 'ready_for_billing', 'active', 'lost', 'churned'];
+
+// Graceful label for any stage, including unknown ones from DB
+const getStageLabel = (stage: string) =>
+  PIPELINE_STAGE_LABELS[stage] ?? stage.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 const SERVICE_LABELS: Record<string, string> = {
   'ai-receptionist': 'AI Receptionist',
@@ -139,6 +150,16 @@ export default function AdminLeads() {
     return acc;
   }, {} as Record<string, number>);
 
+  // Only stages with at least one lead, sorted by pipeline order
+  const activeStages = Object.keys(stageCounts).sort((a, b) => {
+    const ai = STAGE_ORDER.indexOf(a);
+    const bi = STAGE_ORDER.indexOf(b);
+    if (ai === -1 && bi === -1) return a.localeCompare(b);
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+
   // ── Render ─────────────────────────────────────────────────────────────
 
   return (
@@ -161,24 +182,38 @@ export default function AdminLeads() {
         </div>
       </div>
 
-      {/* Pipeline stage stat pills (clickable filters) */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        {Object.entries(PIPELINE_STAGE_LABELS).map(([stage, label]) => (
+      {/* Pipeline stage stat pills (clickable filters — only stages with leads, plus All) */}
+      <div className="flex flex-wrap gap-3">
+        {/* All pill — always first */}
+        <button
+          onClick={() => setStageFilter('all')}
+          className={`min-w-[80px] p-3 rounded-lg border transition-all text-left ${
+            stageFilter === 'all'
+              ? 'ring-2 ring-primary border-primary bg-primary/5'
+              : 'hover:border-primary/50 bg-card'
+          }`}
+        >
+          {isLoading ? (
+            <Skeleton className="h-7 w-10 mb-1" />
+          ) : (
+            <div className="text-2xl font-bold">{leads.length}</div>
+          )}
+          <div className="text-xs text-muted-foreground">All</div>
+        </button>
+
+        {/* One pill per stage that actually has leads */}
+        {activeStages.map((stage) => (
           <button
             key={stage}
             onClick={() => setStageFilter(stageFilter === stage ? 'all' : stage)}
-            className={`p-3 rounded-lg border transition-all text-left ${
+            className={`min-w-[80px] p-3 rounded-lg border transition-all text-left ${
               stageFilter === stage
                 ? 'ring-2 ring-primary border-primary bg-primary/5'
                 : 'hover:border-primary/50 bg-card'
             }`}
           >
-            {isLoading ? (
-              <Skeleton className="h-7 w-10 mb-1" />
-            ) : (
-              <div className="text-2xl font-bold">{stageCounts[stage] || 0}</div>
-            )}
-            <div className="text-xs text-muted-foreground">{label}</div>
+            <div className="text-2xl font-bold">{stageCounts[stage]}</div>
+            <div className="text-xs text-muted-foreground">{getStageLabel(stage)}</div>
           </button>
         ))}
       </div>
@@ -222,8 +257,8 @@ export default function AdminLeads() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Stages</SelectItem>
-                  {Object.entries(PIPELINE_STAGE_LABELS).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  {STAGE_ORDER.map((value) => (
+                    <SelectItem key={value} value={value}>{getStageLabel(value)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -243,7 +278,7 @@ export default function AdminLeads() {
               <p className="text-lg font-medium mb-2">No leads found</p>
               <p className="text-sm">
                 {stageFilter !== 'all'
-                  ? `No leads in the "${PIPELINE_STAGE_LABELS[stageFilter]}" stage`
+                  ? `No leads in the "${getStageLabel(stageFilter)}" stage`
                   : 'Add your first lead to get started'}
               </p>
             </div>
@@ -294,9 +329,9 @@ export default function AdminLeads() {
                         <TableCell>
                           <Badge
                             variant="secondary"
-                            className={PIPELINE_STAGE_COLORS[lead.pipeline_stage || 'new']}
+                            className={PIPELINE_STAGE_COLORS[lead.pipeline_stage || 'new'] ?? 'bg-muted text-muted-foreground'}
                           >
-                            {PIPELINE_STAGE_LABELS[lead.pipeline_stage || 'new'] ?? lead.pipeline_stage}
+                            {getStageLabel(lead.pipeline_stage || 'new')}
                           </Badge>
                         </TableCell>
                         <TableCell>
