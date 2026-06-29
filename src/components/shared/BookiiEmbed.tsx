@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface BookiiEmbedProps {
@@ -7,8 +7,42 @@ interface BookiiEmbedProps {
   height?: string;
 }
 
-export function BookiiEmbed({ title, height = 'calc(100vh - 140px)' }: BookiiEmbedProps) {
+// Tenant-specific Bookii workspace URL, e.g. https://app.bookii.io/embed/<workspace-id>
+// Set VITE_BOOKII_URL in .env to enable the embed.
+const BOOKII_URL = (import.meta.env.VITE_BOOKII_URL as string | undefined) || '';
+
+export function BookiiEmbed({ title, height = 'calc(100vh - 200px)' }: BookiiEmbedProps) {
   const [loaded, setLoaded] = useState(false);
+
+  if (!BOOKII_URL) {
+    return (
+      <div
+        className="flex flex-col items-center justify-center rounded-lg border bg-card/50 text-center gap-4 p-12"
+        style={{ minHeight: '400px', height }}
+      >
+        <CalendarDays className="w-12 h-12 text-muted-foreground/30" />
+        <div className="space-y-1">
+          <p className="font-medium">Bookii not configured</p>
+          <p className="text-sm text-muted-foreground max-w-sm">
+            Set{' '}
+            <code className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
+              VITE_BOOKII_URL
+            </code>{' '}
+            in your <code className="font-mono text-xs">.env</code> file to your Bookii workspace
+            embed URL, then restart the dev server.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => window.open('https://bookii.io', '_blank', 'noopener,noreferrer')}
+        >
+          <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+          Sign up for Bookii
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-2">
@@ -21,7 +55,7 @@ export function BookiiEmbed({ title, height = 'calc(100vh - 140px)' }: BookiiEmb
           </div>
         )}
         <iframe
-          src="https://bookii.io"
+          src={BOOKII_URL}
           title={title}
           width="100%"
           height="100%"
@@ -36,7 +70,7 @@ export function BookiiEmbed({ title, height = 'calc(100vh - 140px)' }: BookiiEmb
           variant="ghost"
           size="sm"
           className="h-7 text-xs gap-1.5"
-          onClick={() => window.open('https://bookii.io', '_blank', 'noopener,noreferrer')}
+          onClick={() => window.open(BOOKII_URL, '_blank', 'noopener,noreferrer')}
         >
           <ExternalLink className="h-3 w-3" />
           Open in New Tab

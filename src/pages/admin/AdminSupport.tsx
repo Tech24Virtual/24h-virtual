@@ -39,8 +39,9 @@ export default function AdminSupport() {
   const queryClient = useQueryClient();
   const [selectedRequest, setSelectedRequest] = useState<SupportRequest | null>(null);
 
-  const { data: requests = [], isLoading } = useQuery<SupportRequest[]>({
+  const { data: requests = [], isLoading, error } = useQuery<SupportRequest[]>({
     queryKey: ['admin-support-requests'],
+    staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('support_requests')
@@ -87,7 +88,7 @@ export default function AdminSupport() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border p-6">
         <h1 className="text-2xl lg:text-3xl font-bold text-heading">PiP Assistant</h1>
         <p className="text-muted-foreground mt-1">Your AI-powered guide to the Admin Portal</p>
       </div>
@@ -120,7 +121,17 @@ export default function AdminSupport() {
               <CardDescription>All support requests and AI analyses</CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoading ? (
+              {error ? (
+                <div className="text-center py-8 text-destructive/80">
+                  <AlertTriangle className="w-8 h-8 mx-auto mb-2 opacity-60" />
+                  <p className="font-medium text-sm">Failed to load requests</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Check{' '}
+                    <code className="font-mono">GRANT SELECT ON public.support_requests</code>{' '}
+                    is applied.
+                  </p>
+                </div>
+              ) : isLoading ? (
                 <div className="flex items-center justify-center h-32">
                   <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                 </div>
@@ -169,7 +180,17 @@ export default function AdminSupport() {
               <CardDescription>Issues that need developer attention</CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoading ? (
+              {error ? (
+                <div className="text-center py-8 text-destructive/80">
+                  <AlertTriangle className="w-8 h-8 mx-auto mb-2 opacity-60" />
+                  <p className="font-medium text-sm">Failed to load escalated issues</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Check{' '}
+                    <code className="font-mono">GRANT SELECT ON public.support_requests</code>{' '}
+                    is applied.
+                  </p>
+                </div>
+              ) : isLoading ? (
                 <div className="flex items-center justify-center h-32">
                   <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                 </div>
