@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface ResendDemoDialogProps {
-  user: { id: string; full_name: string | null; email: string } | null;
+  user: { id: string; full_name: string | null; email: string | null } | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onResent: () => void;
@@ -112,7 +112,7 @@ export function ResendDemoDialog({ user, open, onOpenChange, onResent }: ResendD
           <DialogTitle>{sent ? 'Invitation Sent' : 'Resend Demo Invitation'}</DialogTitle>
           <DialogDescription>
             {sent
-              ? `A new invitation email has been sent to ${user.email}`
+              ? `A new invitation email has been sent to ${user.email ?? email}`
               : `Update password and resend the invitation email for ${user.full_name || 'this user'}`}
           </DialogDescription>
         </DialogHeader>

@@ -1,11 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, UserPlus, Shield, Users, FlaskConical, ShieldOff, Mail } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Search, UserPlus, Shield, Users, FlaskConical, ShieldOff, Mail, AlertTriangle } from 'lucide-react';
 import { ManageUserRolesDialog } from '@/components/admin/ManageUserRolesDialog';
 import { InviteUserDialog } from '@/components/admin/InviteUserDialog';
 import { CreateDemoDialog } from '@/components/admin/CreateDemoDialog';
@@ -24,9 +27,9 @@ interface UserRow {
 }
 
 export default function AdminUsers() {
-  const [users, setUsers] = useState<UserRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState<AppRole | 'all'>('all');
   const [selectedUser, setSelectedUser] = useState<UserRow | null>(null);
   const [manageOpen, setManageOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -35,61 +38,58 @@ export default function AdminUsers() {
   const [revokeOpen, setRevokeOpen] = useState(false);
   const [resendUser, setResendUser] = useState<UserRow | null>(null);
   const [resendOpen, setResendOpen] = useState(false);
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
-    try {
-      // Fetch profiles — email is synced from auth.users via trigger (migration 20260629000001)
-      const { data: profiles, error: pErr } = await supabase
-        .from('profiles')
-        .select('id, full_name, created_at, is_demo_account');
-      if (pErr) throw pErr;
 
-      // Fetch all roles
-      const { data: roles, error: rErr } = await supabase
-        .from('user_roles')
-        .select('user_id, role');
-      if (rErr) throw rErr;
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['admin-users'] });
 
-      // Build a map of user_id -> roles
+  const { data: users = [], isLoading, error } = useQuery({
+    queryKey: ['admin-users'],
+    staleTime: 60_000,
+    queryFn: async () => {
+      // profiles.email was added in migration 20260629000001; cast needed since types.ts predates it.
+      // Prior code selected only id/full_name/created_at/is_demo_account, so (p as any).email was always null.
+      const [profilesResult, rolesResult] = await Promise.all([
+        (supabase as any)
+          .from('profiles')
+          .select('id, full_name, email, created_at, is_demo_account')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('user_roles')
+          .select('user_id, role'),
+      ]);
+
+      if (profilesResult.error) throw profilesResult.error;
+      if (rolesResult.error) throw rolesResult.error;
+
       const roleMap = new Map<string, AppRole[]>();
-      roles?.forEach(r => {
+      (rolesResult.data || []).forEach((r: { user_id: string; role: string }) => {
         const existing = roleMap.get(r.user_id) || [];
         existing.push(r.role as AppRole);
         roleMap.set(r.user_id, existing);
       });
 
-      const merged: UserRow[] = (profiles || []).map(p => ({
+      return (profilesResult.data || []).map((p: any) => ({
         id: p.id,
-        full_name: p.full_name,
-        email: (p as any).email ?? null,
+        full_name: p.full_name ?? null,
+        email: p.email ?? null,
         created_at: p.created_at,
         roles: roleMap.get(p.id) || [],
-        is_demo_account: (p as any).is_demo_account ?? false,
-      }));
-
-      setUsers(merged);
-    } catch (err) {
-      console.error('Error fetching users:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+        is_demo_account: p.is_demo_account ?? false,
+      })) as UserRow[];
+    },
+  });
 
   const filtered = users.filter(u => {
     const q = search.toLowerCase();
-    return (
+    const matchesSearch =
+      !q ||
       (u.full_name || '').toLowerCase().includes(q) ||
       (u.email || '').toLowerCase().includes(q) ||
       u.id.toLowerCase().includes(q) ||
-      u.roles.some(r => r.toLowerCase().includes(q))
-    );
+      u.roles.some(r => r.toLowerCase().includes(q));
+    const matchesRole = roleFilter === 'all' || u.roles.includes(roleFilter);
+    return matchesSearch && matchesRole;
   });
 
-  // Stats
   const totalUsers = users.length;
   const roleCounts = ROLE_CONFIG.reduce((acc, { role }) => {
     acc[role] = users.filter(u => u.roles.includes(role)).length;
@@ -102,20 +102,23 @@ export default function AdminUsers() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Users</h1>
-          <p className="text-muted-foreground">Manage user accounts and portal access</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setDemoOpen(true)}>
-            <FlaskConical className="w-4 h-4 mr-2" />
-            Create Demo
-          </Button>
-          <Button onClick={() => setInviteOpen(true)}>
-            <UserPlus className="w-4 h-4 mr-2" />
-            Invite User
-          </Button>
+      {/* Gradient header */}
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border p-6">
+        <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-bold text-heading">User Management</h1>
+            <p className="text-muted-foreground mt-1">Manage user accounts and portal access</p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setDemoOpen(true)}>
+              <FlaskConical className="w-4 h-4 mr-2" />
+              Create Demo
+            </Button>
+            <Button onClick={() => setInviteOpen(true)}>
+              <UserPlus className="w-4 h-4 mr-2" />
+              Invite User
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -123,35 +126,75 @@ export default function AdminUsers() {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <Users className="w-8 h-8 text-primary" />
+            <Users className="w-8 h-8 text-primary flex-shrink-0" />
             <div>
-              <p className="text-2xl font-bold">{totalUsers}</p>
+              {isLoading ? (
+                <Skeleton className="h-7 w-10 mb-0.5" />
+              ) : (
+                <p className="text-2xl font-bold">{totalUsers}</p>
+              )}
               <p className="text-xs text-muted-foreground">Total Users</p>
             </div>
           </CardContent>
         </Card>
-        {topRoles.map(([role, count]) => {
-          const info = getRoleInfo(role as AppRole);
-          return (
-            <Card key={role}>
-              <CardContent className="p-4">
-                <p className="text-2xl font-bold">{count}</p>
-                <p className="text-xs text-muted-foreground">{info.label}</p>
-              </CardContent>
-            </Card>
-          );
-        })}
+
+        {isLoading
+          ? [1, 2, 3, 4].map(i => (
+              <Card key={i}>
+                <CardContent className="p-4">
+                  <Skeleton className="h-7 w-10 mb-1" />
+                  <Skeleton className="h-3 w-20" />
+                </CardContent>
+              </Card>
+            ))
+          : topRoles.map(([role, count]) => {
+              const info = getRoleInfo(role as AppRole);
+              return (
+                <Card
+                  key={role}
+                  className="cursor-pointer hover:border-primary/40 transition-colors"
+                  onClick={() => setRoleFilter(role as AppRole)}
+                >
+                  <CardContent className="p-4">
+                    <p className="text-2xl font-bold">{count}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {info.label.replace(' Portal', '').replace(' Dashboard', '')}
+                    </p>
+                  </CardContent>
+                </Card>
+              );
+            })}
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Search by name, email, or role…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="pl-9"
-        />
+      {/* Search + Role filter */}
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name, email, or role…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Select value={roleFilter} onValueChange={v => setRoleFilter(v as AppRole | 'all')}>
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="All Roles" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Roles</SelectItem>
+            {ROLE_CONFIG.map(({ role, label }) => (
+              <SelectItem key={role} value={role}>
+                {label.replace(' Portal', '').replace(' Dashboard', '')}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {roleFilter !== 'all' && (
+          <Button variant="ghost" size="sm" onClick={() => setRoleFilter('all')}>
+            Clear filter
+          </Button>
+        )}
       </div>
 
       {/* Table */}
@@ -166,13 +209,50 @@ export default function AdminUsers() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {error ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Loading…</TableCell>
+                <TableCell colSpan={4} className="py-10">
+                  <div className="text-center text-destructive/80">
+                    <AlertTriangle className="w-8 h-8 mx-auto mb-2 opacity-60" />
+                    <p className="font-medium">Failed to load users</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Verify{' '}
+                      <code className="font-mono">GRANT SELECT ON public.profiles</code>{' '}
+                      and{' '}
+                      <code className="font-mono">public.user_roles</code>{' '}
+                      are applied.
+                    </p>
+                  </div>
+                </TableCell>
               </TableRow>
+            ) : isLoading ? (
+              [1, 2, 3, 4, 5].map(i => (
+                <TableRow key={i}>
+                  <TableCell>
+                    <Skeleton className="h-4 w-32 mb-1" />
+                    <Skeleton className="h-3 w-44" />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Skeleton className="h-5 w-14" />
+                      <Skeleton className="h-5 w-14" />
+                    </div>
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <Skeleton className="h-4 w-24" />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Skeleton className="h-8 w-28 ml-auto" />
+                  </TableCell>
+                </TableRow>
+              ))
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No users found</TableCell>
+                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                  {search || roleFilter !== 'all'
+                    ? 'No users match your filter'
+                    : 'No users found'}
+                </TableCell>
               </TableRow>
             ) : (
               filtered.map(user => (
@@ -186,7 +266,12 @@ export default function AdminUsers() {
                         </p>
                       </div>
                       {user.is_demo_account && (
-                        <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 text-[10px] px-1.5 py-0">Demo</Badge>
+                        <Badge
+                          variant="outline"
+                          className="text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400 text-[10px] px-1.5 py-0"
+                        >
+                          Demo
+                        </Badge>
                       )}
                     </div>
                   </TableCell>
@@ -262,29 +347,29 @@ export default function AdminUsers() {
         user={selectedUser}
         open={manageOpen}
         onOpenChange={setManageOpen}
-        onSaved={fetchUsers}
+        onSaved={refresh}
       />
       <InviteUserDialog
         open={inviteOpen}
         onOpenChange={setInviteOpen}
-        onInvited={fetchUsers}
+        onInvited={refresh}
       />
       <CreateDemoDialog
         open={demoOpen}
         onOpenChange={setDemoOpen}
-        onCreated={fetchUsers}
+        onCreated={refresh}
       />
       <RevokeDemoDialog
         user={revokeUser}
         open={revokeOpen}
         onOpenChange={setRevokeOpen}
-        onRevoked={fetchUsers}
+        onRevoked={refresh}
       />
       <ResendDemoDialog
         user={resendUser}
         open={resendOpen}
         onOpenChange={setResendOpen}
-        onResent={fetchUsers}
+        onResent={refresh}
       />
     </div>
   );

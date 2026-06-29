@@ -10,7 +10,7 @@ import { ROLE_CONFIG, type AppRole } from './roleConfig';
 interface UserWithRoles {
   id: string;
   full_name: string | null;
-  email: string;
+  email: string | null;
   roles: AppRole[];
 }
 
@@ -113,7 +113,7 @@ export function ManageUserRolesDialog({ user, open, onOpenChange, onSaved }: Man
         <DialogHeader>
           <DialogTitle>Manage Portal Access</DialogTitle>
           <DialogDescription>
-            {user.full_name || 'User'} — {user.email}
+            {user.full_name || 'User'} — {user.email ?? 'no email'}
           </DialogDescription>
         </DialogHeader>
 
