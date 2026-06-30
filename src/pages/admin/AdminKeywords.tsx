@@ -10,11 +10,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Wand2, Search } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 
 export default function AdminKeywords() {
   const mrunsoxBanner = (
-    <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground mb-4">
+    <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
       <strong className="text-foreground">📡 Mrunsox Integration:</strong> Keywords for 24Hvirtual.com content strategy are now managed in Mrunsox / Kingdom OS. This list is a read-only reference.
     </div>
   );
@@ -74,9 +75,13 @@ export default function AdminKeywords() {
       const { error } = await supabase.from('autoblog_queue').insert(inserts as any);
       if (error) throw error;
       // Get max sort_priority to push selected keywords to the bottom
-      const { data: maxRow } = await supabase.from('keyword_tracker').select('sort_priority').order('sort_priority', { ascending: false }).limit(1).single();
-      const nextPriority = ((maxRow as any)?.sort_priority || 0) + 1;
-      // Update keyword status and sort_priority
+      const { data: maxRow } = await supabase
+        .from('keyword_tracker')
+        .select('sort_priority')
+        .order('sort_priority', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const nextPriority = ((maxRow as any)?.sort_priority ?? 0) + 1;
       await supabase.from('keyword_tracker').update({ content_status: 'queued', sort_priority: nextPriority } as any).in('id', selected);
     },
     onSuccess: () => {
@@ -84,6 +89,7 @@ export default function AdminKeywords() {
       toast.success(`${selected.length} keywords queued for content generation`);
       setSelected([]);
     },
+    onError: (e: any) => toast.error(e?.message ?? 'Failed to queue keywords'),
   });
 
   const statusColor = (status: string) => {
@@ -97,17 +103,24 @@ export default function AdminKeywords() {
 
   return (
     <div className="space-y-6">
-      {mrunsoxBanner}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Keyword Tracker</h1>
-        <div className="flex gap-2">
-          {selected.length > 0 && (
-            <Button onClick={() => queueMutation.mutate()} disabled={queueMutation.isPending}>
-              <Wand2 className="w-4 h-4 mr-2" />Queue {selected.length} for AutoBlog
-            </Button>
-          )}
-          <Dialog open={addOpen} onOpenChange={setAddOpen}>
-            <DialogTrigger asChild><Button variant="outline"><Plus className="w-4 h-4 mr-2" />Add Keyword</Button></DialogTrigger>
+      {/* Gradient header */}
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border p-6">
+        <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-bold text-heading flex items-center gap-2">
+              <Search className="h-7 w-7 text-primary" />
+              Keyword Tracker
+            </h1>
+            <p className="text-muted-foreground mt-1">Track target keywords and build your content strategy</p>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            {selected.length > 0 && (
+              <Button onClick={() => queueMutation.mutate()} disabled={queueMutation.isPending}>
+                <Wand2 className="w-4 h-4 mr-2" />Queue {selected.length} for AutoBlog
+              </Button>
+            )}
+            <Dialog open={addOpen} onOpenChange={setAddOpen}>
+              <DialogTrigger asChild><Button variant="outline"><Plus className="w-4 h-4 mr-2" />Add Keyword</Button></DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>Add Keyword</DialogTitle></DialogHeader>
               <div className="space-y-3">
@@ -133,9 +146,12 @@ export default function AdminKeywords() {
                 <Button onClick={() => addMutation.mutate()} disabled={!newKeyword || addMutation.isPending} className="w-full">Add Keyword</Button>
               </div>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </div>
         </div>
       </div>
+
+      {mrunsoxBanner}
 
       <div className="flex gap-2">
         <div className="relative flex-1 max-w-xs">
@@ -165,7 +181,13 @@ export default function AdminKeywords() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && <TableRow><TableCell colSpan={7} className="text-center py-8">Loading...</TableCell></TableRow>}
+            {isLoading && Array.from({ length: 5 }).map((_, i) => (
+              <TableRow key={i}>
+                {Array.from({ length: 7 }).map((__, j) => (
+                  <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>
+                ))}
+              </TableRow>
+            ))}
             {keywords?.map(kw => (
               <TableRow key={kw.id}>
                 <TableCell><Checkbox checked={selected.includes(kw.id)} onCheckedChange={() => toggleSelect(kw.id)} /></TableCell>

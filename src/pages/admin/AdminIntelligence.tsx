@@ -7,7 +7,7 @@
  *   - Intelligence    = trends, executive summary, decision support (over time)
  *   - Forecasts       = explainable, advisory short-horizon projections (Phase 10)
  */
-import { useEffect, useState } from "react";
+import { Component, type ReactNode, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -84,6 +84,25 @@ const intelligenceSections = [
 ] as const;
 
 type IntelligenceSection = (typeof intelligenceSections)[number]["value"];
+
+class IntelligencePanelErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-6 text-sm">
+          <p className="font-medium text-destructive">This panel failed to render.</p>
+          <p className="text-muted-foreground mt-1">Switch to a different view or reload the page.</p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export default function AdminIntelligence() {
   const [summary, setSummary] = useState<ExecutiveSummary | null | undefined>(undefined);
@@ -205,21 +224,23 @@ export default function AdminIntelligence() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <BarChart3 className="h-6 w-6 text-primary" />
-            Intelligence
-          </h1>
-          <p className="text-muted-foreground">
-            Time-aware reporting, growth intelligence, and short-horizon forecasts across Growth, Revenue, Delivery, AI Voice, White Label, and Automation. Read-only · admin scope.
-          </p>
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-bold text-heading flex items-center gap-2">
+              <BarChart3 className="h-7 w-7 text-primary" />
+              Intelligence
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Time-aware reporting, growth intelligence, and short-horizon forecasts. Read-only · admin scope.
+            </p>
+          </div>
+          {summary?.computed_at && (
+            <p className="text-xs text-muted-foreground hidden md:block shrink-0">
+              Computed {new Date(summary.computed_at).toLocaleString()}
+            </p>
+          )}
         </div>
-        {summary?.computed_at && (
-          <p className="text-xs text-muted-foreground hidden md:block">
-            Computed {new Date(summary.computed_at).toLocaleString()}
-          </p>
-        )}
       </div>
 
       <div className="flex flex-col gap-2 sm:w-80">
@@ -243,7 +264,9 @@ export default function AdminIntelligence() {
         </Select>
       </div>
 
-      <div className="space-y-6">{renderActiveSection()}</div>
+      <IntelligencePanelErrorBoundary>
+        <div className="space-y-6">{renderActiveSection()}</div>
+      </IntelligencePanelErrorBoundary>
     </div>
   );
 }

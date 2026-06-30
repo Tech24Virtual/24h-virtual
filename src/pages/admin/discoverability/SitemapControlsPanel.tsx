@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -18,23 +19,22 @@ interface Row {
 }
 
 export function SitemapControlsPanel() {
-  const [rows, setRows] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [busy, setBusy] = useState<string | null>(null);
 
-  async function load() {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("disc_generated_pages")
-      .select("id,slug,page_title,publish_status,indexation_status,include_in_sitemap,updated_at")
-      .eq("publish_status", "published")
-      .order("updated_at", { ascending: false })
-      .limit(500);
-    if (error) toast.error(error.message);
-    setRows((data as Row[]) ?? []);
-    setLoading(false);
-  }
-  useEffect(() => { void load(); }, []);
+  const { data: rows = [], isLoading: loading } = useQuery<Row[]>({
+    queryKey: ["disc-sitemap-pages"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("disc_generated_pages")
+        .select("id,slug,page_title,publish_status,indexation_status,include_in_sitemap,updated_at")
+        .eq("publish_status", "published")
+        .order("updated_at", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return (data as Row[]) ?? [];
+    },
+  });
 
   const stats = useMemo(() => ({
     total: rows.length,
@@ -47,7 +47,7 @@ export function SitemapControlsPanel() {
     const { error } = await supabase.from("disc_generated_pages").update({ [field]: value }).eq("id", id);
     if (error) toast.error(error.message);
     else toast.success("Updated");
-    await load();
+    queryClient.invalidateQueries({ queryKey: ["disc-sitemap-pages"] });
     setBusy(null);
   }
 

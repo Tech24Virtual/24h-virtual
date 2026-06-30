@@ -7,8 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Progress } from '@/components/ui/progress';
-import { Plus, Eye, Pencil, Trash2, Wand2, Upload, Sparkles } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Plus, Eye, Pencil, Trash2, Sparkles, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AutoBlogQueue } from '@/components/blog/AutoBlogQueue';
@@ -20,9 +24,9 @@ export default function AdminBlog() {
   const [sourceFilter, setSourceFilter] = useState('all');
   const [pathFilter, setPathFilter] = useState('all');
   const [enriching, setEnriching] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  // Count un-enriched posts
   const { data: unenrichedCount } = useQuery({
     queryKey: ['unenriched-count'],
     queryFn: async () => {
@@ -75,10 +79,17 @@ export default function AdminBlog() {
       const { error } = await supabase.from('blog_posts').delete().eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-blog-posts'] }); toast.success('Post deleted'); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-blog-posts'] });
+      toast.success('Post deleted');
+      setDeleteTarget(null);
+    },
+    onError: (e: any) => {
+      toast.error(e?.message ?? 'Failed to delete post');
+      setDeleteTarget(null);
+    },
   });
 
-  // Extract unique paths for filter dropdown
   const availablePaths = Array.from(new Set(
     (posts || []).map((p: any) => p.primary_path).filter(Boolean)
   )) as string[];
@@ -90,16 +101,25 @@ export default function AdminBlog() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-2xl font-bold">Blog Manager</h1>
-        <div className="flex gap-2">
-          {unenrichedCount != null && unenrichedCount > 0 && (
-            <Button variant="secondary" onClick={handleEnrich} disabled={enriching}>
-              <Sparkles className="w-4 h-4 mr-2" />
-              {enriching ? 'Enriching...' : `Enrich ${unenrichedCount} Posts`}
-            </Button>
-          )}
-          <Button asChild><Link to="/admin/blog/editor"><Plus className="w-4 h-4 mr-2" />New Post</Link></Button>
+      {/* Gradient header */}
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border p-6">
+        <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-bold text-heading flex items-center gap-2">
+              <FileText className="h-7 w-7 text-primary" />
+              Blog Manager
+            </h1>
+            <p className="text-muted-foreground mt-1">Create and manage SEO-optimized blog posts</p>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            {unenrichedCount != null && unenrichedCount > 0 && (
+              <Button variant="secondary" onClick={handleEnrich} disabled={enriching}>
+                <Sparkles className="w-4 h-4 mr-2" />
+                {enriching ? 'Enriching...' : `Enrich ${unenrichedCount} Posts`}
+              </Button>
+            )}
+            <Button asChild><Link to="/admin/blog/editor"><Plus className="w-4 h-4 mr-2" />New Post</Link></Button>
+          </div>
         </div>
       </div>
 
@@ -157,7 +177,13 @@ export default function AdminBlog() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading && <TableRow><TableCell colSpan={8} className="text-center py-8">Loading...</TableCell></TableRow>}
+                {isLoading && Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    {Array.from({ length: 8 }).map((__, j) => (
+                      <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>
+                    ))}
+                  </TableRow>
+                ))}
                 {posts?.map(post => {
                   const isMrunsox = (post as any).source === 'mrunsox';
                   return (
@@ -177,11 +203,22 @@ export default function AdminBlog() {
                       <TableCell>{post.views}</TableCell>
                       <TableCell>{post.published_at ? new Date(post.published_at).toLocaleDateString() : '—'}</TableCell>
                       <TableCell className="text-right space-x-1">
-                        <Button variant="ghost" size="icon" asChild><Link to={`/blog/${post.slug}`} target="_blank"><Eye className="w-4 h-4" /></Link></Button>
+                        <Button variant="ghost" size="icon" asChild>
+                          <Link to={`/blog/${post.slug}`} target="_blank"><Eye className="w-4 h-4" /></Link>
+                        </Button>
                         {!isMrunsox && (
                           <>
-                            <Button variant="ghost" size="icon" asChild><Link to={`/admin/blog/editor/${post.id}`}><Pencil className="w-4 h-4" /></Link></Button>
-                            <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(post.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                            <Button variant="ghost" size="icon" asChild>
+                              <Link to={`/admin/blog/editor/${post.id}`}><Pencil className="w-4 h-4" /></Link>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeleteTarget(post.id)}
+                              disabled={deleteMutation.isPending}
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
                           </>
                         )}
                       </TableCell>
@@ -205,6 +242,27 @@ export default function AdminBlog() {
           <WordPressImporter />
         </TabsContent>
       </Tabs>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this post?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The post will be permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
+              disabled={deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
