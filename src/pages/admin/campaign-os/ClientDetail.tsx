@@ -10,7 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Building2, MapPin, PhoneCall, Plus, ArrowRight, Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Building2, MapPin, PhoneCall, Plus, ArrowRight, Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import type { RoutingEntryType } from '@/lib/campaign-os/types';
 
@@ -25,8 +26,8 @@ export default function ClientDetail() {
   const isDirect = kind === 'direct_24h';
   const filterArgs = isDirect ? { clientLeadId: clientId } : { wlClientId: clientId };
 
-  const { data: locations = [], isLoading: loadingLocations } = useClientLocations(filterArgs);
-  const { data: clientCallFlows = [], isLoading: loadingFlows } = useCallFlows({ ...filterArgs, ownerKind: 'client' });
+  const { data: locations = [], isLoading: loadingLocations, isError: errorLocations } = useClientLocations(filterArgs);
+  const { data: clientCallFlows = [], isLoading: loadingFlows, isError: errorFlows } = useCallFlows({ ...filterArgs, ownerKind: 'client' });
 
   const [locOpen, setLocOpen] = useState(false);
   const [flowOpen, setFlowOpen] = useState(false);
@@ -130,7 +131,13 @@ export default function ClientDetail() {
         </CardHeader>
         <CardContent>
           {loadingLocations ? (
-            <div className="text-sm text-muted-foreground">Loading…</div>
+            <div className="grid gap-2">
+              {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full rounded-md" />)}
+            </div>
+          ) : errorLocations ? (
+            <div className="flex items-center gap-2 text-sm text-destructive py-2">
+              <AlertTriangle className="h-4 w-4 shrink-0" /> Failed to load locations
+            </div>
           ) : locations.length === 0 ? (
             <div className="text-sm text-muted-foreground py-4">No locations yet.</div>
           ) : (
@@ -198,7 +205,13 @@ export default function ClientDetail() {
         </CardHeader>
         <CardContent>
           {loadingFlows ? (
-            <div className="text-sm text-muted-foreground">Loading…</div>
+            <div className="grid gap-2">
+              {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full rounded-md" />)}
+            </div>
+          ) : errorFlows ? (
+            <div className="flex items-center gap-2 text-sm text-destructive py-2">
+              <AlertTriangle className="h-4 w-4 shrink-0" /> Failed to load call flows
+            </div>
           ) : clientCallFlows.length === 0 ? (
             <div className="text-sm text-muted-foreground py-4">
               No client-level call flows yet. Add one (e.g. "Main line", "Sales", "Switchboard") or create one under a location.

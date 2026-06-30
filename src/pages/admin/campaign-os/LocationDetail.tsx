@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, PhoneCall, Plus, ArrowRight, Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { MapPin, PhoneCall, Plus, ArrowRight, Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import type { RoutingEntryType } from '@/lib/campaign-os/types';
 
@@ -19,8 +20,8 @@ export default function LocationDetail() {
   const kind = (params.get('kind') as 'direct_24h' | 'wl_client') ?? 'direct_24h';
   const isDirect = kind === 'direct_24h';
 
-  const { data: location } = useClientLocation(locId);
-  const { data: flows = [], isLoading } = useCallFlows({ clientLocationId: locId, ownerKind: 'location' });
+  const { data: location, isLoading: locationLoading, isError: locationError } = useClientLocation(locId);
+  const { data: flows = [], isLoading, isError: flowsError } = useCallFlows({ clientLocationId: locId, ownerKind: 'location' });
   const createFlow = useCreateCallFlow();
 
   const [open, setOpen] = useState(false);
@@ -56,12 +57,18 @@ export default function LocationDetail() {
         </Link>
         <h2 className="text-xl font-semibold mt-1 flex items-center gap-2">
           <MapPin className="h-5 w-5 text-muted-foreground" />
-          {location?.name ?? 'Location'}
+          {locationLoading ? <Skeleton className="h-6 w-40" /> : locationError ? 'Location' : (location?.name ?? 'Location')}
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
           Manage call flows for this location.
         </p>
       </div>
+
+      {locationError && (
+        <div className="flex items-center gap-2 text-sm text-destructive">
+          <AlertTriangle className="h-4 w-4 shrink-0" /> Failed to load location details
+        </div>
+      )}
 
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0">
@@ -72,7 +79,7 @@ export default function LocationDetail() {
           </div>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button size="sm"><Plus className="h-4 w-4 mr-1.5" /> Add call flow</Button>
+              <Button size="sm" disabled={!location}><Plus className="h-4 w-4 mr-1.5" /> Add call flow</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>Add call flow</DialogTitle></DialogHeader>
@@ -105,7 +112,13 @@ export default function LocationDetail() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-sm text-muted-foreground">Loading…</div>
+            <div className="grid gap-2">
+              {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full rounded-md" />)}
+            </div>
+          ) : flowsError ? (
+            <div className="flex items-center gap-2 text-sm text-destructive py-2">
+              <AlertTriangle className="h-4 w-4 shrink-0" /> Failed to load call flows
+            </div>
           ) : flows.length === 0 ? (
             <div className="text-sm text-muted-foreground py-4">No call flows at this location yet.</div>
           ) : (

@@ -4,13 +4,14 @@ import { useClientsList } from '@/hooks/campaign-os/useClientsList';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Building2, ChevronRight, Loader2, Sparkles } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Building2, ChevronRight, Sparkles, AlertTriangle } from 'lucide-react';
 import { ConvertibleLeadPickerDialog } from '@/components/admin/ConvertibleLeadPickerDialog';
 import { ActiveAccountsAuditPanel } from '@/components/admin/ActiveAccountsAuditPanel';
 import { ConversionsSummaryWidget } from '@/components/admin/ConversionsSummaryWidget';
 
 export default function Clients() {
-  const { data: clients = [], isLoading } = useClientsList();
+  const { data: clients = [], isLoading, isError } = useClientsList();
   const [pickerOpen, setPickerOpen] = useState(false);
 
   return (
@@ -24,9 +25,17 @@ export default function Clients() {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading active accounts…
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-lg" />)}
         </div>
+      ) : isError ? (
+        <Card className="border-destructive/50">
+          <CardContent className="py-12 text-center space-y-2">
+            <AlertTriangle className="h-8 w-8 text-destructive mx-auto" />
+            <p className="text-sm font-medium text-destructive">Failed to load active accounts</p>
+            <p className="text-xs text-muted-foreground">Check your connection or contact support if this persists.</p>
+          </CardContent>
+        </Card>
       ) : clients.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center space-y-4">

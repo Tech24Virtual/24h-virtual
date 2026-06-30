@@ -2,10 +2,12 @@ import { Link } from 'react-router-dom';
 import { useClientLocations } from '@/hooks/campaign-os/useClientLocations';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, ArrowRight } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { MapPin, ArrowRight, AlertTriangle } from 'lucide-react';
 
 export default function Locations() {
-  const { data: locations = [], isLoading } = useClientLocations();
+  const { data: locations = [], isLoading, isError } = useClientLocations();
+
   return (
     <div className="space-y-6">
       <div>
@@ -15,7 +17,17 @@ export default function Locations() {
         </p>
       </div>
       {isLoading ? (
-        <div className="text-sm text-muted-foreground">Loading…</div>
+        <div className="grid gap-2">
+          {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-md" />)}
+        </div>
+      ) : isError ? (
+        <Card className="border-destructive/50">
+          <CardContent className="py-12 text-center space-y-2">
+            <AlertTriangle className="h-8 w-8 text-destructive mx-auto" />
+            <p className="text-sm font-medium text-destructive">Failed to load locations</p>
+            <p className="text-xs text-muted-foreground">Check your connection or contact support if this persists.</p>
+          </CardContent>
+        </Card>
       ) : locations.length === 0 ? (
         <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">No locations yet.</CardContent></Card>
       ) : (
