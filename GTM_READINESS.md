@@ -1,5 +1,5 @@
 # GTM Readiness
-Last updated: 2026-06-26
+Last updated: 2026-07-01
 
 ## 🔖 CONTEXT FOR NEW CHAT
 
@@ -12,7 +12,7 @@ Last updated: 2026-06-26
 **All test passwords:** QATestPass123!
 
 **Last session summary:**
-Supervisor portal fully audited and redesigned across all 15 tabs. Paul's feedback implemented — outbound flow redesign, break time system, task fixes, call logs notes, available shifts logic, agent calendar. Critical systemic fix: GRANT INSERT ON notifications applied. Currently working on Admin Dashboard redesign.
+Admin Dashboard fully audited and redesigned across all sections — Accounts (11 tabs), Campaign OS (14 pages), Insights (6 pages), Partners (7 pages), System (9 pages). 50+ missing DB grants fixed. Branding leakage tests passing 12/12. Next: Client Dashboard redesign.
 
 **Key gotchas:**
 - `white_label_partners` uses `partner_slug` column (not `portal_slug`)
@@ -183,6 +183,45 @@ Supervisor portal fully audited and redesigned across all 15 tabs. Paul's feedba
 | Agent schedule — 7-day lookback | Past shifts shown (dimmed), upcoming highlighted, no longer shows empty | AgentScheduleView.tsx |
 | GRANT INSERT ON notifications | Systemic fix — all client-side notification inserts now work across all portals | migration applied |
 | platform_knowledge seeded | PiP AI context seeded for supervisor, admin, sales, HR, white_label roles | staging DB |
+| Admin Dashboard redesign | Workflow alerts top, independent queries, search, personalized greeting | AdminOverview.tsx |
+| Admin Accounts — Active (Clients) | TanStack Query, NaN fix, skeleton loading, error state | AdminClients.tsx |
+| Admin Accounts — Leads | Stage pills, TanStack Query, scoring fix, optimistic updates | AdminLeads.tsx |
+| Admin Accounts — CRM | Slack crash guard, pipeline admin links, grants | AdminCRM.tsx |
+| Admin Accounts — Outbound | Create request dialog, error boundary, gradient header | AdminOutbound.tsx |
+| Admin Accounts — Billing | NMI replaces Stripe, active clients filter, call_report_imports grant | AdminBilling.tsx |
+| Admin Accounts — Tickets | Source values fixed (5 real sources) | AdminTickets.tsx |
+| Admin Accounts — Agents | Invite dialog, status badges, skills grants (INSERT/DELETE), offboard confirmation | AdminAgents.tsx |
+| Admin Accounts — Users | Email backfill (profiles.email + sync trigger), role management grants, role filter dropdown | AdminUsers.tsx |
+| Admin Accounts — PiP | Gradient header, error states, staleTime | AdminPiP.tsx |
+| Admin Accounts — Appointments | Bookii fallback UI, renamed from Calendar | AdminCalendar.tsx |
+| Campaign OS — all 14 pages | Gradient header via layout, grants, error states, AlertDialogs, skeleton loading | CampaignOsLayout.tsx + all pages |
+| Campaign OS — Reporting | v_campaign_rollup_30d grant, error state | CampaignOsReporting.tsx |
+| Campaign OS — Five9 | 4 sub-tab error states, API timeout handling (10s) | CampaignOsFive9.tsx |
+| Campaign OS — Departments | client_departments + department_numbers grants, AlertDialog | CampaignOsDepartments.tsx |
+| Campaign OS — Call Flows | call_flow_receptionist_configs grant, error states | CampaignOsCallFlows.tsx |
+| Campaign OS — Defaults | campaign_department_type_defaults grant, error state | CampaignOsDefaults.tsx |
+| Campaign OS — Drafts | AlertDialog for archive, independent error states per tab | CampaignOsDrafts.tsx |
+| Campaign OS — Templates | campaign_templates grant, skeleton loading | CampaignOsTemplates.tsx |
+| Campaign OS — Active Accounts + Locations | client_locations grant, skeleton loading, error states | CampaignOsActive.tsx |
+| Admin Insights — all 6 pages | Grants for 15 tables (blog_posts, keyword_tracker, disc_* etc), gradient headers, error states | all Insights pages |
+| Admin Insights — Blog | Delete confirmation AlertDialog | AdminBlog.tsx |
+| Admin Insights — Keywords | .single() → .maybeSingle() crash fix | AdminKeywords.tsx |
+| Admin Insights — Analytics | TanStack Query migration, error state | AdminAnalytics.tsx |
+| Admin Insights — Intelligence | Error boundary for 20+ sub-panels | AdminIntelligence.tsx |
+| Admin Partners — all pages | 10 grants fixed, P0 bugs fixed | all Partners pages |
+| Admin Partners — WL Preview | Infinite blink fixed (removed live iframe), broken nav fixed | AdminWLPreview.tsx |
+| Admin Partners — Impersonate | .single() crash fixed, slug bug fixed, N+1 batched | AdminImpersonate.tsx |
+| Admin Partners — WL Health | Correct domain_aliases column names, accurate health scores | AdminWLHealth.tsx |
+| Admin Partners — Partner Detail | 5 tabs unblocked (pricing, clients, usage, agreements, add-ons) | AdminPartnerDetail.tsx |
+| Admin System — all 9 pages | Grants, gradient headers, sonner toasts | all System pages |
+| Admin System — Audit Log | audit_log grant, error state | AdminAuditLog.tsx |
+| Admin System — Launch Controls | feature_launch_flags UPDATE grant | AdminLaunchControls.tsx |
+| Admin System — Mission Control | platform_settings grant, .single() → .maybeSingle() | AdminMissionControl.tsx |
+| Admin System — Feedback Queue | feedback UPDATE/DELETE grant, wl_partner_feedback_escalations grant | AdminFeedback.tsx |
+| Browser tab titles (all portals) | All portals show correct title, WL portals show partner branding | All Layout files + index.html |
+| WL portal branding leakage fix | WhiteLabelLayout + WLPortalLayout Helmet, neutral og:title in index.html | WhiteLabelLayout.tsx + WLPortalLayout.tsx |
+| Branding leakage tests | branding-leakage.spec.ts 12/12 ✅ | All BL-01 through BL-12 passing |
+| Recurring grant bug pattern documented | TRUNCATE/REFERENCES/TRIGGER ≠ CRUD — always use SELECT/INSERT/UPDATE/DELETE only | CLAUDE.md + migrations |
 
 ---
 
@@ -190,8 +229,7 @@ Supervisor portal fully audited and redesigned across all 15 tabs. Paul's feedba
 
 | Task | Priority | Notes |
 |------|----------|-------|
-| Dashboard redesign — Admin | HIGH | Next up after supervisor portal complete |
-| Dashboard redesign — Client | MEDIUM | After Admin |
+| Dashboard redesign — Client | MEDIUM | Next up |
 | Dashboard redesign — Sales/HR/WL | LOW | After Client |
 | Google Calendar integration | MEDIUM | Waiting on Paul's Google Workspace API credentials |
 | NMI go-live | HIGH | Waiting on Paul + Ryker (PlatPay) — need merchant account + live API key |
@@ -201,13 +239,14 @@ Supervisor portal fully audited and redesigned across all 15 tabs. Paul's feedba
 | Client self-service card entry (Collect.js) | LOW | Decision needed from Paul |
 | Tracking pixels server-level enforcement | LOW | Suppressed in code, needs Cloudflare/server config |
 | pg_cron Five9 pull schedule | LOW | Already wired, needs service_role_key set via `ALTER DATABASE postgres SET app.service_role_key = '...'` |
+| Admin Partners — WL Partners page polish | LOW | Raw useEffect, gradient headers for remaining 3 pages |
 
 ---
 
 ## 📊 Test Score
 ```
 Vitest RLS:  19/19  ✅
-Playwright: 221/221 ✅
+Playwright: 186/186 ✅ (skipped tests are for live Five9/NMI credentials)
 CI Pipeline:   green ✅
-Total:       240/240 ✅
+Total:       205/205 ✅
 ```
