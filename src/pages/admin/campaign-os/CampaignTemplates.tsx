@@ -13,7 +13,8 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Layers, Copy, Plus } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Layers, Copy, Plus, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCampaignTemplates, useCloneTemplate } from '@/hooks/campaign-os/useCampaignTemplates';
 import { useEligibleDepartments } from '@/hooks/campaign-os/useCampaigns';
@@ -58,7 +59,7 @@ export default function CampaignTemplates() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold">Campaign templates</h1>
+        <h2 className="text-xl font-semibold">Campaign templates</h2>
         <p className="text-sm text-muted-foreground">
           Save a campaign as a template, then clone it into another department within the same
           tenant.
@@ -66,7 +67,17 @@ export default function CampaignTemplates() {
       </div>
 
       {templatesQ.isLoading ? (
-        <div className="text-sm text-muted-foreground">Loading…</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 w-full rounded-lg" />)}
+        </div>
+      ) : templatesQ.isError ? (
+        <Card className="border-destructive/50">
+          <CardContent className="py-12 text-center space-y-2">
+            <AlertTriangle className="h-8 w-8 text-destructive mx-auto" />
+            <p className="text-sm font-medium text-destructive">Failed to load campaign templates</p>
+            <p className="text-xs text-muted-foreground">Check your connection or contact support if this persists.</p>
+          </CardContent>
+        </Card>
       ) : (templatesQ.data?.length ?? 0) === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
@@ -142,7 +153,7 @@ export default function CampaignTemplates() {
               Cancel
             </Button>
             <Button onClick={handleClone} disabled={clone.isPending}>
-              Clone
+              {clone.isPending ? 'Cloning…' : 'Clone'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -6,10 +6,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function CampaignOsDefaults() {
-  const { data: defaults = [], isLoading } = useDepartmentTypeDefaults();
+  const { data: defaults = [], isLoading, isError } = useDepartmentTypeDefaults();
   const upsert = useUpsertDepartmentTypeDefault();
   const [editing, setEditing] = useState<Record<string, { fields: string; faqs: string; mappings: string }>>({});
 
@@ -30,6 +31,18 @@ export default function CampaignOsDefaults() {
   };
 
   if (isLoading) return <Skeleton className="h-60 w-full" />;
+
+  if (isError) {
+    return (
+      <Card className="border-destructive/50">
+        <CardContent className="py-12 text-center space-y-2">
+          <AlertTriangle className="h-8 w-8 text-destructive mx-auto" />
+          <p className="text-sm font-medium text-destructive">Failed to load department type defaults</p>
+          <p className="text-xs text-muted-foreground">Check your connection or contact support if this persists.</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-4">

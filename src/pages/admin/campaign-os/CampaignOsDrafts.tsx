@@ -10,6 +10,7 @@
  * A supervisor draft route is tracked separately in the stabilization backlog.
  */
 
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,7 +25,17 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Check, Archive, Pencil, Inbox } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Check, Archive, Pencil, Inbox, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface DraftFaq {
@@ -56,6 +67,8 @@ interface DraftPolicy {
   updated_at: string;
 }
 
+type ArchiveTarget = { type: 'faq'; id: string } | { type: 'policy'; id: string } | null;
+
 function tenantLabel(row: { tenant_kind: string | null; wl_partner_id: string | null; wl_client_id: string | null; client_lead_id: string | null }) {
   if (!row.tenant_kind) return 'Global';
   if (row.tenant_kind === 'wl_partner') {
@@ -75,8 +88,9 @@ export default function CampaignOsDrafts() {
   const archiveFaq = useArchiveFaq();
   const approvePolicy = useApprovePolicy();
   const archivePolicy = useArchivePolicy();
+  const [archiveTarget, setArchiveTarget] = useState<ArchiveTarget>(null);
 
-  const { data: faqs = [], isLoading: loadingFaqs } = useQuery({
+  const { data: faqs = [], isLoading: loadingFaqs, isError: errorFaqs } = useQuery({
     queryKey: ['campaign-os', 'faqs-drafts'],
     queryFn: async (): Promise<DraftFaq[]> => {
       const { data, error } = await (supabase as any)
@@ -89,7 +103,7 @@ export default function CampaignOsDrafts() {
     },
   });
 
-  const { data: policies = [], isLoading: loadingPolicies } = useQuery({
+  const { data: policies = [], isLoading: loadingPolicies, isError: errorPolicies } = useQuery({
     queryKey: ['campaign-os', 'policies-drafts'],
     queryFn: async (): Promise<DraftPolicy[]> => {
       const { data, error } = await (supabase as any)
@@ -110,15 +124,7 @@ export default function CampaignOsDrafts() {
       toast.error(e.message);
     }
   };
-  const handleArchiveFaq = async (id: string) => {
-    if (!confirm('Archive this draft FAQ?')) return;
-    try {
-      await archiveFaq.mutateAsync(id);
-      toast.success('FAQ archived');
-    } catch (e: any) {
-      toast.error(e.message);
-    }
-  };
+
   const handleApprovePolicy = async (id: string) => {
     try {
       await approvePolicy.mutateAsync(id);
@@ -127,15 +133,27 @@ export default function CampaignOsDrafts() {
       toast.error(e.message);
     }
   };
-  const handleArchivePolicy = async (id: string) => {
-    if (!confirm('Archive this draft policy?')) return;
+
+  const doArchive = async () => {
+    if (!archiveTarget) return;
+    const isPending = archiveTarget.type === 'faq' ? archiveFaq.isPending : archivePolicy.isPending;
+    if (isPending) return;
     try {
-      await archivePolicy.mutateAsync(id);
-      toast.success('Policy archived');
+      if (archiveTarget.type === 'faq') {
+        await archiveFaq.mutateAsync(archiveTarget.id);
+        toast.success('FAQ archived');
+      } else {
+        await archivePolicy.mutateAsync(archiveTarget.id);
+        toast.success('Policy archived');
+      }
     } catch (e: any) {
       toast.error(e.message);
+    } finally {
+      setArchiveTarget(null);
     }
   };
+
+  const archivePending = archiveTarget?.type === 'faq' ? archiveFaq.isPending : archivePolicy.isPending;
 
   return (
     <div className="space-y-4">
@@ -155,6 +173,13 @@ export default function CampaignOsDrafts() {
         <TabsContent value="faqs" className="space-y-2 mt-4">
           {loadingFaqs ? (
             <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</div>
+          ) : errorFaqs ? (
+            <Card className="border-destructive/50">
+              <CardContent className="py-12 text-center space-y-2">
+                <AlertTriangle className="h-6 w-6 text-destructive mx-auto" />
+                <p className="text-sm font-medium text-destructive">Failed to load FAQ drafts</p>
+              </CardContent>
+            </Card>
           ) : faqs.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center text-sm text-muted-foreground">
@@ -185,7 +210,7 @@ export default function CampaignOsDrafts() {
                         <Pencil className="h-3.5 w-3.5 mr-1" /> Open in FAQs
                       </Link>
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleArchiveFaq(f.id)} disabled={archiveFaq.isPending}>
+                    <Button size="sm" variant="ghost" onClick={() => setArchiveTarget({ type: 'faq', id: f.id })} disabled={archiveFaq.isPending}>
                       <Archive className="h-3.5 w-3.5 mr-1" /> Archive
                     </Button>
                   </div>
@@ -198,6 +223,13 @@ export default function CampaignOsDrafts() {
         <TabsContent value="policies" className="space-y-2 mt-4">
           {loadingPolicies ? (
             <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</div>
+          ) : errorPolicies ? (
+            <Card className="border-destructive/50">
+              <CardContent className="py-12 text-center space-y-2">
+                <AlertTriangle className="h-6 w-6 text-destructive mx-auto" />
+                <p className="text-sm font-medium text-destructive">Failed to load policy drafts</p>
+              </CardContent>
+            </Card>
           ) : policies.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center text-sm text-muted-foreground">
@@ -229,7 +261,7 @@ export default function CampaignOsDrafts() {
                         <Pencil className="h-3.5 w-3.5 mr-1" /> Open in Policies
                       </Link>
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleArchivePolicy(p.id)} disabled={archivePolicy.isPending}>
+                    <Button size="sm" variant="ghost" onClick={() => setArchiveTarget({ type: 'policy', id: p.id })} disabled={archivePolicy.isPending}>
                       <Archive className="h-3.5 w-3.5 mr-1" /> Archive
                     </Button>
                   </div>
@@ -239,6 +271,25 @@ export default function CampaignOsDrafts() {
           )}
         </TabsContent>
       </Tabs>
+
+      <AlertDialog open={!!archiveTarget} onOpenChange={(o) => { if (!o) setArchiveTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Archive this draft {archiveTarget?.type === 'faq' ? 'FAQ' : 'policy'}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              The {archiveTarget?.type === 'faq' ? 'FAQ' : 'policy'} will be moved to <strong>archived</strong> status and removed from the draft review queue. This can be undone by editing the record.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={doArchive} disabled={archivePending}>
+              {archivePending ? 'Archiving…' : 'Archive'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
