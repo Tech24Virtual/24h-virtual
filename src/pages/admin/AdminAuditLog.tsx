@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { format } from "date-fns";
-import { Loader2, RefreshCw, Search, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Loader2, RefreshCw, Search, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -57,6 +57,7 @@ function actionBadgeVariant(action: string): "default" | "secondary" | "destruct
 export default function AdminAuditLog() {
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [actionFilter, setActionFilter] = useState<string>("all");
@@ -88,8 +89,10 @@ export default function AdminAuditLog() {
       console.error(error);
       setEntries([]);
       setHasMore(false);
+      setLoadError(error.message);
       return;
     }
+    setLoadError(null);
     const rows = (data ?? []) as unknown as AuditEntry[];
     setEntries(rows);
     setHasMore(rows.length === PAGE_SIZE);
@@ -144,21 +147,33 @@ export default function AdminAuditLog() {
       </Helmet>
 
       <div className="space-y-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <ShieldCheck className="w-7 h-7 text-primary" />
-              Audit Log
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Immutable record of role changes, impersonation, branding edits, lead deletions and billing changes.
-            </p>
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold flex items-center gap-2">
+                <ShieldCheck className="w-7 h-7 text-primary" />
+                Audit Log
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                Immutable record of role changes, impersonation, branding edits, lead deletions and billing changes.
+              </p>
+            </div>
+            <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
           </div>
-          <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
-            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
         </div>
+
+        {loadError && !loading && (
+          <Card className="border-destructive/50">
+            <CardContent className="p-8 text-center">
+              <AlertTriangle className="h-8 w-8 text-destructive mx-auto mb-3" />
+              <p className="font-medium">Failed to load audit log</p>
+              <p className="text-sm text-muted-foreground mt-1">{loadError}</p>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>

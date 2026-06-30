@@ -84,12 +84,12 @@ const AdminLaunchControls = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-poppins text-3xl font-bold mb-2 capitalize flex items-center gap-3">
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border p-6">
+        <h1 className="text-3xl font-bold flex items-center gap-3">
           <Rocket className="w-7 h-7 text-primary" />
           Launch Controls
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground mt-1">
           Flip a feature live or revert it to Coming Soon. Changes take effect instantly across all
           visitors. Every toggle is logged to the audit trail.
         </p>

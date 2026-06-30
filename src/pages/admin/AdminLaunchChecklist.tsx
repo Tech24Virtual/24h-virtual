@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   Loader2, CheckCircle2, XCircle, AlertTriangle, RefreshCw, Shield, Key, Database, Bot, Globe, Link2, ShieldCheck, GitMerge, Lock,
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { resolveTenant, tenantWhere } from '@/lib/campaign-os/tenancy';
 import type { Json } from '@/integrations/supabase/types';
 
@@ -36,14 +36,13 @@ export default function AdminLaunchChecklist() {
   const [checks, setChecks] = useState<Check[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastRun, setLastRun] = useState<string | null>(null);
-  const { toast } = useToast();
 
   const runChecks = async () => {
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        toast({ title: 'Not authenticated', variant: 'destructive' });
+        toast.error('Not authenticated');
         return;
       }
 
@@ -59,13 +58,14 @@ export default function AdminLaunchChecklist() {
       const fails = data.checks.filter((c: Check) => c.status === 'fail').length;
       const warns = data.checks.filter((c: Check) => c.status === 'warn').length;
       
-      toast({
-        title: 'Checks complete',
-        description: `${data.checks.length} checks run. ${fails} failed, ${warns} warnings.`,
-        variant: fails > 0 ? 'destructive' : 'default',
-      });
+      const checksMsg = `${data.checks.length} checks run. ${fails} failed, ${warns} warnings.`;
+      if (fails > 0) {
+        toast.error('Checks complete', { description: checksMsg });
+      } else {
+        toast.success('Checks complete', { description: checksMsg });
+      }
     } catch (err: any) {
-      toast({ title: 'Check failed', description: err.message, variant: 'destructive' });
+      toast.error('Check failed', { description: err.message });
     } finally {
       setLoading(false);
     }
@@ -82,17 +82,19 @@ export default function AdminLaunchChecklist() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Pre-Launch Checklist</h1>
-          <p className="text-muted-foreground">
-            Verify all systems are configured and secure before going live.
-          </p>
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border p-6">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold">Pre-Launch Checklist</h1>
+            <p className="text-muted-foreground mt-1">
+              Verify all systems are configured and secure before going live.
+            </p>
+          </div>
+          <Button onClick={runChecks} disabled={loading} size="lg">
+            {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+            {checks.length === 0 ? 'Run Checks' : 'Re-run'}
+          </Button>
         </div>
-        <Button onClick={runChecks} disabled={loading} size="lg">
-          {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-          {checks.length === 0 ? 'Run Checks' : 'Re-run'}
-        </Button>
       </div>
 
       {checks.length > 0 && (
@@ -192,7 +194,6 @@ interface ProbeResult {
 function CampaignOsRlsDiagnostics() {
   const [results, setResults] = useState<ProbeResult[]>([]);
   const [running, setRunning] = useState(false);
-  const { toast } = useToast();
 
   const run = async () => {
     setRunning(true);
@@ -294,13 +295,14 @@ function CampaignOsRlsDiagnostics() {
 
       setResults(out);
       const fails = out.filter((r) => r.status === 'fail').length;
-      toast({
-        title: 'RLS diagnostics complete',
-        description: `${out.length} probes run, ${fails} failed.`,
-        variant: fails > 0 ? 'destructive' : 'default',
-      });
+      const rlsMsg = `${out.length} probes run, ${fails} failed.`;
+      if (fails > 0) {
+        toast.error('RLS diagnostics complete', { description: rlsMsg });
+      } else {
+        toast.success('RLS diagnostics complete', { description: rlsMsg });
+      }
     } catch (e: any) {
-      toast({ title: 'Diagnostics error', description: e.message, variant: 'destructive' });
+      toast.error('Diagnostics error', { description: e.message });
     } finally {
       setRunning(false);
     }
@@ -464,7 +466,6 @@ function Wave1PostGateRegression() {
   const [signoffConfirmed, setSignoffConfirmed] = useState<boolean | null>(null);
   const [lastRun, setLastRun] = useState<RegressionRun | null>(null);
   const [running, setRunning] = useState(false);
-  const { toast } = useToast();
 
   useEffect(() => {
     let mounted = true;
@@ -514,13 +515,14 @@ function Wave1PostGateRegression() {
         ],
         { onConflict: 'key' },
       );
-      toast({
-        title: verdict === 'go' ? 'Post-gate regression: GO' : 'Post-gate regression: NO-GO',
-        description: `${pass_count} pass · ${fail_count} fail · ${warn_count} warn`,
-        variant: verdict === 'go' ? 'default' : 'destructive',
-      });
+      const regressionMsg = `${pass_count} pass · ${fail_count} fail · ${warn_count} warn`;
+      if (verdict === 'go') {
+        toast.success('Post-gate regression: GO', { description: regressionMsg });
+      } else {
+        toast.error('Post-gate regression: NO-GO', { description: regressionMsg });
+      }
     } catch (e: any) {
-      toast({ title: 'Regression run failed', description: e.message, variant: 'destructive' });
+      toast.error('Regression run failed', { description: e.message });
     } finally {
       setRunning(false);
     }

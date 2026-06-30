@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { Inbox, ExternalLink, MessageSquare, Bug, HelpCircle, Lightbulb, AlertTriangle, CheckCircle2, PlayCircle, BellRing } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -61,7 +61,6 @@ type ViewKey = 'triage' | 'mine' | 'active' | 'all_open' | 'resolved';
 
 export default function AdminFeedback() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewKey>('triage');
@@ -153,11 +152,11 @@ export default function AdminFeedback() {
     setBusy(true);
     try {
       await updateFeedbackStatus({ table: 'feedback', id: opts.id, action, assignee_id: opts.assignee_id, internal_note: opts.internal_note });
-      toast({ title: 'Updated' });
+      toast.success('Updated');
       load();
       setNoteDialog(null);
     } catch (e: any) {
-      toast({ title: 'Action failed', description: e.message, variant: 'destructive' });
+      toast.error('Action failed', { description: e.message });
     } finally {
       setBusy(false);
     }
@@ -178,13 +177,13 @@ export default function AdminFeedback() {
       setAuxNote('');
       load();
     } catch (e: any) {
-      toast({ title: 'Failed', description: e.message, variant: 'destructive' });
+      toast.error('Failed', { description: e.message });
     } finally { setBusy(false); }
   };
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border p-6">
         <h1 className="text-2xl lg:text-3xl font-bold flex items-center gap-2"><Inbox className="h-6 w-6" />Feedback Queue</h1>
         <p className="text-muted-foreground mt-1">Direct feedback, partner product feedback, and partner-initiated escalations. Admin-handled.</p>
       </div>

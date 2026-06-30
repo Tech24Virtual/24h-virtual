@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { PabblySettings } from '@/components/admin/PabblySettings';
@@ -23,7 +23,6 @@ interface AdminSettings {
 
 export default function AdminSettings() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [settings, setSettings] = useState<AdminSettings>({
@@ -93,16 +92,9 @@ export default function AdminSettings() {
     setIsSaving(false);
 
     if (results.every(Boolean)) {
-      toast({
-        title: 'Settings saved',
-        description: 'Your settings have been updated successfully.',
-      });
+      toast.success('Settings saved', { description: 'Your settings have been updated successfully.' });
     } else {
-      toast({
-        title: 'Error',
-        description: 'Some settings failed to save. Please try again.',
-        variant: 'destructive',
-      });
+      toast.error('Error', { description: 'Some settings failed to save. Please try again.' });
     }
   };
 
@@ -122,7 +114,7 @@ export default function AdminSettings() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border p-6">
         <h1 className="text-2xl lg:text-3xl font-bold text-heading">Settings</h1>
         <p className="text-muted-foreground mt-1">Configure your admin settings</p>
       </div>
@@ -309,7 +301,7 @@ export default function AdminSettings() {
                     await navigator.clipboard.writeText(
                       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ingest-meeting`
                     );
-                    toast({ title: 'Copied!', description: 'Meeting webhook URL copied to clipboard' });
+                    toast.success('Copied!', { description: 'Meeting webhook URL copied to clipboard' });
                   }}
                 >
                   Copy
@@ -345,7 +337,7 @@ export default function AdminSettings() {
                     await navigator.clipboard.writeText(
                       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bookii-webhook`
                     );
-                    toast({ title: 'Copied!', description: 'Bookii webhook URL copied to clipboard' });
+                    toast.success('Copied!', { description: 'Bookii webhook URL copied to clipboard' });
                   }}
                 >
                   Copy
@@ -366,7 +358,6 @@ export default function AdminSettings() {
 }
 
 function ShiftBreakSettingsCard() {
-  const { toast } = useToast();
   const [lunchMinutes, setLunchMinutes] = useState(30);
   const [bathroomMinutes, setBathroomMinutes] = useState(5);
   const [isSaving, setIsSaving] = useState(false);
@@ -405,9 +396,9 @@ function ShiftBreakSettingsCard() {
     ]);
     setIsSaving(false);
     if (results.every((r: any) => !r.error)) {
-      toast({ title: 'Break settings saved', description: 'Break deduction rules updated for all agents.' });
+      toast.success('Break settings saved', { description: 'Break deduction rules updated for all agents.' });
     } else {
-      toast({ title: 'Error', description: 'Failed to save break settings.', variant: 'destructive' });
+      toast.error('Error', { description: 'Failed to save break settings.' });
     }
   };
 
@@ -471,7 +462,6 @@ function ShiftBreakSettingsCard() {
 }
 
 function SlackIntegrationCard() {
-  const { toast } = useToast();
   const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/slack-events`;
   const [syncing, setSyncing] = useState(false);
 
@@ -491,12 +481,11 @@ function SlackIntegrationCard() {
       );
       const result = await resp.json();
       if (!resp.ok || result.error) throw new Error(result.error || 'Sync failed');
-      toast({
-        title: 'Slack sync complete',
+      toast.success('Slack sync complete', {
         description: `${result.channels_synced} channels, ${result.users_fetched} users synced.`,
       });
     } catch (err: any) {
-      toast({ title: 'Sync failed', description: err.message, variant: 'destructive' });
+      toast.error('Sync failed', { description: err.message });
     } finally {
       setSyncing(false);
     }
@@ -523,7 +512,7 @@ function SlackIntegrationCard() {
               size="icon"
               onClick={async () => {
                 await navigator.clipboard.writeText(webhookUrl);
-                toast({ title: 'Copied!', description: 'Slack webhook URL copied.' });
+                toast.success('Copied!', { description: 'Slack webhook URL copied.' });
               }}
             >
               <Copy className="w-4 h-4" />
@@ -543,7 +532,6 @@ function SlackIntegrationCard() {
 }
 
 function AirwallexSettings() {
-  const { toast } = useToast();
   const [clientId, setClientId] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
@@ -595,9 +583,9 @@ function AirwallexSettings() {
 
     if (results.every(r => !r.error)) {
       setHasKeys(!!(clientId && apiKey));
-      toast({ title: 'Airwallex keys saved', description: 'Your Airwallex API credentials have been updated.' });
+      toast.success('Airwallex keys saved', { description: 'Your Airwallex API credentials have been updated.' });
     } else {
-      toast({ title: 'Error', description: 'Failed to save Airwallex credentials.', variant: 'destructive' });
+      toast.error('Error', { description: 'Failed to save Airwallex credentials.' });
     }
   };
 

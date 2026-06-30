@@ -8,7 +8,7 @@ import { ShieldAlert, Activity, Bot, Loader2, Wand2 } from 'lucide-react';
 import { RecommendationsPanel } from '@/components/admin/mission-control/RecommendationsPanel';
 import { AutomationHealthPanel } from '@/components/admin/mission-control/AutomationHealthPanel';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { AgentConfigPanel } from '@/components/missions/AgentConfigPanel';
 import { MissionsList } from '@/components/missions/MissionsList';
 import { RunBillingButton } from '@/components/missions/RunBillingButton';
@@ -27,7 +27,7 @@ function EmergencySimulationToggle() {
   const { data: settings, isLoading } = useQuery({
     queryKey: ['platform-settings'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('platform_settings').select('*').limit(1).single();
+      const { data, error } = await supabase.from('platform_settings').select('*').limit(1).maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -42,16 +42,18 @@ function EmergencySimulationToggle() {
     },
     onSuccess: (_, forceSimulation) => {
       queryClient.invalidateQueries({ queryKey: ['platform-settings'] });
-      toast({
-        title: forceSimulation ? '🚨 Emergency Simulation Mode ENABLED' : 'Emergency Simulation Mode disabled',
-        description: forceSimulation
-          ? 'All agents are now forced into simulation mode regardless of individual settings.'
-          : 'Agents will use their individual mode settings.',
-        variant: forceSimulation ? 'destructive' : 'default',
-      });
+      if (forceSimulation) {
+        toast.error('🚨 Emergency Simulation Mode ENABLED', {
+          description: 'All agents are now forced into simulation mode regardless of individual settings.',
+        });
+      } else {
+        toast.success('Emergency Simulation Mode disabled', {
+          description: 'Agents will use their individual mode settings.',
+        });
+      }
     },
     onError: (err) => {
-      toast({ title: 'Failed to update', description: String(err), variant: 'destructive' });
+      toast.error('Failed to update', { description: String(err) });
     },
   });
   if (isLoading || !settings) return null;
@@ -136,9 +138,9 @@ function AgentsTab() {
 export default function AdminMissionControl() {
   return (
     <div className="space-y-6">
-      <div>
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border p-6">
         <h1 className="text-2xl font-bold">Mission Control</h1>
-        <p className="text-muted-foreground">SuperAdmin Command Center · cross-domain readiness, lifecycle events, and AI agent governance</p>
+        <p className="text-muted-foreground mt-1">SuperAdmin Command Center · cross-domain readiness, lifecycle events, and AI agent governance</p>
       </div>
 
       <Tabs defaultValue="command" className="w-full">
