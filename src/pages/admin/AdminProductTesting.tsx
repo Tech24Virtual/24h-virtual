@@ -16,7 +16,7 @@ import {
 } from '@/config/productTestingSegments';
 import { SegmentCard } from '@/components/testing/SegmentCard';
 import { getRecentLaunches, clearTraceLog, type TraceEntry } from '@/lib/productTesting/traceLog';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { QAReportsPanel } from '@/components/testing/QAReportsPanel';
 import { QACapturesPanel } from '@/components/testing/QACapturesPanel';
 import QAReadinessPanel from '@/components/admin/intelligence/QAReadinessPanel';
@@ -33,7 +33,6 @@ const STATUS_OPTIONS: Array<SegmentStatus | 'all'> = [
 ];
 
 export default function AdminProductTesting() {
-  const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<SegmentCategory | 'all'>('all');
   const [roleFilter, setRoleFilter] = useState<string>('all');
@@ -73,19 +72,18 @@ export default function AdminProductTesting() {
   const handleClearRecent = () => {
     clearTraceLog();
     setRecent([]);
-    toast({ title: 'Trace log cleared' });
+    toast.success('Trace log cleared');
   };
 
   const handleCopyHandoff = async () => {
     const url = await buildHandoffUrl('/admin/settings/product-testing');
     if (!url) {
-      toast({ title: 'No active session', description: 'Sign in first.', variant: 'destructive' });
+      toast.error('No active session', { description: 'Sign in first.' });
       return;
     }
     try {
       await navigator.clipboard.writeText(url);
-      toast({
-        title: 'QA handoff link copied',
+      toast.success('QA handoff link copied', {
         description: 'Paste into another browser, private window, or headless QA. Expires in 10 minutes. Treat like a password.',
       });
     } catch {
@@ -97,24 +95,26 @@ export default function AdminProductTesting() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <FlaskConical className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl lg:text-3xl font-bold text-heading">Product Testing</h1>
-            <Badge variant="outline" className="ml-2">Superadmin</Badge>
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border p-6">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <FlaskConical className="h-6 w-6 text-primary" />
+              <h1 className="text-2xl lg:text-3xl font-bold">Product Testing</h1>
+              <Badge variant="outline" className="ml-2">Superadmin</Badge>
+            </div>
+            <p className="text-muted-foreground">
+              Segmented QA launcher for every major surface of the platform. Each segment opens its real
+              route with <code className="px-1 bg-muted rounded text-xs">?testSegment=&lt;id&gt;</code> and
+              overlays a trace banner so you can isolate, reproduce, and inspect issues per area. Uses your
+              current identity, no impersonation or role spoofing.
+            </p>
           </div>
-          <p className="text-muted-foreground">
-            Segmented QA launcher for every major surface of the platform. Each segment opens its real
-            route with <code className="px-1 bg-muted rounded text-xs">?testSegment=&lt;id&gt;</code> and
-            overlays a trace banner so you can isolate, reproduce, and inspect issues per area. Uses your
-            current identity, no impersonation or role spoofing.
-          </p>
+          <Button variant="outline" size="sm" onClick={handleCopyHandoff} className="shrink-0">
+            <KeyRound className="h-4 w-4 mr-2" />
+            Copy QA Handoff Link
+          </Button>
         </div>
-        <Button variant="outline" size="sm" onClick={handleCopyHandoff} className="shrink-0">
-          <KeyRound className="h-4 w-4 mr-2" />
-          Copy QA Handoff Link
-        </Button>
       </div>
       <Card className="border-primary/30 bg-primary/5">
         <CardContent className="p-4 text-xs text-muted-foreground">

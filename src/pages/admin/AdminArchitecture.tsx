@@ -201,7 +201,7 @@ export default function AdminArchitecture() {
   return (
     <div className="space-y-8 max-w-7xl">
         {/* Header */}
-        <div>
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border p-6">
           <h1 className="text-3xl font-bold tracking-tight">System Architecture</h1>
           <p className="text-muted-foreground mt-1">
             Three-layer source-of-truth map — routes, tables, edge functions, and cross-layer dependencies.

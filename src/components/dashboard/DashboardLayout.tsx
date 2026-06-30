@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { DashboardSidebar } from './DashboardSidebar';
 import { DashboardHeader } from './DashboardHeader';
 import { AdminDashboardSwitcher } from '@/components/admin/AdminDashboardSwitcher';
@@ -14,6 +15,9 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, title, description }: DashboardLayoutProps) {
   return (
     <div className="min-h-screen bg-background flex">
+      <Helmet>
+        <title>Client Portal — 24H Virtual</title>
+      </Helmet>
       <DashboardSidebar />
       <div className="flex-1 flex flex-col">
         <DashboardHeader />

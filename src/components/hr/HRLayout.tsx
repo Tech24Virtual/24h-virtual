@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { HRSidebar } from './HRSidebar';
 import { HRHeader } from './HRHeader';
 import { AdminDashboardSwitcher } from '@/components/admin/AdminDashboardSwitcher';
@@ -11,6 +12,9 @@ interface HRLayoutProps {
 export function HRLayout({ children }: HRLayoutProps) {
   return (
     <div className="min-h-screen bg-background flex">
+      <Helmet>
+        <title>HR Portal — 24H Virtual</title>
+      </Helmet>
       <HRSidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <HRHeader />

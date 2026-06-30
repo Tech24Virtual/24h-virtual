@@ -311,7 +311,7 @@ export default function NmiPaymentTest() {
 
   return (
     <div className="p-6 max-w-6xl space-y-6">
-      <div>
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border p-6">
         <h1 className="text-2xl font-bold">NMI Payment Gateway Test</h1>
         <p className="text-muted-foreground mt-1">
           Validate the payment gateway end-to-end without affecting real accounts.

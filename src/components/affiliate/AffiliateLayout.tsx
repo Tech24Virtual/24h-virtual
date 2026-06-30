@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { AffiliateSidebar } from './AffiliateSidebar';
 import { AdminDashboardSwitcher } from '@/components/admin/AdminDashboardSwitcher';
 import { FeedbackWidget } from '@/components/feedback/FeedbackWidget';
@@ -15,6 +16,9 @@ interface AffiliateLayoutProps {
 export function AffiliateLayout({ children, title = 'Affiliate Dashboard' }: AffiliateLayoutProps) {
   return (
     <div className="min-h-screen bg-background flex">
+      <Helmet>
+        <title>Affiliate Portal — 24H Virtual</title>
+      </Helmet>
       <AffiliateSidebar />
       <div className="flex-1 flex flex-col">
         <header className="h-16 border-b bg-card/50 backdrop-blur-sm flex items-center justify-between px-6 lg:px-8">
