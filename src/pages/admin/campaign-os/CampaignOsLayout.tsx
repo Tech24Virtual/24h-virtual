@@ -29,7 +29,7 @@ export default function CampaignOsLayout() {
     <ProtectedRoute requiredRole="admin">
       <div className="space-y-6">
         <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border p-6">
-          <h1 className="text-2xl lg:text-3xl font-bold text-heading">Campaign OS</h1>
+          <h1 className="text-2xl lg:text-3xl font-bold text-heading">Campaigns</h1>
           <p className="text-muted-foreground mt-1">
             Manage campaigns, scripts, FAQs, policies and training
           </p>
