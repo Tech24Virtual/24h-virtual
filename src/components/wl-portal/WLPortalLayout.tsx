@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { WLPortalSidebar } from './WLPortalSidebar';
 import { WLPortalHeader } from './WLPortalHeader';
 import { useWLPortal } from '@/contexts/WLPortalContext';
@@ -15,8 +16,14 @@ export function WLPortalLayout({ children, title, description }: WLPortalLayoutP
   const { branding } = useWLPortal();
   const headingFont = branding?.font_heading;
 
+  const portalName = branding?.company_name || 'Partner Portal';
+
   return (
     <div className="min-h-screen bg-background flex" style={branding?.font_body ? { fontFamily: `'${branding.font_body}', sans-serif` } : undefined}>
+      <Helmet>
+        <title>{portalName}</title>
+        <meta property="og:title" content={portalName} />
+      </Helmet>
       <WLPortalSidebar />
       <div className="flex-1 flex flex-col">
         <WLPortalHeader />

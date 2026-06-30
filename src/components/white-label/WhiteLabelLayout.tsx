@@ -1,4 +1,5 @@
 import { Outlet } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { WhiteLabelSidebar } from "./WhiteLabelSidebar";
 import { WhiteLabelHeader } from "./WhiteLabelHeader";
 import { AdminDashboardSwitcher } from "@/components/admin/AdminDashboardSwitcher";
@@ -7,6 +8,10 @@ import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 export function WhiteLabelLayout({ children }: { children?: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background flex">
+      <Helmet>
+        <title>Partner Dashboard</title>
+        <meta property="og:title" content="Partner Dashboard" />
+      </Helmet>
       <WhiteLabelSidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <WhiteLabelHeader />
