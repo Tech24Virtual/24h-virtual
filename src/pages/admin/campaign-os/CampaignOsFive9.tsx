@@ -15,9 +15,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Five9DriftPanel } from '@/components/campaign-os/five9/Five9DriftPanel';
-import { CheckCircle2, XCircle, Loader2, RefreshCw } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -25,14 +26,22 @@ const REQUIRED_VARIABLE_COUNT = 8;
 
 export default function CampaignOsFive9() {
   const { data: departments = [] } = useDepartments();
-  const { data: nativeVars = [] } = useFive9NativeVariables();
+  const {
+    data: nativeVars = [],
+    isLoading: nativeVarsLoading,
+    isError: nativeVarsError,
+  } = useFive9NativeVariables();
   const [departmentId, setDepartmentId] = useState<string | null>(null);
   const [campaignId, setCampaignId] = useState<string | null>(null);
   const [selectedFive9Campaign, setSelectedFive9Campaign] = useState<string>('');
   const queryClient = useQueryClient();
 
   // Campaign Link tab data
-  const { data: campaigns = [], isLoading: campaignsLoading } = useQuery({
+  const {
+    data: campaigns = [],
+    isLoading: campaignsLoading,
+    isError: campaignsError,
+  } = useQuery({
     queryKey: ['campaign-os', 'all-campaigns-for-link'],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
@@ -48,13 +57,22 @@ export default function CampaignOsFive9() {
   const selectedCampaign = campaigns.find((c) => c.id === campaignId) ?? null;
   const selectedCampaignDeptId = selectedCampaign?.client_department_id ?? null;
 
-  const { data: five9Campaigns = [], isLoading: five9Loading, refetch: refetchFive9 } = useFive9Campaigns();
-  const { data: existingMapping, isLoading: mappingLoading } = useCampaignMapping(campaignId);
+  const {
+    data: five9Campaigns = [],
+    isLoading: five9Loading,
+    isError: five9Error,
+    refetch: refetchFive9,
+  } = useFive9Campaigns();
+  const {
+    data: existingMapping,
+    isLoading: mappingLoading,
+    isError: mappingError,
+  } = useCampaignMapping(campaignId);
   const { data: variableCoverage = 0 } = useVariableCoverage(selectedCampaignDeptId);
   const saveMapping = useSaveCampaignMapping();
   const verifyMapping = useVerifyMapping();
 
-  // Mappings tab data (existing)
+  // Call Flow Mappings tab
   const addMappingMutation = useMutation({
     mutationFn: async (name: string) => {
       if (!departmentId) throw new Error('No call flow selected');
@@ -92,7 +110,7 @@ export default function CampaignOsFive9() {
     onError: (err: any) => toast.error(err.message),
   });
 
-  const { data: mappings = [] } = useQuery({
+  const { data: mappings = [], isError: mappingsError } = useQuery({
     queryKey: ['campaign-os', 'five9-mappings', departmentId],
     enabled: !!departmentId,
     queryFn: async () => {
@@ -142,7 +160,7 @@ export default function CampaignOsFive9() {
           <TabsTrigger value="campaign-link">Campaign Link</TabsTrigger>
         </TabsList>
 
-        {/* ── Existing: Call Flow Mappings ── */}
+        {/* ── Call Flow Mappings ── */}
         <TabsContent value="mappings" className="space-y-4 mt-4">
           <div className="flex items-center gap-3">
             <Label className="whitespace-nowrap">Call Flow</Label>
@@ -153,6 +171,13 @@ export default function CampaignOsFive9() {
           </div>
           {!departmentId ? (
             <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">Select a call flow to view its Five9 variable mappings.</CardContent></Card>
+          ) : mappingsError ? (
+            <Card>
+              <CardContent className="py-12 text-center space-y-2">
+                <AlertTriangle className="h-6 w-6 text-destructive mx-auto" />
+                <p className="text-sm text-destructive">Failed to load mappings for this call flow.</p>
+              </CardContent>
+            </Card>
           ) : mappings.length === 0 ? (
             <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">No mappings configured.</CardContent></Card>
           ) : (
@@ -175,7 +200,7 @@ export default function CampaignOsFive9() {
           )}
         </TabsContent>
 
-        {/* ── Existing: Drift Check ── */}
+        {/* ── Drift Check ── */}
         <TabsContent value="drift" className="space-y-4 mt-4">
           {!departmentId ? (
             <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">Select a call flow above to run a drift check.</CardContent></Card>
@@ -187,28 +212,41 @@ export default function CampaignOsFive9() {
           )}
         </TabsContent>
 
-        {/* ── Existing: Standard 12 Native ── */}
+        {/* ── Standard 12 Native ── */}
         <TabsContent value="native" className="space-y-2 mt-4">
           <p className="text-sm text-muted-foreground">Standard 12 Five9 native variables seeded for all tenants.</p>
-          <div className="grid gap-2">
-            {nativeVars.map((v) => (
-              <Card key={v.variable_name}>
-                <CardContent className="pt-4 flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium font-mono">{v.variable_name}</p>
-                    <p className="text-xs text-muted-foreground">{v.display_label} · {v.description}</p>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <Badge variant="outline">{v.data_type}</Badge>
-                    <Badge variant="secondary">{v.direction}</Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {nativeVarsLoading ? (
+            <div className="grid gap-2">
+              {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
+            </div>
+          ) : nativeVarsError ? (
+            <Card>
+              <CardContent className="py-12 text-center space-y-2">
+                <AlertTriangle className="h-6 w-6 text-destructive mx-auto" />
+                <p className="text-sm text-destructive">Failed to load native variables.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-2">
+              {nativeVars.map((v) => (
+                <Card key={v.variable_name}>
+                  <CardContent className="pt-4 flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium font-mono">{v.variable_name}</p>
+                      <p className="text-xs text-muted-foreground">{v.display_label} · {v.description}</p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <Badge variant="outline">{v.data_type}</Badge>
+                      <Badge variant="secondary">{v.direction}</Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
-        {/* ── New: Campaign Link ── */}
+        {/* ── Campaign Link ── */}
         <TabsContent value="campaign-link" className="space-y-4 mt-4">
           <Card>
             <CardHeader>
@@ -222,7 +260,13 @@ export default function CampaignOsFive9() {
               <div className="flex items-center gap-3">
                 <Label className="whitespace-nowrap w-28 shrink-0">Campaign</Label>
                 {campaignsLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+                  </div>
+                ) : campaignsError ? (
+                  <div className="flex items-center gap-2 text-sm text-destructive">
+                    <AlertTriangle className="h-4 w-4" /> Failed to load campaigns
+                  </div>
                 ) : (
                   <Select
                     value={campaignId ?? ''}
@@ -259,7 +303,13 @@ export default function CampaignOsFive9() {
 
                   {/* Current mapping display */}
                   {mappingLoading ? (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Checking existing mapping…</div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Checking existing mapping…
+                    </div>
+                  ) : mappingError ? (
+                    <div className="flex items-center gap-2 text-sm text-destructive">
+                      <AlertTriangle className="h-4 w-4" /> Failed to load existing mapping
+                    </div>
                   ) : existingMapping ? (
                     <div className="rounded-md border p-3 bg-status-success-bg/30 space-y-1">
                       <div className="flex items-center justify-between">
@@ -300,7 +350,17 @@ export default function CampaignOsFive9() {
                   <div className="flex items-center gap-3">
                     <Label className="whitespace-nowrap w-28 shrink-0">Five9 campaign</Label>
                     {five9Loading ? (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading live campaigns…</div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" /> Loading live campaigns…
+                      </div>
+                    ) : five9Error ? (
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-destructive" />
+                        <span className="text-sm text-destructive">Five9 API unavailable</span>
+                        <Button size="sm" variant="outline" onClick={() => refetchFive9()} className="ml-1">
+                          <RefreshCw className="h-3.5 w-3.5 mr-1" /> Retry
+                        </Button>
+                      </div>
                     ) : (
                       <div className="flex items-center gap-2 flex-1">
                         <Select value={selectedFive9Campaign} onValueChange={setSelectedFive9Campaign}>
@@ -331,7 +391,7 @@ export default function CampaignOsFive9() {
 
                   <Button
                     onClick={handleSaveMapping}
-                    disabled={!selectedFive9Campaign || saveMapping.isPending}
+                    disabled={!selectedFive9Campaign || saveMapping.isPending || !!five9Error}
                   >
                     {saveMapping.isPending ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Saving…</> : 'Save Mapping'}
                   </Button>

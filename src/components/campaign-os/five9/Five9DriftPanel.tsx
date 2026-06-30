@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { AlertTriangle, CheckCircle2, RefreshCw, Plus } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, RefreshCw, Plus, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Props {
@@ -31,7 +31,7 @@ function parseCsv(text: string): Array<{ name: string; kind?: string; type?: str
 }
 
 export function Five9DriftPanel({ departmentId, onAddToMappings }: Props) {
-  const { data: latest, isLoading } = useLatestFive9Drift(departmentId);
+  const { data: latest, isLoading, isError: driftError } = useLatestFive9Drift(departmentId);
   const detect = useDetectFive9Drift();
   const [input, setInput] = useState('');
   const [acknowledgedSnapshotId, setAcknowledgedSnapshotId] = useState<string | null>(null);
@@ -119,6 +119,11 @@ export function Five9DriftPanel({ departmentId, onAddToMappings }: Props) {
         <CardContent className="space-y-3">
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : driftError ? (
+            <div className="flex items-center gap-2 text-sm text-destructive">
+              <XCircle className="h-4 w-4 shrink-0" />
+              Failed to load drift snapshot
+            </div>
           ) : !latest ? (
             <p className="text-sm text-muted-foreground">No snapshot yet. Paste above to capture one.</p>
           ) : (

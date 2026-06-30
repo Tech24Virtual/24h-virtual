@@ -20,13 +20,23 @@ export interface CampaignMapping {
 export function useFive9Campaigns() {
   return useQuery({
     queryKey: ['five9', 'live-campaigns'],
+    retry: 1,
     queryFn: async (): Promise<Five9Campaign[]> => {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
-      const res = await fetch(`${supabaseUrl}/functions/v1/five9-proxy?action=campaigns`, {
-        headers: { apikey: anonKey },
-      });
-      if (!res.ok) throw new Error('Failed to fetch Five9 campaigns');
+      let res: Response;
+      try {
+        res = await fetch(`${supabaseUrl}/functions/v1/five9-proxy?action=campaigns`, {
+          headers: { apikey: anonKey },
+          signal: AbortSignal.timeout(10_000),
+        });
+      } catch (e: any) {
+        if (e?.name === 'TimeoutError' || e?.name === 'AbortError') {
+          throw new Error('Five9 API timed out — check Five9 connectivity');
+        }
+        throw e;
+      }
+      if (!res.ok) throw new Error('Five9 API unavailable');
       const json = await res.json();
       return (json.data as Five9Campaign[]) ?? [];
     },
