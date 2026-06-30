@@ -48,7 +48,7 @@ export default function AdminWLHealth() {
 
       const { data: aliases } = await (supabase as any)
         .from("white_label_domain_aliases")
-        .select("partner_id, hostname, verified");
+        .select("partner_id, alias_hostname, cname_verified_at");
 
       const { data: clients } = await (supabase as any)
         .from("white_label_clients")
@@ -70,7 +70,7 @@ export default function AdminWLHealth() {
         if (b && !b.portal_footer_text) issues.push("No footer text");
         if (b && !b.company_name) issues.push("No company name");
         if (partnerAliases.length === 0) issues.push("No custom hostname configured");
-        if (partnerAliases.some((a: any) => !a.verified)) issues.push("Unverified hostname(s)");
+        if (partnerAliases.some((a: any) => !a.cname_verified_at)) issues.push("Unverified hostname(s)");
         if (enabledCount === 0) issues.push("No default modules enabled");
         if (p.status !== "active") issues.push(`Partner status: ${p.status}`);
 
@@ -93,8 +93,8 @@ export default function AdminWLHealth() {
               }
             : null,
           hostnames: partnerAliases.map((a: any) => ({
-            hostname: a.hostname,
-            verified: !!a.verified,
+            hostname: a.alias_hostname,
+            verified: !!a.cname_verified_at,
           })),
           client_count: clientCount,
           enabled_modules_count: enabledCount,

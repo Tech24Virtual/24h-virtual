@@ -152,6 +152,7 @@ export default function AdminPartnerDetail() {
       queryClient.invalidateQueries({ queryKey: ['admin-partner-configs', id] });
       toast.success('Verification updated');
     },
+    onError: (e: any) => toast.error(e?.message ?? 'Failed to update verification'),
   });
 
   // Save pricing mutation
@@ -165,6 +166,7 @@ export default function AdminPartnerDetail() {
       queryClient.invalidateQueries({ queryKey: ['admin-partner-pricing', id] });
       toast.success('Pricing saved');
     },
+    onError: (e: any) => toast.error(e?.message ?? 'Failed to save pricing'),
   });
 
   // Trigger usage calculation
@@ -185,14 +187,15 @@ export default function AdminPartnerDetail() {
   const [newMapping, setNewMapping] = useState({ wl_client_id: '', match_value: '' });
   const createMappingMutation = useMutation({
     mutationFn: async () => {
-      // We need a lead_id - use a placeholder or the first available
-      const { data: leadData } = await supabase.from('leads').select('id').limit(1).single();
+      // lead_id is a required FK — use the first available lead as a placeholder
+      const { data: leadData } = await supabase.from('leads').select('id').limit(1).maybeSingle();
+      if (!leadData?.id) throw new Error('No leads exist yet — create at least one lead before adding campaign mappings');
       const { error } = await supabase.from('client_report_mappings').insert({
         partner_id: id!,
         wl_client_id: newMapping.wl_client_id,
         match_value: newMapping.match_value,
         match_type: 'wl_campaign',
-        lead_id: leadData?.id || '',
+        lead_id: leadData.id,
         is_active: true,
       });
       if (error) throw error;
@@ -202,6 +205,7 @@ export default function AdminPartnerDetail() {
       setNewMapping({ wl_client_id: '', match_value: '' });
       toast.success('Mapping created');
     },
+    onError: (e: any) => toast.error(e?.message ?? 'Failed to create mapping'),
   });
 
   if (partnerLoading) {

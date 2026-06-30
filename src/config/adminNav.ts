@@ -135,7 +135,6 @@ export const adminNavGroups: AdminNavGroup[] = [
       { name: 'WL Health', href: '/admin/wl-health' },
       { name: 'WL Leak Audit', href: '/admin/wl-leak-audit' },
       { name: 'WL Config Diff', href: '/admin/wl-config-diff' },
-      { name: 'WL Preview', href: '/admin/wl-preview' },
       { name: 'Impersonate', href: '/admin/wl-portals' },
     ],
   },

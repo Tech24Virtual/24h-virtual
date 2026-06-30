@@ -21,49 +21,52 @@ export default function WLClientsPortalList() {
 
   useEffect(() => {
     const fetchPartners = async () => {
-      // Get active partners
-      const { data: partnerRows } = await supabase
-        .from('white_label_partners')
-        .select('id, company_name, status')
-        .eq('status', 'active')
-        .order('company_name');
+      try {
+        const { data: partnerRows } = await supabase
+          .from('white_label_partners')
+          .select('id, company_name, partner_slug, status')
+          .eq('status', 'active')
+          .order('company_name');
 
-      if (!partnerRows || partnerRows.length === 0) {
-        setIsLoading(false);
-        return;
-      }
+        if (!partnerRows || partnerRows.length === 0) return;
 
-      // Get branding for each partner to resolve slug + logo
-      const results: PartnerOption[] = [];
-      for (const p of partnerRows) {
-        const { data: branding } = await supabase
+        // Batch-fetch all branding in a single query instead of N+1
+        const partnerIds = partnerRows.map((p) => p.id);
+        const { data: brandingRows } = await supabase
           .from('white_label_branding')
-          .select('company_name, logo_url')
-          .eq('partner_id', p.id)
-          .single();
+          .select('partner_id, company_name, logo_url')
+          .in('partner_id', partnerIds);
 
-        const brandName = branding?.company_name || p.company_name;
-        const slug = brandName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+        const brandingMap = new Map(
+          (brandingRows ?? []).map((b) => [b.partner_id, b])
+        );
 
-        if (slug) {
+        const results: PartnerOption[] = [];
+        for (const p of partnerRows) {
+          // Use partner_slug from the DB row — never derive from company name
+          const slug = p.partner_slug;
+          if (!slug) continue;
+
+          const branding = brandingMap.get(p.id);
           results.push({
             id: p.id,
             slug,
-            company_name: brandName,
-            logo_url: branding?.logo_url || null,
+            company_name: branding?.company_name || p.company_name,
+            logo_url: branding?.logo_url ?? null,
           });
         }
-      }
 
-      // D-4: Do NOT auto-redirect when only one partner exists. The QA report
-      // explicitly requires an explicit click so the impersonation entry is
-      // intentional and audit-logged. Always render the chooser.
-      setPartners(results);
-      setIsLoading(false);
+        // D-4: Do NOT auto-redirect when only one partner exists. The QA report
+        // explicitly requires an explicit click so the impersonation entry is
+        // intentional and audit-logged. Always render the chooser.
+        setPartners(results);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     fetchPartners();
-  }, [navigate]);
+  }, []);
 
   if (isLoading) {
     return (

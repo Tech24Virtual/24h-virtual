@@ -57,8 +57,8 @@ export default function AdminWLPreview() {
   }
 
   const previewUrl = partner.partner_slug ? `/portal/${partner.partner_slug}` : null;
-  const verifiedAlias = aliases.find((a) => a.verified);
-  const hostUrl = verifiedAlias ? `https://${verifiedAlias.hostname}` : null;
+  const verifiedAlias = aliases.find((a) => a.cname_verified_at);
+  const hostUrl = verifiedAlias ? `https://${verifiedAlias.alias_hostname}` : null;
 
   return (
     <div className="space-y-6">
@@ -116,10 +116,10 @@ export default function AdminWLPreview() {
                   <span className="text-xs text-destructive">None</span>
                 ) : (
                   aliases.map((a) => (
-                    <div key={a.hostname} className="flex items-center gap-2 text-xs mt-1">
-                      <code>{a.hostname}</code>
-                      <Badge variant={a.verified ? "default" : "secondary"} className="text-[10px]">
-                        {a.verified ? "verified" : "pending"}
+                    <div key={a.alias_hostname} className="flex items-center gap-2 text-xs mt-1">
+                      <code>{a.alias_hostname}</code>
+                      <Badge variant={a.cname_verified_at ? "default" : "secondary"} className="text-[10px]">
+                        {a.cname_verified_at ? "verified" : "pending"}
                       </Badge>
                     </div>
                   ))
@@ -206,25 +206,38 @@ export default function AdminWLPreview() {
                   <TabsTrigger value="login">Login</TabsTrigger>
                 </TabsList>
                 <TabsContent value="portal" className="mt-4">
-                  {previewUrl ? (
-                    <div
-                      className="mx-auto border rounded-lg overflow-hidden bg-background"
-                      style={{
-                        maxWidth: viewport === "mobile" ? 390 : "100%",
-                        height: 600,
-                      }}
-                    >
-                      <iframe
-                        src={previewUrl}
-                        className="w-full h-full"
-                        title="Portal preview"
-                      />
+                  {/* Live iframe cannot be used here — the WL auth guard detects no
+                      WL client session and redirects in a rapid loop, causing the
+                      admin page to blink continuously. Use impersonation instead. */}
+                  <div className="border rounded-lg bg-muted/30 flex flex-col items-center justify-center gap-4 py-16 px-6 text-center"
+                    style={{ height: 600 }}>
+                    <ExternalLink className="w-10 h-10 text-muted-foreground/40" />
+                    <div>
+                      <p className="font-medium text-foreground">Live portal preview unavailable in frame</p>
+                      <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                        The WL auth guard redirects unauthenticated admin sessions, causing
+                        a redirect loop inside an iframe. Use impersonation or open in a new tab.
+                      </p>
                     </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center py-12">
-                      Partner has no slug configured.
-                    </p>
-                  )}
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      {previewUrl && (
+                        <Button asChild variant="outline" size="sm">
+                          <a href={previewUrl} target="_blank" rel="noreferrer">
+                            <ExternalLink className="w-4 h-4 mr-2" />
+                            Open portal in new tab
+                          </a>
+                        </Button>
+                      )}
+                      <Button asChild variant="outline" size="sm">
+                        <a href="/admin/wl-portals">
+                          Enter via Impersonation
+                        </a>
+                      </Button>
+                    </div>
+                    {!previewUrl && (
+                      <p className="text-xs text-muted-foreground">Partner has no slug configured.</p>
+                    )}
+                  </div>
                 </TabsContent>
                 <TabsContent value="login" className="mt-4">
                   {/* Static mockup — a live iframe triggers WL auth guards that
