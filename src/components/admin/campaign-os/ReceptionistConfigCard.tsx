@@ -35,6 +35,7 @@ export function ReceptionistConfigCard({ callFlowId }: Props) {
   const [cfg, setCfg] = useState<ReceptionistConfig | null>(null);
   const [readiness, setReadiness] = useState<ReadinessRow | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const [mode, setMode] = useState<ReceptionistMode>("hybrid");
@@ -48,6 +49,7 @@ export function ReceptionistConfigCard({ callFlowId }: Props) {
 
   async function load() {
     setLoading(true);
+    setLoadError(null);
     try {
       const [c, r] = await Promise.all([
         fetchReceptionistConfig(callFlowId),
@@ -65,6 +67,8 @@ export function ReceptionistConfigCard({ callFlowId }: Props) {
         setGroundInCampaign(c.ground_in_campaign);
         setKnowledgeNotes(c.knowledge_notes ?? "");
       }
+    } catch (e: any) {
+      setLoadError(e?.message ?? "Failed to load receptionist configuration");
     } finally {
       setLoading(false);
     }
@@ -116,6 +120,19 @@ export function ReceptionistConfigCard({ callFlowId }: Props) {
       <Card>
         <CardContent className="p-6 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin inline mr-2" /> Loading receptionist…
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <Card className="border-destructive/50">
+        <CardContent className="p-6 text-center space-y-2">
+          <AlertTriangle className="h-6 w-6 text-destructive mx-auto" />
+          <p className="text-sm font-medium text-destructive">Failed to load receptionist config</p>
+          <p className="text-xs text-muted-foreground">{loadError}</p>
+          <Button variant="outline" size="sm" onClick={load}>Retry</Button>
         </CardContent>
       </Card>
     );

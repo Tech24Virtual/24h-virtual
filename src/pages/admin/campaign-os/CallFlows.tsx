@@ -2,10 +2,12 @@ import { Link } from 'react-router-dom';
 import { useCallFlows } from '@/hooks/campaign-os/useCallFlows';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { PhoneCall, ArrowRight } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { PhoneCall, ArrowRight, AlertTriangle } from 'lucide-react';
 
 export default function CallFlows() {
-  const { data: flows = [], isLoading } = useCallFlows();
+  const { data: flows = [], isLoading, isError } = useCallFlows();
+
   return (
     <div className="space-y-6">
       <div>
@@ -15,7 +17,17 @@ export default function CallFlows() {
         </p>
       </div>
       {isLoading ? (
-        <div className="text-sm text-muted-foreground">Loading…</div>
+        <div className="grid gap-2">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-md" />)}
+        </div>
+      ) : isError ? (
+        <Card className="border-destructive/50">
+          <CardContent className="py-12 text-center space-y-2">
+            <AlertTriangle className="h-8 w-8 text-destructive mx-auto" />
+            <p className="text-sm font-medium text-destructive">Failed to load call flows</p>
+            <p className="text-xs text-muted-foreground">Check your connection or contact support if this persists.</p>
+          </CardContent>
+        </Card>
       ) : flows.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-sm text-muted-foreground">

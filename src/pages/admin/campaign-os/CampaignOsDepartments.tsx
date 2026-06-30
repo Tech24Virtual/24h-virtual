@@ -11,9 +11,19 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, Building2, Pencil, Archive } from 'lucide-react';
+import { Plus, Building2, Pencil, Archive, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import type { DepartmentTypeEnum } from '@/lib/campaign-os/types';
 
@@ -35,11 +45,12 @@ const EMPTY_FORM: DeptFormState = {
 };
 
 export default function CampaignOsDepartments() {
-  const { data: departments = [], isLoading } = useDepartments();
+  const { data: departments = [], isLoading, isError } = useDepartments();
   const upsert = useUpsertDepartment();
   const archive = useArchiveDepartment();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<DeptFormState>(EMPTY_FORM);
+  const [archiveTarget, setArchiveTarget] = useState<string | null>(null);
 
   const openCreate = () => {
     setForm(EMPTY_FORM);
@@ -78,13 +89,15 @@ export default function CampaignOsDepartments() {
     }
   };
 
-  const handleArchive = async (id: string) => {
-    if (!confirm('Archive this department? Its lifecycle will be set to archived.')) return;
+  const doArchive = async () => {
+    if (!archiveTarget) return;
     try {
-      await archive.mutateAsync(id);
+      await archive.mutateAsync(archiveTarget);
       toast.success('Department archived');
     } catch (e: any) {
       toast.error(e.message ?? 'Failed to archive department');
+    } finally {
+      setArchiveTarget(null);
     }
   };
 
@@ -134,6 +147,14 @@ export default function CampaignOsDepartments() {
 
       {isLoading ? (
         <div className="grid gap-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+      ) : isError ? (
+        <Card className="border-destructive/50">
+          <CardContent className="py-12 text-center space-y-2">
+            <AlertTriangle className="h-8 w-8 text-destructive mx-auto" />
+            <p className="text-sm font-medium text-destructive">Failed to load departments</p>
+            <p className="text-xs text-muted-foreground">Check your connection or contact support if this persists.</p>
+          </CardContent>
+        </Card>
       ) : departments.length === 0 ? (
         <Card><CardContent className="py-12 text-center text-sm text-muted-foreground"><Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />No departments yet.</CardContent></Card>
       ) : (
@@ -154,7 +175,12 @@ export default function CampaignOsDepartments() {
                     <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
                   </Button>
                   {d.lifecycle !== 'archived' && (
-                    <Button size="sm" variant="ghost" onClick={() => handleArchive(d.id)} disabled={archive.isPending}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setArchiveTarget(d.id)}
+                      disabled={archive.isPending && archiveTarget === d.id}
+                    >
                       <Archive className="h-3.5 w-3.5 mr-1" /> Archive
                     </Button>
                   )}
@@ -165,6 +191,23 @@ export default function CampaignOsDepartments() {
           ))}
         </div>
       )}
+
+      <AlertDialog open={!!archiveTarget} onOpenChange={(o) => { if (!o) setArchiveTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive this department?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The department's lifecycle will be set to <strong>archived</strong>. It will no longer appear in active lists but its data is preserved.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={doArchive} disabled={archive.isPending}>
+              {archive.isPending ? 'Archiving…' : 'Archive'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

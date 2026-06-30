@@ -9,14 +9,14 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { PhoneCall, ArrowRight, Loader2, Save } from 'lucide-react';
+import { PhoneCall, ArrowRight, Loader2, Save, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import type { RoutingEntryType } from '@/lib/campaign-os/types';
 import { ReceptionistConfigCard } from '@/components/admin/campaign-os/ReceptionistConfigCard';
 
 export default function CallFlowDetail() {
   const { id = '' } = useParams<{ id: string }>();
-  const { data: flow, isLoading } = useCallFlow(id);
+  const { data: flow, isLoading, isError } = useCallFlow(id);
   const { data: campaigns = [] } = useCampaigns();
   const update = useUpdateCallFlow();
 
@@ -45,6 +45,17 @@ export default function CallFlowDetail() {
 
   if (isLoading) {
     return <div className="text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin inline mr-2" /> Loading…</div>;
+  }
+  if (isError) {
+    return (
+      <div className="text-sm space-y-4">
+        <Link to="/admin/campaign-os/call-flows" className="text-primary hover:underline">← Back to call flows</Link>
+        <div className="flex items-center gap-2 text-destructive mt-4">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>Failed to load call flow. Check your permissions or try refreshing.</span>
+        </div>
+      </div>
+    );
   }
   if (!flow) {
     return (
