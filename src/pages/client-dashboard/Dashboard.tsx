@@ -94,7 +94,23 @@ export default function ClientDashboard() {
     staleTime: 60_000,
   });
 
-  // 4. Active scripts count
+  // 4. Handoff status — hide setup banner once client has submitted
+  const { data: handoffStatus } = useQuery({
+    queryKey: ['client-handoff-status', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('client_onboarding_handoffs')
+        .select('status')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data?.status ?? null;
+    },
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+
+  // 5. Active scripts count
   const { data: activeScripts = 0 } = useQuery({
     queryKey: ['client-scripts-count', user?.id],
     queryFn: async () => {
@@ -119,7 +135,10 @@ export default function ClientDashboard() {
   // Account status
   const pipelineStage = lead?.pipeline_stage;
   const isActive = pipelineStage === 'active';
-  const isSetupNeeded = !pipelineStage || !['active', 'churned'].includes(pipelineStage ?? '');
+  // Hide setup banner when client already submitted (handoff at ready_for_submission/activated)
+  // OR when the lead's pipeline_stage is active/churned
+  const handoffDone = ['ready_for_submission', 'activated', 'complete'].includes(handoffStatus ?? '');
+  const isSetupNeeded = !handoffDone && (!pipelineStage || !['active', 'churned'].includes(pipelineStage ?? ''));
 
   const statusBadge = isActive
     ? { label: 'Active',      cls: 'bg-green-100 text-green-700 border-green-200' }
@@ -319,9 +338,9 @@ export default function ClientDashboard() {
         </div>
       </div>
 
-      {/* Section 4 — Setup banner (hidden once account is active) */}
+      {/* Section 4 — Setup banner (hidden once account is active or setup submitted) */}
       {isSetupNeeded && (
-        <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+        <Card data-testid="setup-banner" className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
           <CardContent className="flex items-center justify-between gap-4 p-4">
             <div>
               <p className="text-sm font-medium">Complete your account setup to go live</p>
