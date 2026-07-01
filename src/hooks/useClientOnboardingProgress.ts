@@ -64,6 +64,24 @@ export function useClientOnboardingProgress(): OnboardingProgress {
     }
     let cancelled = false;
     (async () => {
+      // Check handoff status first — if the client already submitted setup,
+      // the nudge is irrelevant regardless of the checklist state.
+      const { data: handoff } = await supabase
+        .from("client_onboarding_handoffs")
+        .select("status")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (cancelled) return;
+      if (
+        handoff &&
+        ["ready_for_submission", "activated", "complete"].includes(handoff.status)
+      ) {
+        setState({ ...EMPTY, loading: false, isComplete: true });
+        return;
+      }
+
       const { data, error } = await supabase
         .from("leads")
         .select("onboarding_checklist")
