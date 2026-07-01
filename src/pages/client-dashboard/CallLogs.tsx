@@ -50,15 +50,27 @@ export default function CallLogs() {
 
     const fetchCalls = async () => {
       setIsLoading(true);
-      const { data, error } = await supabase
+
+      // call_logs.client_id is FK to leads.id, not auth.uid() — resolve first
+      const { data: leadRow } = await supabase
+        .from('leads')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      const leadId = leadRow?.id ?? null;
+
+      if (!leadId) {
+        setIsLoading(false);
+        return;
+      }
+
+      const { data } = await supabase
         .from('call_logs')
         .select('id, caller_name, caller_phone, caller_email, caller_number, handle_time_seconds, call_type, status, disposition, campaign_name, dnis, notes, created_at')
-        .eq('client_id', user.id)
+        .eq('client_id', leadId)
         .order('created_at', { ascending: false });
 
-      if (data) {
-        setCalls(data);
-      }
+      if (data) setCalls(data);
       setIsLoading(false);
     };
 

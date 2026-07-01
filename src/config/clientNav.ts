@@ -75,7 +75,7 @@ export const clientNavGroups: NavGroup[] = [
   {
     name: 'Billing',
     icon: CreditCard,
-    basePath: `${clientRoot}/billing-group`,
+    basePath: `${clientRoot}/billing`,
     children: [
       { name: 'Billing', href: `${clientRoot}/billing` },
       { name: 'Referrals', href: `${clientRoot}/referrals` },

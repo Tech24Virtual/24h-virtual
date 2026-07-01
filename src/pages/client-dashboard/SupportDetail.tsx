@@ -18,7 +18,7 @@ export default function ClientSupportDetail() {
         .from('support_tickets')
         .select('id, ticket_number, title, status, priority, created_at')
         .eq('id', id!)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data;
     },

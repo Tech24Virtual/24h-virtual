@@ -65,23 +65,36 @@ export default function ClientDashboard() {
 
     const fetchData = async () => {
       setIsLoading(true);
+
+      // call_logs.client_id is FK to leads.id, not auth.uid() — resolve first
+      const { data: leadRow } = await supabase
+        .from('leads')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      const leadId = leadRow?.id ?? null;
+
       const startOfMonth = new Date();
       startOfMonth.setDate(1);
       startOfMonth.setHours(0, 0, 0, 0);
 
       try {
         const [callsData, missedData, scriptsData] = await Promise.all([
-          supabase
-            .from('call_logs')
-            .select('*')
-            .eq('client_id', user.id)
-            .gte('created_at', startOfMonth.toISOString()),
-          supabase
-            .from('call_logs')
-            .select('id', { count: 'exact', head: true })
-            .eq('client_id', user.id)
-            .eq('status', 'missed')
-            .gte('created_at', startOfMonth.toISOString()),
+          leadId
+            ? supabase
+                .from('call_logs')
+                .select('*')
+                .eq('client_id', leadId)
+                .gte('created_at', startOfMonth.toISOString())
+            : Promise.resolve({ data: [] as { call_duration: number | null }[], error: null }),
+          leadId
+            ? supabase
+                .from('call_logs')
+                .select('id', { count: 'exact', head: true })
+                .eq('client_id', leadId)
+                .eq('status', 'missed')
+                .gte('created_at', startOfMonth.toISOString())
+            : Promise.resolve({ data: null, error: null, count: 0 }),
           supabase
             .from('client_scripts')
             .select('id', { count: 'exact', head: true })
@@ -99,15 +112,15 @@ export default function ClientDashboard() {
           activeScripts: scriptsData.count || 0,
         });
 
-        // Get recent calls
-        const { data: recent } = await supabase
-          .from('call_logs')
-          .select('*')
-          .eq('client_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(5);
-
-        setRecentCalls(recent || []);
+        if (leadId) {
+          const { data: recent } = await supabase
+            .from('call_logs')
+            .select('*')
+            .eq('client_id', leadId)
+            .order('created_at', { ascending: false })
+            .limit(5);
+          setRecentCalls(recent || []);
+        }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {

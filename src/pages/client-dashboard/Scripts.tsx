@@ -120,10 +120,21 @@ export default function Scripts() {
   const fetchApprovedFaqs = async () => {
     if (!user) return;
     try {
-      const { data, error } = await (supabase as any)
+      // Resolve lead ID so we can scope to this client's FAQs only.
+      // campaign_faq_entries.client_lead_id is FK to leads.id (not auth.uid()).
+      const { data: leadRow } = await supabase
+        .from('leads')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      const clientLeadId = leadRow?.id;
+      if (!clientLeadId) return;
+
+      const { data, error } = await supabase
         .from('campaign_faq_entries')
         .select('id, question, answer_md, published_at')
         .eq('status', 'approved')
+        .eq('client_lead_id', clientLeadId)
         .order('published_at', { ascending: false });
 
       if (error) throw error;

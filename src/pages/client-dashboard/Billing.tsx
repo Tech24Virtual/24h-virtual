@@ -37,7 +37,7 @@ import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { startOfMonth, endOfMonth, format } from 'date-fns';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import {
   calculateDynamicBilling,
   formatCurrency,
@@ -99,7 +99,6 @@ const emptyAddCardForm: AddCardForm = {
 
 export default function Billing() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Call-log + subscription state (not cache-able because check-subscription is
@@ -159,14 +158,25 @@ export default function Billing() {
     if (!user) return;
     const fetchUsageAndSubscription = async () => {
       setIsLoading(true);
+
+      // call_logs.client_id is FK to leads.id, not auth.uid() — resolve first
+      const { data: leadRow } = await supabase
+        .from('leads')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      const resolvedLeadId = leadRow?.id ?? null;
+
       const now = new Date();
       const [callsResult, subscriptionResult] = await Promise.all([
-        supabase
-          .from('call_logs')
-          .select('handle_time_seconds')
-          .eq('client_id', user.id)
-          .gte('created_at', startOfMonth(now).toISOString())
-          .lte('created_at', endOfMonth(now).toISOString()),
+        resolvedLeadId
+          ? supabase
+              .from('call_logs')
+              .select('handle_time_seconds')
+              .eq('client_id', resolvedLeadId)
+              .gte('created_at', startOfMonth(now).toISOString())
+              .lte('created_at', endOfMonth(now).toISOString())
+          : Promise.resolve({ data: [] as { handle_time_seconds: number | null }[], error: null }),
         supabase.functions.invoke('check-subscription'),
       ]);
 
@@ -210,11 +220,7 @@ export default function Billing() {
       if (error) throw error;
       if (data?.url) window.open(data.url, '_blank');
     } catch {
-      toast({
-        title: 'Error',
-        description: 'Failed to open billing portal. Please try again.',
-        variant: 'destructive',
-      });
+      toast.error('Failed to open billing portal. Please try again.');
     } finally {
       setIsLoadingPortal(false);
     }
@@ -229,13 +235,13 @@ export default function Billing() {
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.message || 'Card add failed');
-      toast({ title: 'Card added', description: `${data.card_type} ending in ${data.card_last_four} saved.` });
+      toast.success('Card added', { description: `${data.card_type} ending in ${data.card_last_four} saved.` });
       setShowAddCard(false);
       setCardForm(emptyAddCardForm);
       // Invalidate the lead query — the UI re-renders from fresh server data
       queryClient.invalidateQueries({ queryKey: ['client-lead', user?.id] });
     } catch (err: unknown) {
-      toast({ title: 'Error', description: err instanceof Error ? err.message : String(err), variant: 'destructive' });
+      toast.error(err instanceof Error ? err.message : String(err));
     } finally {
       setIsCardBusy(false);
     }
@@ -250,13 +256,13 @@ export default function Billing() {
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.message || 'Update failed');
-      toast({ title: 'Card updated', description: `Now ending in ${data.card_last_four}.` });
+      toast.success('Card updated', { description: `Now ending in ${data.card_last_four}.` });
       setShowUpdateCard(false);
       setUpdateForm({ card_number: '', card_expiry: '', card_cvv: '' });
       // Invalidate the lead query — card details re-render from fresh server data
       queryClient.invalidateQueries({ queryKey: ['client-lead', user?.id] });
     } catch (err: unknown) {
-      toast({ title: 'Error', description: err instanceof Error ? err.message : String(err), variant: 'destructive' });
+      toast.error(err instanceof Error ? err.message : String(err));
     } finally {
       setIsCardBusy(false);
     }
