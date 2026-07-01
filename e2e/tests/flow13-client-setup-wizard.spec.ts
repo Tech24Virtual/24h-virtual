@@ -37,7 +37,7 @@ test.describe.serial('Flow 13 — Client Account Setup Wizard', () => {
       // Either no handoff or already submitted — banner is correctly absent.
       console.log('Note: setup banner not shown for qa-client (no handoff or already submitted) — banner correctly suppressed');
       await expect(
-        page.getByRole('heading', { name: /welcome back/i }).first()
+        page.getByRole('heading', { name: /good (morning|afternoon|evening)/i }).first()
       ).toBeVisible({ timeout: 10000 });
       return;
     }
@@ -231,7 +231,7 @@ test.describe.serial('Flow 13 — Client Account Setup Wizard', () => {
 
     // Dashboard loaded correctly
     await expect(
-      page.getByRole('heading', { name: /welcome back/i }).first()
+      page.getByRole('heading', { name: /good (morning|afternoon|evening)/i }).first()
     ).toBeVisible({ timeout: 10000 });
   });
 

@@ -38,7 +38,7 @@ test.describe.serial('Flow 9 — Onboarding Modal Persistence', () => {
       // onboarding_completed already set from a prior run — pass with note
       console.log('Note: onboarding already completed for wlOwner — modal correctly suppressed');
       // Still assert the dashboard loaded
-      await expect(page.getByRole('heading', { name: /welcome back/i }).first()).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('heading', { name: /good (morning|afternoon|evening)/i }).first()).toBeVisible({ timeout: 10000 });
     } else {
       // Assert modal is visible
       const modalLocator = isGotItButton
