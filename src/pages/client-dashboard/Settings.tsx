@@ -62,6 +62,13 @@ export default function Settings() {
     }
   }, [profileData]);
 
+  const handleChangePassword = async () => {
+    if (!user?.email) return;
+    const { error } = await supabase.auth.resetPasswordForEmail(user.email);
+    if (error) toast.error('Failed to send reset email');
+    else toast.success('Password reset email sent! Check your inbox.');
+  };
+
   const handleSave = async () => {
     if (!user) return;
     setIsSaving(true);
@@ -181,8 +188,16 @@ export default function Settings() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button variant="outline" className="w-full">Change Password</Button>
-              <Button variant="outline" className="w-full">Enable Two-Factor Authentication</Button>
+              <Button variant="outline" className="w-full" onClick={handleChangePassword}>
+                Change Password
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => toast.info('Two-factor authentication setup coming soon.')}
+              >
+                Enable Two-Factor Authentication
+              </Button>
             </CardContent>
           </Card>
         </div>

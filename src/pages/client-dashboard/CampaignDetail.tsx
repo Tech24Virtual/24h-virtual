@@ -3,6 +3,12 @@ import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { ArrowLeft, Send, Loader2 } from 'lucide-react';
 import {
   useMyClientCampaign,
@@ -153,16 +159,18 @@ export default function ClientCampaignDetail() {
               {(faqs?.length ?? 0) === 0 ? (
                 <p className="text-sm text-muted-foreground">No FAQs configured.</p>
               ) : (
-                <ul className="space-y-2">
+                <Accordion type="multiple" className="space-y-1">
                   {faqs!.map((f) => (
-                    <li key={f.id} className="text-sm">
-                      <p className="font-medium">{f.question}</p>
-                      <p className="text-xs text-muted-foreground whitespace-pre-wrap">
+                    <AccordionItem key={f.id} value={f.id} className="border rounded-md px-3">
+                      <AccordionTrigger className="text-sm font-medium text-left hover:no-underline py-3">
+                        {f.question}
+                      </AccordionTrigger>
+                      <AccordionContent className="text-xs text-muted-foreground whitespace-pre-wrap pb-3">
                         {f.answer_md}
-                      </p>
-                    </li>
+                      </AccordionContent>
+                    </AccordionItem>
                   ))}
-                </ul>
+                </Accordion>
               )}
             </CardContent>
           </Card>
@@ -175,16 +183,18 @@ export default function ClientCampaignDetail() {
               {(policies?.length ?? 0) === 0 ? (
                 <p className="text-sm text-muted-foreground">No policies configured.</p>
               ) : (
-                <ul className="space-y-2">
+                <Accordion type="multiple" className="space-y-1">
                   {policies!.map((p) => (
-                    <li key={p.id} className="text-sm">
-                      <p className="font-medium">{p.title}</p>
-                      <p className="text-xs text-muted-foreground whitespace-pre-wrap">
+                    <AccordionItem key={p.id} value={p.id} className="border rounded-md px-3">
+                      <AccordionTrigger className="text-sm font-medium text-left hover:no-underline py-3">
+                        {p.title}
+                      </AccordionTrigger>
+                      <AccordionContent className="text-xs text-muted-foreground whitespace-pre-wrap pb-3">
                         {p.body_md}
-                      </p>
-                    </li>
+                      </AccordionContent>
+                    </AccordionItem>
                   ))}
-                </ul>
+                </Accordion>
               )}
             </CardContent>
           </Card>

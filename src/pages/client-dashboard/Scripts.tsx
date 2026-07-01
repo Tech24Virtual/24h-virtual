@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, FileText, Pencil, Trash2, MoreVertical, GitPullRequest, BookOpen } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -193,6 +193,20 @@ export default function Scripts() {
     setChangeTargetScript(null);
     if (saved) queryClient.invalidateQueries({ queryKey: ['client-change-requests', user?.id] });
   };
+
+  // Realtime subscription — update pending badge when a change request is reviewed
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel('client-change-requests')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'script_change_requests' },
+        () => queryClient.invalidateQueries({ queryKey: ['client-change-requests', user.id] }),
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id, queryClient]);
 
   const pendingCount = changeRequests.filter(r => !['approved', 'rejected'].includes(r.status)).length;
 

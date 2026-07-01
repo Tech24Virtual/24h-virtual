@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Phone, Clock, AlertTriangle, FileText, ArrowRight,
@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { OutboundCallRequestDialog } from '@/components/client-dashboard/OutboundCallRequestDialog';
+import { CallDetailSheet } from '@/components/client/CallDetailSheet';
 import { usePageView, track } from '@/lib/analytics';
 
 function getGreeting() {
@@ -37,8 +38,8 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function ClientDashboard() {
   const { user, profile } = useAuth();
-  const navigate = useNavigate();
   const [outboundDialogOpen, setOutboundDialogOpen] = useState(false);
+  const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
   usePageView('client_dashboard', 'client');
 
   const firstName = profile?.full_name?.split(' ')[0] || 'there';
@@ -235,7 +236,7 @@ export default function ClientDashboard() {
                       <tr
                         key={call.id}
                         className="border-b last:border-0 hover:bg-muted/40 cursor-pointer transition-colors"
-                        onClick={() => navigate('/client-dashboard/calls')}
+                        onClick={() => setSelectedCallId(call.id)}
                       >
                         <td className="py-3 pr-4 font-medium">{call.caller_name || 'Unknown'}</td>
                         <td className="py-3 pr-4 text-muted-foreground">{call.caller_phone || '—'}</td>
@@ -363,6 +364,12 @@ export default function ClientDashboard() {
           if (saved) track.cta('client_dashboard', 'outbound_call_submitted', 'client');
           setOutboundDialogOpen(false);
         }}
+      />
+
+      <CallDetailSheet
+        callId={selectedCallId}
+        leadId={lead?.id ?? null}
+        onClose={() => setSelectedCallId(null)}
       />
     </DashboardLayout>
   );

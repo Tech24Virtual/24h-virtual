@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Sun, Moon, Save } from 'lucide-react';
+import { Sun, Moon, Save, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -134,6 +134,13 @@ export default function Schedule() {
       <div className="rounded-2xl border border-border p-6 bg-gradient-to-br from-slate-50 via-white to-blue-50/30 mb-6">
         <h1 className="text-2xl font-bold text-heading">Business Hours</h1>
         <p className="text-muted-foreground mt-0.5">Set your availability and after-hours handling</p>
+      </div>
+
+      <div className="flex items-start gap-3 p-4 rounded-lg bg-blue-50 border border-blue-200 mb-6">
+        <Info className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+        <p className="text-sm text-blue-800">
+          Schedule changes are reviewed by your account team and take effect within 24 hours.
+        </p>
       </div>
 
       {hasChanges && (

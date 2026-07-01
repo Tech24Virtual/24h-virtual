@@ -3,6 +3,7 @@ import { Phone, Clock, TrendingDown, BarChart3, Download, FileText, Table2, Sear
 import { downloadCallReportXlsx } from '@/lib/callReportXlsx';
 import { downloadCallReportPdf } from '@/lib/callReportPdf';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -386,7 +387,11 @@ export default function Reports() {
           </CardHeader>
           <CardContent>
             {logs.isLoading ? (
-              <div className="text-center py-8 text-muted-foreground text-sm">Loading…</div>
+              <div className="space-y-2 py-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} className="h-10 w-full rounded-md" />
+                ))}
+              </div>
             ) : !logs.data?.rows.length ? (
               <div className="text-center py-12">
                 <Phone className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />

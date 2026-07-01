@@ -155,7 +155,7 @@ function CampaignReadinessCard({
     },
     {
       label: 'Five9 telephony configured',
-      description: 'Our team is configuring the telephony system. No action required from you.',
+      description: 'Configured by your account team. This item updates automatically — no action required from you.',
       state: 'pending',
     },
   ];

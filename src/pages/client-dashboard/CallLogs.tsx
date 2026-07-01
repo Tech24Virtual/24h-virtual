@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, Phone, Clock, User, Filter, Mail, Hash } from 'lucide-react';
+import { CallDetailSheet } from '@/components/client/CallDetailSheet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -46,6 +47,7 @@ function formatDuration(seconds: number | null) {
 export default function CallLogs() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
 
   // 1. Resolve leadId (call_logs.client_id is FK to leads.id)
   const { data: lead } = useQuery({
@@ -147,7 +149,11 @@ export default function CallLogs() {
                 </TableHeader>
                 <TableBody>
                   {filteredCalls.map((call) => (
-                    <TableRow key={call.id}>
+                    <TableRow
+                      key={call.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => setSelectedCallId(call.id)}
+                    >
                       <TableCell>
                         <div>
                           <span className="font-medium">{call.caller_name || 'Unknown'}</span>
@@ -195,6 +201,12 @@ export default function CallLogs() {
           )}
         </CardContent>
       </Card>
+
+      <CallDetailSheet
+        callId={selectedCallId}
+        leadId={lead?.id ?? null}
+        onClose={() => setSelectedCallId(null)}
+      />
     </DashboardLayout>
   );
 }

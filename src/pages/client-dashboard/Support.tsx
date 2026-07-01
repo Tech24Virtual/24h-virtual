@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { LifeBuoy, Plus, Sparkles } from 'lucide-react';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +9,7 @@ import { MyTicketsList, SubmitTicketDialog } from '@/components/tickets';
 import { PiPAssistant } from '@/components/pip/PiPAssistant';
 
 export default function Support() {
+  const queryClient = useQueryClient();
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
 
   return (
@@ -62,7 +64,10 @@ export default function Support() {
         open={showSubmitDialog}
         onOpenChange={setShowSubmitDialog}
         source="client_portal"
-        onSuccess={() => {}}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['my-tickets'] });
+          setShowSubmitDialog(false);
+        }}
       />
     </DashboardLayout>
   );

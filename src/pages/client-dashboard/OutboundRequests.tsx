@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PhoneOutgoing, Clock, CheckCircle, XCircle, RotateCcw, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -57,6 +57,20 @@ export default function OutboundRequests() {
     },
     onError: () => toast.error('Failed to cancel request'),
   });
+
+  // Realtime subscription — update status without manual refresh
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel('client-outbound-requests')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'outbound_call_requests' },
+        () => queryClient.invalidateQueries({ queryKey: ['client-outbound-requests', user.id] }),
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id, queryClient]);
 
   const handleDialogClose = (saved: boolean) => {
     setDialogOpen(false);
