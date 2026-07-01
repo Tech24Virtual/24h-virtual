@@ -49,7 +49,10 @@ export default function ClientDashboard() {
   const monthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
 
   // 1. Lead record — provides leadId + pipeline_stage
-  const { data: lead } = useQuery({
+  // Track leadLoading so dependent queries show skeletons while this resolves.
+  // In TanStack Query v5, disabled queries report isLoading=false even with no
+  // data, so without this guard the call sections flash the empty state.
+  const { data: lead, isLoading: leadLoading } = useQuery({
     queryKey: ['client-lead', user?.id],
     queryFn: async () => {
       const { data } = await supabase
@@ -64,7 +67,7 @@ export default function ClientDashboard() {
   });
 
   // 2. Current-month calls for stats
-  const { data: monthCalls, isLoading: statsLoading } = useQuery({
+  const { data: monthCalls, isLoading: monthCallsFetching } = useQuery({
     queryKey: ['client-month-calls', lead?.id, monthKey],
     queryFn: async () => {
       const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
@@ -78,9 +81,11 @@ export default function ClientDashboard() {
     enabled: !!lead?.id,
     staleTime: 60_000,
   });
+  // Show skeletons until both the lead and the stats themselves have loaded
+  const statsLoading = leadLoading || monthCallsFetching;
 
   // 3. Recent 5 calls (all time)
-  const { data: recentCalls, isLoading: recentLoading } = useQuery({
+  const { data: recentCalls, isLoading: recentCallsFetching } = useQuery({
     queryKey: ['client-recent-calls', lead?.id],
     queryFn: async () => {
       const { data } = await supabase
@@ -94,6 +99,8 @@ export default function ClientDashboard() {
     enabled: !!lead?.id,
     staleTime: 60_000,
   });
+  // Show skeletons until both the lead and the calls themselves have loaded
+  const recentLoading = leadLoading || recentCallsFetching;
 
   // 4. Handoff status — hide setup banner once client has submitted
   const { data: handoffStatus } = useQuery({

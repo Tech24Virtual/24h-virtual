@@ -28,7 +28,7 @@ export default function ClientFeedback() {
   const queryClient = useQueryClient();
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  const { data: rows = [], isLoading } = useQuery({
+  const { data: rows = [], isLoading: feedbackFetching } = useQuery({
     queryKey: ['client-feedback', user?.id],
     queryFn: async () => {
       const { data } = await supabase
@@ -42,6 +42,10 @@ export default function ClientFeedback() {
     enabled: !!user?.id,
     staleTime: 60_000,
   });
+  // In TanStack Query v5 a disabled query reports isLoading=false even with no
+  // data. Guard against the auth-not-yet-resolved window so the empty state
+  // doesn't flash before the user object is available.
+  const isLoading = !user || feedbackFetching;
 
   // Realtime subscription — invalidate query on any change
   useEffect(() => {
