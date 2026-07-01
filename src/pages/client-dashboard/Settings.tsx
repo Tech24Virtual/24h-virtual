@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { User, Bell, Shield } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,7 +31,7 @@ export default function Settings() {
   });
 
   // Query profile for settings data
-  const { isLoading } = useQuery({
+  const { data: profileData, isLoading } = useQuery({
     queryKey: ['client-settings', user?.id],
     queryFn: async () => {
       const { data } = await supabase
@@ -43,24 +43,24 @@ export default function Settings() {
     },
     enabled: !!user,
     staleTime: 60_000,
-    // Initialise form state from the first successful fetch
-    select: (data) => {
-      if (data) {
-        setFormData({
-          full_name:    data.full_name    || '',
-          company_name: data.company_name || '',
-          phone:        data.phone        || '',
-        });
-        const notifPrefs = data.notification_preferences;
-        if (notifPrefs && typeof notifPrefs === 'object') {
-          setNotifications({
-            email_notifications: (notifPrefs as Record<string, boolean>).email_notifications ?? true,
-          });
-        }
-      }
-      return data;
-    },
   });
+
+  // Initialise form state from fetched profile — select() is a pure transform
+  // and must not contain setState calls (causes render-phase update crash)
+  useEffect(() => {
+    if (!profileData) return;
+    setFormData({
+      full_name:    profileData.full_name    || '',
+      company_name: profileData.company_name || '',
+      phone:        profileData.phone        || '',
+    });
+    const notifPrefs = profileData.notification_preferences;
+    if (notifPrefs && typeof notifPrefs === 'object') {
+      setNotifications({
+        email_notifications: (notifPrefs as Record<string, boolean>).email_notifications ?? true,
+      });
+    }
+  }, [profileData]);
 
   const handleSave = async () => {
     if (!user) return;
