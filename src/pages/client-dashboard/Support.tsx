@@ -11,10 +11,13 @@ export default function Support() {
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
 
   return (
-    <DashboardLayout 
-      title="Support" 
-      description="Get help from our team"
-    >
+    <DashboardLayout>
+      {/* Gradient header */}
+      <div className="rounded-2xl border border-border p-6 bg-gradient-to-br from-slate-50 via-white to-blue-50/30 mb-6">
+        <h1 className="text-2xl font-bold text-heading">Support</h1>
+        <p className="text-muted-foreground mt-0.5">Get help from our team</p>
+      </div>
+
       <Tabs defaultValue="ai-support">
         <TabsList>
           <TabsTrigger value="ai-support" className="gap-2">

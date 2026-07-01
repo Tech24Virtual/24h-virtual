@@ -294,10 +294,13 @@ export default function Billing() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <DashboardLayout
-      title="Billing & Usage"
-      description="Manage your subscription and view invoices"
-    >
+    <DashboardLayout>
+      {/* Gradient header */}
+      <div className="rounded-2xl border border-border p-6 bg-gradient-to-br from-slate-50 via-white to-blue-50/30 mb-6">
+        <h1 className="text-2xl font-bold text-heading">Billing &amp; Usage</h1>
+        <p className="text-muted-foreground mt-0.5">Manage your subscription and view invoices</p>
+      </div>
+
       {/* Usage stats */}
       <div className="grid lg:grid-cols-3 gap-6 mb-8">
         <Card>

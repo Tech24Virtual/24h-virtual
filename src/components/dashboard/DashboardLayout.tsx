@@ -8,7 +8,7 @@ import { OnboardingResumeNudge } from './OnboardingResumeNudge';
 
 interface DashboardLayoutProps {
   children: ReactNode;
-  title: string;
+  title?: string;
   description?: string;
 }
 
@@ -22,12 +22,14 @@ export function DashboardLayout({ children, title, description }: DashboardLayou
       <div className="flex-1 flex flex-col">
         <DashboardHeader />
         <main className="flex-1 p-6 lg:p-8">
-          <div className="mb-8">
-            <h1 className="text-2xl lg:text-3xl font-bold text-heading">{title}</h1>
-            {description && (
-              <p className="text-muted-foreground mt-1">{description}</p>
-            )}
-          </div>
+          {title && (
+            <div className="mb-8">
+              <h1 className="text-2xl lg:text-3xl font-bold text-heading">{title}</h1>
+              {description && (
+                <p className="text-muted-foreground mt-1">{description}</p>
+              )}
+            </div>
+          )}
           {children}
         </main>
       </div>

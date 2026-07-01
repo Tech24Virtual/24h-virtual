@@ -54,7 +54,13 @@ export default function ClientFeedback() {
   const active = useMemo(() => rows.find(r => r.id === activeId) ?? null, [rows, activeId]);
 
   return (
-    <DashboardLayout title="My Feedback" description="Your feedback and support conversations with 24H">
+    <DashboardLayout>
+      {/* Gradient header */}
+      <div className="rounded-2xl border border-border p-6 bg-gradient-to-br from-slate-50 via-white to-blue-50/30 mb-6">
+        <h1 className="text-2xl font-bold text-heading">My Feedback</h1>
+        <p className="text-muted-foreground mt-0.5">Your feedback and support conversations with 24H</p>
+      </div>
+
       {!active ? (
         <Card>
           <CardHeader>

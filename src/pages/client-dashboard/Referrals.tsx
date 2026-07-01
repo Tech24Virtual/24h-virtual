@@ -101,7 +101,13 @@ export default function Referrals() {
   };
 
   return (
-    <DashboardLayout title="Referral Program" description="Refer businesses and earn rewards">
+    <DashboardLayout>
+      {/* Gradient header */}
+      <div className="rounded-2xl border border-border p-6 bg-gradient-to-br from-slate-50 via-white to-blue-50/30 mb-6">
+        <h1 className="text-2xl font-bold text-heading">Referral Program</h1>
+        <p className="text-muted-foreground mt-0.5">Refer businesses and earn rewards</p>
+      </div>
+
       <div className="space-y-6">
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-4">
