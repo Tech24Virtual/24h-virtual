@@ -53,7 +53,13 @@ export default function ClientCampaignDetail() {
   }
 
   return (
-    <DashboardLayout title={campaign.display_name}>
+    <DashboardLayout>
+      <div className="rounded-2xl border border-border p-6 bg-gradient-to-br from-slate-50 via-white to-blue-50/30 mb-6">
+        <h1 className="text-2xl font-bold text-heading">{campaign.display_name}</h1>
+        <p className="text-muted-foreground mt-0.5">
+          {campaign.department?.department_name ?? 'Department'} · {campaign.published_version_id ? 'Published' : 'Not yet published'}
+        </p>
+      </div>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <Button asChild variant="ghost" size="sm">

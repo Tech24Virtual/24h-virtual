@@ -202,10 +202,11 @@ export default function Reports() {
   };
 
   return (
-    <DashboardLayout
-      title="Call Reports"
-      description={`Monthly call activity — ${periodLabel(period)}`}
-    >
+    <DashboardLayout>
+      <div className="rounded-2xl border border-border p-6 bg-gradient-to-br from-slate-50 via-white to-blue-50/30 mb-6">
+        <h1 className="text-2xl font-bold text-heading">Call Reports</h1>
+        <p className="text-muted-foreground mt-0.5">Monthly call activity — {periodLabel(period)}</p>
+      </div>
       <div className="space-y-6" data-testid="client-reports-page">
         {/* Period picker + export */}
         <div className="flex flex-wrap gap-3 items-center justify-between">

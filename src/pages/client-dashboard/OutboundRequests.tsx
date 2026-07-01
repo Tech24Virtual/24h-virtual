@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PhoneOutgoing, Clock, CheckCircle, XCircle, RotateCcw, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
@@ -63,10 +64,11 @@ export default function OutboundRequests() {
   };
 
   return (
-    <DashboardLayout
-      title="Outbound Call Requests"
-      description="Track your outbound call requests and their status"
-    >
+    <DashboardLayout>
+      <div className="rounded-2xl border border-border p-6 bg-gradient-to-br from-slate-50 via-white to-blue-50/30 mb-6">
+        <h1 className="text-2xl font-bold text-heading">Outbound Call Requests</h1>
+        <p className="text-muted-foreground mt-0.5">Track your outbound call requests and their status</p>
+      </div>
       <div className="flex justify-end mb-6">
         <Button onClick={() => setDialogOpen(true)}>
           <PhoneOutgoing className="w-4 h-4 mr-2" />
@@ -75,7 +77,19 @@ export default function OutboundRequests() {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12 text-muted-foreground">Loading...</div>
+        <div className="space-y-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-4 sm:p-6">
+                <div className="space-y-2">
+                  <Skeleton className="h-5 w-1/3" />
+                  <Skeleton className="h-4 w-1/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       ) : requests.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">

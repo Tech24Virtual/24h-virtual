@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Inbox, MessageSquare, ChevronLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,33 +25,37 @@ type Row = {
 
 export default function ClientFeedback() {
   const { user } = useAuth();
-  const [rows, setRows] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  const load = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('feedback')
-      .select('id, title, description, type, status, created_at, resolved_at')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(200);
-    setRows((data ?? []) as Row[]);
-    setLoading(false);
-  };
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ['client-feedback', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('feedback')
+        .select('id, title, description, type, status, created_at, resolved_at')
+        .eq('user_id', user!.id)
+        .order('created_at', { ascending: false })
+        .limit(200);
+      return (data ?? []) as Row[];
+    },
+    enabled: !!user?.id,
+    staleTime: 60_000,
+  });
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [user?.id]);
-
+  // Realtime subscription — invalidate query on any change
   useEffect(() => {
     if (!user) return;
     const ch = supabase
       .channel('client-feedback')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'feedback', filter: `user_id=eq.${user.id}` }, () => load())
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'feedback', filter: `user_id=eq.${user.id}` },
+        () => queryClient.invalidateQueries({ queryKey: ['client-feedback', user.id] }),
+      )
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-    // eslint-disable-next-line
-  }, [user?.id]);
+  }, [user?.id, queryClient]);
 
   const active = useMemo(() => rows.find(r => r.id === activeId) ?? null, [rows, activeId]);
 
@@ -68,8 +74,12 @@ export default function ClientFeedback() {
             <CardDescription>Anything you have submitted to 24H, plus replies from our team.</CardDescription>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <div className="py-8 text-sm text-muted-foreground">Loading…</div>
+            {isLoading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full rounded-md" />
+                ))}
+              </div>
             ) : rows.length === 0 ? (
               <div className="py-12 text-sm text-muted-foreground text-center">
                 You haven't submitted any feedback yet.
@@ -129,7 +139,7 @@ export default function ClientFeedback() {
                 parentStatus={active.status}
                 mode="submitter"
                 resolvedFollowUp
-                onPosted={load}
+                onPosted={() => queryClient.invalidateQueries({ queryKey: ['client-feedback', user?.id] })}
               />
             </CardContent>
           </Card>

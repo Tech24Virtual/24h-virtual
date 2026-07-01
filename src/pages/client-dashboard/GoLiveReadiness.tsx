@@ -246,14 +246,12 @@ export default function ClientGoLiveReadiness() {
   const { data: campaigns, isLoading, error } = useMyClientGoLiveReadiness();
 
   return (
-    <DashboardLayout title="Go-Live Readiness">
+    <DashboardLayout>
+      <div className="rounded-2xl border border-border p-6 bg-gradient-to-br from-slate-50 via-white to-blue-50/30 mb-6">
+        <h1 className="text-2xl font-bold text-heading">Go-Live Readiness</h1>
+        <p className="text-muted-foreground mt-0.5">Track campaign progress before going live. Confirm readiness when all checks pass.</p>
+      </div>
       <div className="space-y-6">
-        <div>
-          <p className="text-sm text-muted-foreground">
-            Track the progress of each campaign before it goes live. Once all checks pass, confirm
-            your readiness and the supervisor will give final sign-off.
-          </p>
-        </div>
 
         {isLoading && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
