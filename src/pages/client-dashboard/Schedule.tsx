@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Sun, Moon, Save } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -64,7 +64,7 @@ export default function Schedule() {
   const [afterHours, setAfterHours] = useState<AfterHoursSettings>(DEFAULT_AFTER_HOURS);
 
   // Query profile for schedule data
-  const { isLoading } = useQuery({
+  const { data: profileData, isLoading } = useQuery({
     queryKey: ['client-schedule', user?.id],
     queryFn: async () => {
       const { data } = await supabase
@@ -76,17 +76,19 @@ export default function Schedule() {
     },
     enabled: !!user,
     staleTime: 60_000,
-    // Initialise form state from the first successful fetch
-    select: (data) => {
-      if (data?.business_hours && typeof data.business_hours === 'object') {
-        setBusinessHours({ ...DEFAULT_HOURS, ...(data.business_hours as unknown as BusinessHours) });
-      }
-      if (data?.after_hours_settings && typeof data.after_hours_settings === 'object') {
-        setAfterHours({ ...DEFAULT_AFTER_HOURS, ...(data.after_hours_settings as unknown as AfterHoursSettings) });
-      }
-      return data;
-    },
   });
+
+  // Initialise form state once the profile loads — select() is pure, so
+  // setState belongs here in useEffect, not inside the select callback
+  useEffect(() => {
+    if (!profileData) return;
+    if (profileData.business_hours && typeof profileData.business_hours === 'object') {
+      setBusinessHours({ ...DEFAULT_HOURS, ...(profileData.business_hours as unknown as BusinessHours) });
+    }
+    if (profileData.after_hours_settings && typeof profileData.after_hours_settings === 'object') {
+      setAfterHours({ ...DEFAULT_AFTER_HOURS, ...(profileData.after_hours_settings as unknown as AfterHoursSettings) });
+    }
+  }, [profileData]);
 
   const handleDayToggle = (day: typeof days[number], enabled: boolean) => {
     setBusinessHours(prev => ({ ...prev, [day]: { ...prev[day], enabled } }));
