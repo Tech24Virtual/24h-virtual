@@ -268,7 +268,9 @@ export default function Billing() {
     }
   };
 
-  const handleUpgrade = () => { window.location.href = '/pricing'; };
+  const handleUpgrade = () => {
+    window.open('mailto:support@24hvirtual.com?subject=Plan Upgrade Request', '_blank');
+  };
 
   // ── Derived display values ────────────────────────────────────────────────
 
@@ -539,7 +541,6 @@ export default function Billing() {
                       <TableHead className="text-right">Total Minutes</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
                       <TableHead>Transaction ID</TableHead>
-                      <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -554,20 +555,6 @@ export default function Billing() {
                         </TableCell>
                         <TableCell className="font-mono text-xs text-muted-foreground">
                           {row.nmi_transaction_id || '—'}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={row.mode_used === 'live' ? 'default' : 'secondary'}
-                            className={
-                              row.mode_used === 'live'
-                                ? 'bg-green-600 text-white'
-                                : row.mode_used === 'sandbox'
-                                ? 'bg-blue-100 text-blue-700'
-                                : 'bg-amber-100 text-amber-700'
-                            }
-                          >
-                            {row.mode_used}
-                          </Badge>
                         </TableCell>
                       </TableRow>
                     ))}

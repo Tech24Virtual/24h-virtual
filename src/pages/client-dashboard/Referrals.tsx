@@ -52,6 +52,7 @@ export default function Referrals() {
         referrer_phone: profile?.phone,
         is_current_client: true,
         user_id: user?.id,
+        status: 'pending',
         ...formData,
       });
 

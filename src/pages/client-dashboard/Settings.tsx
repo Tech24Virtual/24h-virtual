@@ -79,7 +79,10 @@ export default function Settings() {
           full_name:                formData.full_name,
           company_name:             formData.company_name,
           phone:                    formData.phone,
-          notification_preferences: notifications as unknown as Json,
+          notification_preferences: {
+            ...(profileData?.notification_preferences as Record<string, unknown> ?? {}),
+            ...notifications,
+          } as unknown as Json,
           updated_at:               new Date().toISOString(),
         })
         .eq('id', user.id);

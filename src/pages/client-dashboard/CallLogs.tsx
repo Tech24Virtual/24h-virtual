@@ -4,12 +4,14 @@ import { Search, Phone, Clock, User, Filter, Mail, Hash } from 'lucide-react';
 import { CallDetailSheet } from '@/components/client/CallDetailSheet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -48,9 +50,14 @@ export default function CallLogs() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
+  const [showFilter, setShowFilter] = useState(false);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [appliedFrom, setAppliedFrom] = useState('');
+  const [appliedTo, setAppliedTo] = useState('');
 
   // 1. Resolve leadId (call_logs.client_id is FK to leads.id)
-  const { data: lead } = useQuery({
+  const { data: lead, isLoading: leadLoading } = useQuery({
     queryKey: ['client-lead', user?.id],
     queryFn: async () => {
       const { data } = await supabase
@@ -65,19 +72,37 @@ export default function CallLogs() {
   });
 
   // 2. Fetch call logs
-  const { data: calls = [], isLoading } = useQuery({
-    queryKey: ['client-call-logs', lead?.id],
+  const { data: calls = [], isFetching: callsFetching } = useQuery({
+    queryKey: ['client-call-logs', lead?.id, appliedFrom, appliedTo],
     queryFn: async () => {
-      const { data } = await supabase
+      let query = supabase
         .from('call_logs')
         .select('id, caller_name, caller_phone, caller_email, caller_number, handle_time_seconds, call_type, status, disposition, campaign_name, dnis, notes, created_at')
-        .eq('client_id', lead!.id)
-        .order('created_at', { ascending: false });
+        .eq('client_id', lead!.id);
+      if (appliedFrom) query = query.gte('created_at', appliedFrom);
+      if (appliedTo) query = query.lte('created_at', `${appliedTo}T23:59:59.999`);
+      const { data } = await query.order('created_at', { ascending: false });
       return (data || []) as CallLog[];
     },
     enabled: !!lead?.id,
     staleTime: 60_000,
   });
+
+  const isLoading = leadLoading || callsFetching;
+
+  const handleApplyFilter = () => {
+    setAppliedFrom(dateFrom);
+    setAppliedTo(dateTo);
+    setShowFilter(false);
+  };
+
+  const handleClearFilter = () => {
+    setDateFrom('');
+    setDateTo('');
+    setAppliedFrom('');
+    setAppliedTo('');
+    setShowFilter(false);
+  };
 
   const filteredCalls = calls.filter(call =>
     call.caller_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -111,9 +136,45 @@ export default function CallLogs() {
                   className="pl-9"
                 />
               </div>
-              <Button variant="outline" size="icon">
-                <Filter className="w-4 h-4" />
-              </Button>
+              <Popover open={showFilter} onOpenChange={setShowFilter}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className={appliedFrom || appliedTo ? 'border-primary text-primary' : ''}
+                  >
+                    <Filter className="w-4 h-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 space-y-3" align="end">
+                  <div className="space-y-2">
+                    <Label htmlFor="date-from">From</Label>
+                    <Input
+                      id="date-from"
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => setDateFrom(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="date-to">To</Label>
+                    <Input
+                      id="date-to"
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => setDateTo(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex gap-2 justify-end pt-1">
+                    <Button variant="outline" size="sm" onClick={handleClearFilter}>
+                      Clear
+                    </Button>
+                    <Button size="sm" onClick={handleApplyFilter}>
+                      Apply
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </CardHeader>

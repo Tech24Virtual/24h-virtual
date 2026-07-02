@@ -150,7 +150,6 @@ export default function OutboundRequests() {
                         {req.attempt_count > 0 && (
                           <span>Attempt {req.attempt_count} of {req.max_attempts}</span>
                         )}
-                        <Badge variant="outline" className="text-xs">{req.source}</Badge>
                       </div>
                       {req.outcome_notes && (
                         <div className="mt-2 p-3 bg-muted rounded-md">

@@ -186,6 +186,7 @@ export default function Setup() {
   const [submitted, setSubmitted] = useState(false);
   const [noHandoff, setNoHandoff] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [handoffStatus, setHandoffStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -214,6 +215,7 @@ export default function Setup() {
         }
 
         setHandoffId(handoff.id);
+        setHandoffStatus(handoff.status);
 
         const { data: itemRows } = await supabase
           .from('client_handoff_items')
@@ -373,6 +375,12 @@ export default function Setup() {
         <p className="text-muted-foreground mt-0.5">Tell us about your business so we can configure your service</p>
       </div>
       <div className="max-w-2xl mx-auto">
+        {handoffStatus === 'needs_more_info' && (
+          <div className="mb-4 p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+            <strong>Your account team has requested additional information.</strong>{' '}
+            Please review and update your details below.
+          </div>
+        )}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">

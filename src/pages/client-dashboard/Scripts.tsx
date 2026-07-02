@@ -108,7 +108,7 @@ export default function Scripts() {
   });
 
   // 3. Change requests
-  const { data: changeRequests = [] } = useQuery({
+  const { data: changeRequests = [], isLoading: changeRequestsLoading } = useQuery({
     queryKey: ['client-change-requests', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -344,7 +344,13 @@ export default function Scripts() {
               <CardTitle className="text-lg">Change Requests</CardTitle>
             </CardHeader>
             <CardContent>
-              {changeRequests.length === 0 ? (
+              {changeRequestsLoading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                  ))}
+                </div>
+              ) : changeRequests.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <GitPullRequest className="w-12 h-12 mx-auto mb-3 opacity-30" />
                   <p>No change requests yet. Use the "Request Change" button on any script to get started.</p>
