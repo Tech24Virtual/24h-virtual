@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -244,6 +245,22 @@ function CampaignReadinessCard({
 
 export default function ClientGoLiveReadiness() {
   const { data: campaigns, isLoading, error } = useMyClientGoLiveReadiness();
+  const queryClient = useQueryClient();
+
+  // The snapshot table is trigger-driven — it's rewritten whenever a
+  // supervisor approves, a script publishes, FAQs/policies get approved, etc.
+  // Subscribe so the checklist updates live instead of needing a refresh.
+  useEffect(() => {
+    const channel = supabase
+      .channel('client-go-live-snapshots')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'campaign_go_live_status_snapshots' },
+        () => queryClient.invalidateQueries({ queryKey: ['campaign-os', 'client', 'go-live-readiness'] }),
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
 
   return (
     <DashboardLayout>

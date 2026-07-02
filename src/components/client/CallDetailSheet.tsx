@@ -83,7 +83,7 @@ export function CallDetailSheet({ callId, leadId, onClose }: CallDetailSheetProp
     staleTime: 60_000,
   });
 
-  const { data: relatedCalls = [] } = useQuery({
+  const { data: relatedCalls = [], isLoading: relatedCallsLoading } = useQuery({
     queryKey: ['call-related', callId, call?.caller_phone, leadId],
     queryFn: async () => {
       const { data } = await supabase
@@ -195,47 +195,59 @@ export function CallDetailSheet({ callId, leadId, onClose }: CallDetailSheetProp
             </div>
 
             {/* Notes */}
-            {call.notes && (
-              <>
-                <Separator />
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5" />Agent Notes
-                  </p>
-                  <div className="bg-muted/40 rounded-md p-3">
-                    <p className="text-sm whitespace-pre-wrap">{call.notes}</p>
-                  </div>
+            <Separator />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5" />Agent Notes
+              </p>
+              {call.notes ? (
+                <div className="bg-muted/40 rounded-md p-3">
+                  <p className="text-sm whitespace-pre-wrap">{call.notes}</p>
                 </div>
-              </>
-            )}
+              ) : (
+                <p className="text-sm text-muted-foreground italic">No notes recorded for this call.</p>
+              )}
+            </div>
 
-            {/* Related calls */}
-            {relatedCalls.length > 0 && (
+            {/* Related calls — only meaningful once we know the caller's number */}
+            {call.caller_phone && (
               <>
                 <Separator />
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
                     <Mic className="w-3.5 h-3.5" />Previous Calls from This Number
                   </p>
-                  <div className="space-y-2">
-                    {relatedCalls.map((rc) => (
-                      <div
-                        key={rc.id}
-                        className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/30 text-sm"
-                      >
-                        <span className="text-muted-foreground">
-                          {format(new Date(rc.created_at), 'MMM d, yyyy')}
-                        </span>
-                        <span>{formatDuration(rc.handle_time_seconds)}</span>
-                        <Badge
-                          variant="secondary"
-                          className={`text-xs ${STATUS_COLORS[rc.status ?? ''] ?? ''}`}
+                  {relatedCallsLoading ? (
+                    <div className="space-y-2">
+                      {Array.from({ length: 2 }).map((_, i) => (
+                        <Skeleton key={i} className="h-8 w-full rounded-md" />
+                      ))}
+                    </div>
+                  ) : relatedCalls.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic">
+                      No previous calls from this number.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {relatedCalls.map((rc) => (
+                        <div
+                          key={rc.id}
+                          className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/30 text-sm"
                         >
-                          {rc.status || 'unknown'}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
+                          <span className="text-muted-foreground">
+                            {format(new Date(rc.created_at), 'MMM d, yyyy')}
+                          </span>
+                          <span>{formatDuration(rc.handle_time_seconds)}</span>
+                          <Badge
+                            variant="secondary"
+                            className={`text-xs ${STATUS_COLORS[rc.status ?? ''] ?? ''}`}
+                          >
+                            {rc.status || 'unknown'}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </>
             )}

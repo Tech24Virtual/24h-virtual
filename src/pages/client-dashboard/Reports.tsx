@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Phone, Clock, TrendingDown, BarChart3, Download, FileText, Table2, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { downloadCallReportXlsx } from '@/lib/callReportXlsx';
 import { downloadCallReportPdf } from '@/lib/callReportPdf';
@@ -77,18 +78,22 @@ function buildPeriodOptions() {
 
 export default function Reports() {
   const { user } = useAuth();
-  const [leadId, setLeadId] = useState<string | null>(null);
 
   // Resolve the leads.id for this auth user — call_logs.client_id is a FK to leads.id, not auth.uid()
-  useEffect(() => {
-    if (!user?.id) return;
-    supabase
-      .from('leads')
-      .select('id')
-      .eq('user_id', user.id)
-      .maybeSingle()
-      .then(({ data }) => { if (data) setLeadId(data.id); });
-  }, [user?.id]);
+  const { data: leadData } = useQuery({
+    queryKey: ['client-lead', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('id')
+        .eq('user_id', user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+  const leadId = leadData?.id ?? null;
 
   const [period, setPeriod] = useState(currentPeriod());
   const [search, setSearch] = useState('');

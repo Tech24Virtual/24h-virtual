@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
@@ -101,12 +101,6 @@ export default function Billing() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Call-log + subscription state (not cache-able because check-subscription is
-  // a Stripe edge-function call that doesn't map cleanly to a stable query key)
-  const [usage, setUsage] = useState<UsageStats>({ minutesUsed: 0, totalCalls: 0 });
-  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
-  const [billingResult, setBillingResult] = useState<DynamicBillingResult | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isLoadingPortal, setIsLoadingPortal] = useState(false);
 
   // Card management dialogs
@@ -118,7 +112,7 @@ export default function Billing() {
 
   // ── TanStack Query: lead row (NMI card fields) ───────────────────────────
   // Key: ['client-lead', userId] — invalidated after add/update card
-  const { data: leadData } = useQuery({
+  const { data: leadData, isLoading: isLoadingLead } = useQuery({
     queryKey: ['client-lead', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -153,62 +147,47 @@ export default function Billing() {
     enabled: !!leadId && isNmi,
   });
 
-  // ── Effect: call logs + Stripe subscription (run once per user) ──────────
-  useEffect(() => {
-    if (!user) return;
-    const fetchUsageAndSubscription = async () => {
-      setIsLoading(true);
-
-      // call_logs.client_id is FK to leads.id, not auth.uid() — resolve first
-      const { data: leadRow } = await supabase
-        .from('leads')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      const resolvedLeadId = leadRow?.id ?? null;
-
+  // ── TanStack Query: this month's call-log usage ──────────────────────────
+  // call_logs.client_id is FK to leads.id, not auth.uid() — depends on leadId
+  const { data: usage = { minutesUsed: 0, totalCalls: 0 }, isLoading: isLoadingUsage } = useQuery({
+    queryKey: ['client-billing-usage', leadId],
+    queryFn: async (): Promise<UsageStats> => {
       const now = new Date();
-      const [callsResult, subscriptionResult] = await Promise.all([
-        resolvedLeadId
-          ? supabase
-              .from('call_logs')
-              .select('handle_time_seconds')
-              .eq('client_id', resolvedLeadId)
-              .gte('created_at', startOfMonth(now).toISOString())
-              .lte('created_at', endOfMonth(now).toISOString())
-          : Promise.resolve({ data: [] as { handle_time_seconds: number | null }[], error: null }),
-        supabase.functions.invoke('check-subscription'),
-      ]);
+      const { data, error } = await supabase
+        .from('call_logs')
+        .select('handle_time_seconds')
+        .eq('client_id', leadId!)
+        .gte('created_at', startOfMonth(now).toISOString())
+        .lte('created_at', endOfMonth(now).toISOString());
+      if (error) throw error;
+      const totalSeconds = (data ?? []).reduce((sum, call) => sum + (call.handle_time_seconds || 0), 0);
+      return { minutesUsed: Math.ceil(totalSeconds / 60), totalCalls: (data ?? []).length };
+    },
+    enabled: !!leadId,
+  });
 
-      let totalMinutes = 0;
-      if (!callsResult.error && callsResult.data) {
-        const totalSeconds = callsResult.data.reduce(
-          (sum, call) => sum + (call.handle_time_seconds || 0),
-          0,
-        );
-        totalMinutes = Math.ceil(totalSeconds / 60);
-        setUsage({ minutesUsed: totalMinutes, totalCalls: callsResult.data.length });
-      }
+  // ── TanStack Query: Stripe subscription status ───────────────────────────
+  const { data: subscription = null, isLoading: isLoadingSubscription } = useQuery({
+    queryKey: ['client-subscription', user?.id],
+    queryFn: async (): Promise<SubscriptionInfo> => {
+      const { data, error } = await supabase.functions.invoke('check-subscription');
+      if (error) throw error;
+      return data as SubscriptionInfo;
+    },
+    enabled: !!user,
+  });
 
-      if (!subscriptionResult.error && subscriptionResult.data) {
-        setSubscription(subscriptionResult.data);
-      }
+  const isLoading = isLoadingLead || isLoadingUsage || isLoadingSubscription;
 
-      setIsLoading(false);
-    };
-    fetchUsageAndSubscription();
-  }, [user]);
-
-  // ── Effect: dynamic billing (recalculates whenever lead/usage/sub changes) ─
-  useEffect(() => {
+  // ── Derived: dynamic billing (recalculates whenever lead/usage/sub change) ─
+  const billingResult = useMemo<DynamicBillingResult | null>(() => {
     const serviceType = leadData?.service_type ?? null;
+    if (!serviceType) return null;
     const planMinutes =
       (subscription?.minutes_included ?? 0) > 0
         ? subscription!.minutes_included
         : (leadData?.plan_minutes ?? 250);
-    if (serviceType) {
-      setBillingResult(calculateDynamicBilling(serviceType, usage.minutesUsed, planMinutes));
-    }
+    return calculateDynamicBilling(serviceType, usage.minutesUsed, planMinutes);
   }, [leadData, usage.minutesUsed, subscription]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────

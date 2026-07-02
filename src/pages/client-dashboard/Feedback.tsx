@@ -5,13 +5,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Inbox, MessageSquare, ChevronLeft } from 'lucide-react';
+import { Inbox, MessageSquare, ChevronLeft, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { directStatusLabel } from '@/lib/feedback/directStatus';
 import { FeedbackHistoryList } from '@/components/feedback/FeedbackHistoryList';
 import { FeedbackReplyComposer } from '@/components/feedback/FeedbackReplyComposer';
+import { FeedbackDialog } from '@/components/feedback/FeedbackDialog';
 
 type Row = {
   id: string;
@@ -27,6 +28,7 @@ export default function ClientFeedback() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [showNewFeedback, setShowNewFeedback] = useState(false);
 
   const { data: rows = [], isLoading: feedbackFetching } = useQuery({
     queryKey: ['client-feedback', user?.id],
@@ -73,9 +75,15 @@ export default function ClientFeedback() {
 
       {!active ? (
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Inbox className="h-5 w-5" />My Feedback</CardTitle>
-            <CardDescription>Anything you have submitted to 24H, plus replies from our team.</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle className="flex items-center gap-2"><Inbox className="h-5 w-5" />My Feedback</CardTitle>
+              <CardDescription>Anything you have submitted to 24H, plus replies from our team.</CardDescription>
+            </div>
+            <Button onClick={() => setShowNewFeedback(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Submit New Feedback
+            </Button>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -149,6 +157,8 @@ export default function ClientFeedback() {
           </Card>
         </div>
       )}
+
+      <FeedbackDialog open={showNewFeedback} onOpenChange={setShowNewFeedback} />
     </DashboardLayout>
   );
 }
