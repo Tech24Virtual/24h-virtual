@@ -1,5 +1,5 @@
 # GTM Readiness
-Last updated: 2026-07-01
+Last updated: 2026-07-02
 
 ## 🔖 CONTEXT FOR NEW CHAT
 
@@ -12,7 +12,7 @@ Last updated: 2026-07-01
 **All test passwords:** QATestPass123!
 
 **Last session summary:**
-Admin Dashboard fully audited and redesigned across all sections — Accounts (11 tabs), Campaign OS (14 pages), Insights (6 pages), Partners (7 pages), System (9 pages). 50+ missing DB grants fixed. Branding leakage tests passing 12/12. Next: Client Dashboard redesign.
+Admin Dashboard and Client Dashboard fully redesigned and audited. All 16 client dashboard pages checked end-to-end. 50+ missing DB grants fixed. CI green at 186/186. Next up: Sales/HR/WL Dashboard redesign or GTM items (NMI go-live, Google Calendar).
 
 **Key gotchas:**
 - `white_label_partners` uses `partner_slug` column (not `portal_slug`)
@@ -222,6 +222,30 @@ Admin Dashboard fully audited and redesigned across all sections — Accounts (1
 | WL portal branding leakage fix | WhiteLabelLayout + WLPortalLayout Helmet, neutral og:title in index.html | WhiteLabelLayout.tsx + WLPortalLayout.tsx |
 | Branding leakage tests | branding-leakage.spec.ts 12/12 ✅ | All BL-01 through BL-12 passing |
 | Recurring grant bug pattern documented | TRUNCATE/REFERENCES/TRIGGER ≠ CRUD — always use SELECT/INSERT/UPDATE/DELETE only | CLAUDE.md + migrations |
+| Client Dashboard full redesign | Gradient headers, TanStack Query, skeleton loading, all 16 pages |
+| Client Dashboard — P0 call_logs leadId fix | auth.uid() → leads.id resolved correctly across Dashboard, CallLogs, Billing |
+| Client Dashboard — profiles UPDATE grant | Settings and Schedule saves now work |
+| Client Dashboard — FAQ scoping fix | Scripts only shows client's own FAQs |
+| Client Dashboard — setup banner fix | Hides when handoff.status is ready_for_submission/activated/complete |
+| Client Dashboard — WizardPersonalizedHero fix | useClientOnboardingProgress returns isComplete:true when handoff submitted |
+| Client Dashboard — Schedule crash fix | select→setState pattern removed, useEffect initialises form |
+| Client Dashboard — Settings crash fix | Same select→setState pattern fixed |
+| Client Dashboard — SupportDetail DashboardLayout | Navigation no longer disappears on ticket detail page |
+| Client Dashboard — CallLogs race condition fix | Composite leadLoading + callsFetching flag, never flashes blank |
+| Client Dashboard — CallLogs date filter | Popover with From/To/Apply/Clear, filters via .gte/.lte |
+| Client Dashboard — CallDetailSheet | Shared slide-over for call details with notes and related calls |
+| Client Dashboard — sidebar badges | Support open tickets + Feedback active items, scoped to current user |
+| Client Dashboard — Feedback TanStack Query | Migrated from useEffect, realtime via invalidateQueries |
+| Client Dashboard — Feedback submit button | "Submit New Feedback" button added to Feedback page |
+| Client Dashboard — Billing TanStack Query | Usage stats and subscription migrated from useEffect |
+| Client Dashboard — Reports TanStack Query | leadId now cache-shared via ['client-lead'] key |
+| Client Dashboard — GoLive realtime | Checklist updates live when supervisor approves |
+| Client Dashboard — Support tickets default | Tickets tab is now default (not PiP) per Paul's feedback |
+| Client Dashboard — Referrals status fix | INSERT now sets status:'pending' explicitly |
+| Client Dashboard — Settings JSONB merge | Notification preferences keys no longer dropped on save |
+| Client Dashboard — Billing cleanup | mode_used badge hidden, Upgrade Plan opens mailto |
+| Client Dashboard — mobile nav fix | Derived from clientNavGroups, all routes included |
+| Client Dashboard — billing nav fix | basePath corrected, highlights correctly |
 
 ---
 
@@ -229,7 +253,6 @@ Admin Dashboard fully audited and redesigned across all sections — Accounts (1
 
 | Task | Priority | Notes |
 |------|----------|-------|
-| Dashboard redesign — Client | MEDIUM | Next up |
 | Dashboard redesign — Sales/HR/WL | LOW | After Client |
 | Google Calendar integration | MEDIUM | Waiting on Paul's Google Workspace API credentials |
 | NMI go-live | HIGH | Waiting on Paul + Ryker (PlatPay) — need merchant account + live API key |
@@ -246,7 +269,7 @@ Admin Dashboard fully audited and redesigned across all sections — Accounts (1
 ## 📊 Test Score
 ```
 Vitest RLS:  19/19  ✅
-Playwright: 186/186 ✅ (skipped tests are for live Five9/NMI credentials)
+Playwright: 186/186 ✅
 CI Pipeline:   green ✅
 Total:       205/205 ✅
 ```
