@@ -13,6 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import {
   Search, Phone, Clock, PhoneIncoming, PhoneOutgoing,
@@ -98,6 +99,7 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
 }
 
 export default function AgentCallLogs() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -105,17 +107,37 @@ export default function AgentCallLogs() {
   const [agentNotesDraft, setAgentNotesDraft] = useState('');
   const [noteSaved, setNoteSaved] = useState(false);
 
-  const { data: calls, isLoading } = useQuery({
-    queryKey: ['agent-call-logs'],
+  const { data: onboarding } = useQuery({
+    queryKey: ['agent-onboarding-username', user?.id],
     queryFn: async () => {
+      const { data, error } = await supabase
+        .from('agent_onboarding')
+        .select('five9_username')
+        .eq('applicant_user_id', user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+    staleTime: 5 * 60_000,
+  });
+  const five9Username = onboarding?.five9_username ?? null;
+
+  const { data: calls, isLoading } = useQuery({
+    queryKey: ['agent-call-logs', user?.id, five9Username],
+    queryFn: async () => {
+      if (!five9Username) return [];
       const { data, error } = await supabase
         .from('call_logs')
         .select('*')
+        .eq('agent_name', five9Username)
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(200);
       if (error) throw error;
       return data as unknown as CallLog[];
     },
+    enabled: !!user?.id,
+    staleTime: 60_000,
   });
 
   const { data: relatedCalls = [], isFetching: relatedLoading } = useQuery({
@@ -153,7 +175,7 @@ export default function AgentCallLogs() {
       // Update selectedCall immediately so the sheet reflects the saved value
       setSelectedCall(prev => prev ? { ...prev, agent_notes: variables.notes } : null);
       // Patch the list cache directly — no refetch race condition
-      queryClient.setQueryData<CallLog[]>(['agent-call-logs'], (old) =>
+      queryClient.setQueryData<CallLog[]>(['agent-call-logs', user?.id, five9Username], (old) =>
         old?.map(c => c.id === variables.id ? { ...c, agent_notes: variables.notes } : c)
       );
       setNoteSaved(true);
@@ -208,7 +230,7 @@ export default function AgentCallLogs() {
         <div>
           <h1 className="text-3xl font-bold">Call Logs</h1>
           <p className="text-muted-foreground">
-            Showing calls for your assigned clients
+            Showing calls you handled or missed
             {!isLoading && calls !== undefined && (
               <span className="ml-1 text-foreground font-medium">
                 — {calls.length} call{calls.length !== 1 ? 's' : ''} found
@@ -304,12 +326,16 @@ export default function AgentCallLogs() {
                         <p className="font-medium">
                           {searchQuery || statusFilter !== 'all'
                             ? 'No calls match your filters'
-                            : 'No calls found for your assigned clients yet'}
+                            : !five9Username
+                            ? "Your Five9 account hasn't been provisioned yet"
+                            : 'No calls found for your account yet'}
                         </p>
                         <p className="text-sm text-muted-foreground max-w-xs">
                           {searchQuery || statusFilter !== 'all'
                             ? 'Try clearing the search or status filter.'
-                            : 'Calls handled by your clients will appear here once recorded in Five9.'}
+                            : !five9Username
+                            ? 'Contact your supervisor.'
+                            : 'Calls you handle will appear here once recorded in Five9.'}
                         </p>
                       </div>
                     </TableCell>
