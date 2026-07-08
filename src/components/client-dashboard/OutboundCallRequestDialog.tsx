@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -22,6 +23,7 @@ export function OutboundCallRequestDialog({ open, onClose }: OutboundCallRequest
     contact_phone: '',
     reason: '',
     urgency: 'normal',
+    max_attempts: '3',
   });
 
   const handleSave = async () => {
@@ -45,12 +47,13 @@ export function OutboundCallRequestDialog({ open, onClose }: OutboundCallRequest
           contact_phone: formData.contact_phone.trim(),
           reason: formData.reason.trim() || null,
           urgency: formData.urgency,
+          max_attempts: parseInt(formData.max_attempts, 10),
           source: 'portal',
         });
 
       if (error) throw error;
       toast.success('Outbound call request submitted!');
-      setFormData({ contact_name: '', contact_phone: '', reason: '', urgency: 'normal' });
+      setFormData({ contact_name: '', contact_phone: '', reason: '', urgency: 'normal', max_attempts: '3' });
       onClose(true);
     } catch (error) {
       console.error('Error submitting outbound call request:', error);
@@ -115,6 +118,27 @@ export function OutboundCallRequestDialog({ open, onClose }: OutboundCallRequest
                 <Label htmlFor="urgent" className="cursor-pointer text-destructive">Urgent</Label>
               </div>
             </RadioGroup>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Follow-up attempts if no answer</Label>
+            <Select
+              value={formData.max_attempts}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, max_attempts: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select attempts" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">1 attempt (no follow-up)</SelectItem>
+                <SelectItem value="2">2 attempts</SelectItem>
+                <SelectItem value="3">3 attempts</SelectItem>
+                <SelectItem value="5">5 attempts</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              If the contact doesn't answer, our agents will follow up this many times before closing the request.
+            </p>
           </div>
         </div>
 

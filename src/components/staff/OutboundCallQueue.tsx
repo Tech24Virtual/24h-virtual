@@ -283,6 +283,7 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
               (req.claimed_by === user?.id || role === 'supervisor' || role === 'admin');
             const canStart = req.status === 'claimed' && req.claimed_by === user?.id;
             const showDialHelper = req.claimed_by === user?.id && ['claimed', 'in_progress'].includes(req.status);
+            const attemptsRemaining = (req.max_attempts ?? 3) - (req.attempt_count ?? 0);
 
             return (
               <Card
@@ -361,7 +362,7 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
                       {/* Meta */}
                       <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                         <span>{formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}</span>
-                        {req.attempt_count > 0 && <span>Attempt {req.attempt_count}/{req.max_attempts}</span>}
+                        <span>{Math.max(attemptsRemaining, 0)} of {req.max_attempts ?? 3} follow-ups remaining</span>
                         <Badge variant="outline" className="text-xs">{req.source}</Badge>
                       </div>
 
