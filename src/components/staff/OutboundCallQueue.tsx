@@ -26,11 +26,13 @@ interface ClaimPayload {
   urgency: string;
 }
 
-const STATUS_TABS = ['all', 'pending', 'scheduled', 'retry_pending', 'in_progress', 'completed', 'failed'] as const;
+const AGENT_STATUS_TABS = ['all', 'pending', 'scheduled', 'completed'] as const;
+const FULL_STATUS_TABS = ['all', 'pending', 'scheduled', 'retry_pending', 'in_progress', 'completed', 'failed'] as const;
 
 export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
   const { user, profile } = useAuth();
   const queryClient = useQueryClient();
+  const statusTabs = role === 'agent' ? AGENT_STATUS_TABS : FULL_STATUS_TABS;
   const [activeTab, setActiveTab] = useState<string>('all');
   const [drawer, setDrawer] = useState<{ open: boolean; requestId: string | null }>({ open: false, requestId: null });
   const [attemptDialog, setAttemptDialog] = useState<{
@@ -102,11 +104,17 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
 
       const { data, error } = await supabase
         .from('outbound_call_requests')
-        .select('status, claimed_by, completed_at, last_attempt_at, next_retry_at');
+        .select('status, claimed_by, completed_at, last_attempt_at, next_retry_at, scheduled_callback_at');
       if (error) throw error;
+
+      const now = new Date();
+      const isFutureCallback = (r: { scheduled_callback_at: string | null }) =>
+        !!r.scheduled_callback_at && new Date(r.scheduled_callback_at) > now;
 
       return {
         pending: (data || []).filter(r => r.status === 'pending').length,
+        pendingReady: (data || []).filter(r => r.status === 'pending' && !isFutureCallback(r)).length,
+        scheduled: (data || []).filter(r => r.status === 'pending' && isFutureCallback(r)).length,
         myActive: (data || []).filter(r => r.claimed_by === user?.id && ['claimed', 'in_progress', 'retry_pending'].includes(r.status)).length,
         totalActive: (data || []).filter(r => ['claimed', 'in_progress'].includes(r.status)).length,
         retryDue: (data || []).filter(r => r.status === 'retry_pending').length,
@@ -179,41 +187,60 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
   return (
     <div className="space-y-6">
       {/* Stats Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-foreground">{stats?.pending ?? 0}</p>
-            <p className="text-xs text-muted-foreground">Pending</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-foreground">
-              {role === 'supervisor' || role === 'admin' ? (stats?.totalActive ?? 0) : (stats?.myActive ?? 0)}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {role === 'supervisor' || role === 'admin' ? 'Active' : 'My Active'}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-primary">{stats?.retryDue ?? 0}</p>
-            <p className="text-xs text-muted-foreground">Retry Due</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-foreground">{stats?.completedToday ?? 0}</p>
-            <p className="text-xs text-muted-foreground">Completed Today</p>
-          </CardContent>
-        </Card>
-      </div>
+      {role === 'agent' ? (
+        <div className="grid grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-foreground">{stats?.pendingReady ?? 0}</p>
+              <p className="text-xs text-muted-foreground">Pending</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-foreground">{stats?.scheduled ?? 0}</p>
+              <p className="text-xs text-muted-foreground">Scheduled</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-foreground">{stats?.completedToday ?? 0}</p>
+              <p className="text-xs text-muted-foreground">Completed Today</p>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-foreground">{stats?.pending ?? 0}</p>
+              <p className="text-xs text-muted-foreground">Pending</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-foreground">{stats?.totalActive ?? 0}</p>
+              <p className="text-xs text-muted-foreground">Active</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-primary">{stats?.retryDue ?? 0}</p>
+              <p className="text-xs text-muted-foreground">Retry Due</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-foreground">{stats?.completedToday ?? 0}</p>
+              <p className="text-xs text-muted-foreground">Completed Today</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Filter Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap">
-          {STATUS_TABS.map((f) => (
+          {statusTabs.map((f) => (
             <TabsTrigger key={f} value={f} className="capitalize">
               {f === 'retry_pending' ? 'Retry Due' : f === 'in_progress' ? 'In Progress' : f}
             </TabsTrigger>
