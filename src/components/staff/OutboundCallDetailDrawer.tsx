@@ -30,6 +30,7 @@ const OUTCOME_META: Record<string, { label: string; icon: string; colorClass: st
   wrong_number: { label: 'Wrong Number',   icon: '❌', colorClass: 'text-red-600 dark:text-red-400' },
   follow_up:    { label: 'Follow Up',      icon: '📋', colorClass: 'text-purple-600 dark:text-purple-400' },
   note:         { label: 'Note',           icon: '📝', colorClass: 'text-muted-foreground' },
+  no_answer_max_attempts: { label: 'No Answer - Max Attempts', icon: '🚫', colorClass: 'text-destructive' },
 };
 
 function RequestStatusBadge({ status }: { status: string }) {

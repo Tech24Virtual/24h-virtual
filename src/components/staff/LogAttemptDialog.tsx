@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { Calendar } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface LogAttemptDialogProps {
   open: boolean;
@@ -32,6 +33,7 @@ const CALL_OUTCOMES = [
   { value: 'busy',        label: 'Busy',            description: 'Follow up needed',                requiresFollowUp: true,  icon: '🔄' },
   { value: 'wrong_number', label: 'Wrong Number',   description: 'Creates task for correct number', requiresFollowUp: false, icon: '❌' },
   { value: 'follow_up',   label: 'Follow Up',       description: 'Follow up needed',                requiresFollowUp: true,  icon: '📋' },
+  { value: 'no_answer_max_attempts', label: 'No Answer - Max Attempts', description: 'No further follow up required', requiresFollowUp: false, icon: '🚫' },
 ] as const;
 
 function toLocalDatetimeValue(date: Date): string {
@@ -79,6 +81,8 @@ export function LogAttemptDialog({ open, onClose, request, handlerRole }: LogAtt
         newStatus = 'completed';
       } else if (outcome === 'wrong_number') {
         newStatus = 'failed';
+      } else if (outcome === 'no_answer_max_attempts') {
+        newStatus = 'failed';
       } else if (requiresFollowUp) {
         newStatus = 'pending';
         scheduledCbAt = scheduledCallbackAt
@@ -88,19 +92,31 @@ export function LogAttemptDialog({ open, onClose, request, handlerRole }: LogAtt
         newStatus = 'pending';
       }
 
-      // Insert attempt record with digital signature
-      await (supabase as any).from('outbound_call_attempts').insert({
-        request_id: request.id,
-        agent_id: user.id,
-        agent_name: profile?.full_name || user.email || 'Agent',
-        attempt_number: nextAttempt,
-        outcome,
-        notes: notes.trim() || null,
-        retry_scheduled_for: scheduledCbAt,
-        handler_id: user.id,
-        handler_name: profile?.full_name || null,
-        handler_role: handlerRole || null,
-      });
+      // Guard against duplicate inserts if a prior save attempt inserted the
+      // attempt row but failed before/during the request update below (e.g. on retry).
+      const { data: existingAttempt } = await supabase
+        .from('outbound_call_attempts')
+        .select('id')
+        .eq('request_id', request.id)
+        .eq('attempt_number', nextAttempt)
+        .maybeSingle();
+
+      if (!existingAttempt) {
+        // Insert attempt record with digital signature
+        const { error: attemptError } = await (supabase as any).from('outbound_call_attempts').insert({
+          request_id: request.id,
+          agent_id: user.id,
+          agent_name: profile?.full_name || user.email || 'Agent',
+          attempt_number: nextAttempt,
+          outcome,
+          notes: notes.trim() || null,
+          retry_scheduled_for: scheduledCbAt,
+          handler_id: user.id,
+          handler_name: profile?.full_name || null,
+          handler_role: handlerRole || null,
+        });
+        if (attemptError) throw attemptError;
+      }
 
       // Build update payload
       const updateData: Record<string, unknown> = {
@@ -162,18 +178,19 @@ export function LogAttemptDialog({ open, onClose, request, handlerRole }: LogAtt
       }
 
       const toastMsg =
-        outcome === 'completed'    ? 'Call completed!' :
-        outcome === 'wrong_number' ? 'Marked as wrong number — task created' :
-        requiresFollowUp           ? `Callback scheduled for ${new Date(scheduledCbAt!).toLocaleString()}` :
-                                     'Attempt logged';
+        outcome === 'completed'             ? 'Call completed!' :
+        outcome === 'wrong_number'          ? 'Marked as wrong number — task created' :
+        outcome === 'no_answer_max_attempts' ? 'Marked as failed — max attempts reached' :
+        requiresFollowUp                    ? `Callback scheduled for ${new Date(scheduledCbAt!).toLocaleString()}` :
+                                              'Attempt logged';
 
       toast.success(toastMsg);
       queryClient.invalidateQueries({ queryKey: ['outbound-requests'] });
       queryClient.invalidateQueries({ queryKey: ['outbound-stats'] });
       handleClose();
-    } catch (err) {
-      console.error('Error logging attempt:', err);
-      toast.error('Failed to log attempt');
+    } catch (err: any) {
+      console.error('Log attempt error:', err);
+      toast.error(`Failed to log attempt: ${err?.message ?? JSON.stringify(err)}`);
     } finally {
       setIsSaving(false);
     }
@@ -198,12 +215,22 @@ export function LogAttemptDialog({ open, onClose, request, handlerRole }: LogAtt
                 <button
                   key={o.value}
                   type="button"
-                  onClick={() => setOutcome(o.value)}
-                  className={`flex items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors ${
-                    outcome === o.value
-                      ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                      : 'border-border hover:border-muted-foreground/40 hover:bg-muted/30'
-                  }`}
+                  onClick={() => {
+                    setOutcome(o.value);
+                    if (o.value === 'no_answer_max_attempts') {
+                      setNotes('Maximum call attempts reached - no further follow up');
+                    }
+                  }}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors',
+                    o.value === 'no_answer_max_attempts'
+                      ? outcome === o.value
+                        ? 'border-destructive bg-destructive/10 text-destructive'
+                        : 'border-border hover:border-destructive/50'
+                      : outcome === o.value
+                        ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                        : 'border-border hover:border-muted-foreground/40 hover:bg-muted/30'
+                  )}
                 >
                   <span className="text-lg leading-none">{o.icon}</span>
                   <div className="flex-1 min-w-0">
