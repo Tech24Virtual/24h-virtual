@@ -226,7 +226,7 @@ export function StaffSidebar({ role }: StaffSidebarProps) {
     enabled: !!user?.id && isSupervisor,
   });
 
-  // ── Onboarding completion — hide Onboarding + Training nav items when done ──
+  // ── Onboarding completion — hide the Onboarding nav item once done ──────────
 
   const { data: agentOnboarding } = useQuery({
     queryKey: ['agent-onboarding-nav', user?.id],
@@ -236,14 +236,15 @@ export function StaffSidebar({ role }: StaffSidebarProps) {
         .from('agent_onboarding')
         .select('status')
         .eq('applicant_user_id', user!.id)
-        .maybeSingle();
+        .order('created_at', { ascending: false })
+        .limit(1);
       return data ?? null;
     },
     enabled: !!user?.id && isAgent,
     retry: 1,
   });
 
-  const onboardingComplete = agentOnboarding?.status === 'completed';
+  const onboardingComplete = agentOnboarding?.[0]?.status === 'completed';
 
   // ── Build nav groups with injected child badges ──────────────────────────
   // Group-level dots are auto-computed by DrilldownSidebar from children badges —
@@ -281,7 +282,7 @@ export function StaffSidebar({ role }: StaffSidebarProps) {
 
     return groups.map(g => {
       const visibleChildren = (onboardingComplete && g.name === 'Profile')
-        ? g.children.filter(c => c.name !== 'Onboarding' && c.name !== 'Training')
+        ? g.children.filter(c => c.name !== 'Onboarding')
         : g.children;
 
       const childrenWithBadges = visibleChildren.map(c => {
