@@ -186,7 +186,7 @@ export async function forecastRevenue(horizon: ForecastHorizon = "30d"): Promise
         active_leads: activeLeads,
         active_value_usd: Math.round(activeValue),
         baseline_30d_conversion: REVENUE_BASELINE_CONVERSION,
-        horizon_scale: Number(horizonScale.toFixed(3)),
+        horizon_scale: Number(horizonScale.toFixed(2)),
       },
       confidence: activeLeads >= 20 ? "moderate" : activeLeads > 0 ? "low" : "insufficient",
       horizon,
@@ -260,7 +260,7 @@ export async function forecastDelivery(horizon: ForecastHorizon = "7d"): Promise
       inputs: {
         open_intakes: total,
         baseline_30d_activation: DELIVERY_ACTIVATION_RATE_30D,
-        horizon_scale: Number(horizonScale.toFixed(3)),
+        horizon_scale: Number(horizonScale.toFixed(2)),
         oldest_age_days: oldestAgeDays ?? 0,
       },
       confidence: total >= 10 ? "moderate" : total > 0 ? "low" : "insufficient",
@@ -336,7 +336,7 @@ export async function forecastVoice(horizon: ForecastHorizon = "7d"): Promise<Vo
       inputs: {
         ready_to_activate: counts.ready,
         baseline_7d_go_live: VOICE_GO_LIVE_RATE_7D,
-        horizon_scale: Number(horizonScale.toFixed(3)),
+        horizon_scale: Number(horizonScale.toFixed(2)),
       },
       confidence: counts.ready >= 5 ? "moderate" : counts.ready > 0 ? "low" : "insufficient",
       horizon,
@@ -401,7 +401,7 @@ export async function forecastWL(horizon: ForecastHorizon = "30d"): Promise<WLAc
       inputs: {
         candidate_partners: candidates,
         baseline_30d_go_live: WL_GO_LIVE_RATE_30D,
-        horizon_scale: Number(horizonScale.toFixed(3)),
+        horizon_scale: Number(horizonScale.toFixed(2)),
       },
       confidence: candidates >= 3 ? "moderate" : candidates > 0 ? "low" : "insufficient",
       horizon,

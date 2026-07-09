@@ -146,7 +146,7 @@ export default function Referrals() {
               <DollarSign className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${stats.totalRewards}</div>
+              <div className="text-2xl font-bold">${stats.totalRewards.toFixed(2)}</div>
             </CardContent>
           </Card>
         </div>
@@ -274,7 +274,7 @@ export default function Referrals() {
                       </p>
                       {referral.reward_amount && referral.reward_amount > 0 && (
                         <p className="text-sm font-medium text-green-600 mt-1">
-                          Reward: ${referral.reward_amount}
+                          Reward: ${referral.reward_amount.toFixed(2)}
                         </p>
                       )}
                     </div>

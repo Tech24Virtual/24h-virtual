@@ -91,7 +91,7 @@ export function SendOfferDialog({ open, onOpenChange, onSuccess }: SendOfferDial
           supervisor_id: user!.id,
           job_application_id: app.id,
           status: 'offer_pending',
-          pay_rate: parseFloat(payRate),
+          pay_rate: Math.round(parseFloat(payRate) * 100) / 100,
           pay_type: payType,
           schedule_type: scheduleType,
           contract_text: contractText || null,
@@ -113,7 +113,7 @@ export function SendOfferDialog({ open, onOpenChange, onSuccess }: SendOfferDial
       await supabase.from('notifications').insert({
         user_id: app.applicant_user_id,
         title: 'You have a new offer!',
-        message: `An offer has been sent for your review. Pay: $${payRate}/${payType === 'hourly' ? 'hr' : 'min'}`,
+        message: `An offer has been sent for your review. Pay: $${Number(payRate).toFixed(2)}/${payType === 'hourly' ? 'hr' : 'min'}`,
         category: 'onboarding',
         action_url: '/hr-portal',
       });

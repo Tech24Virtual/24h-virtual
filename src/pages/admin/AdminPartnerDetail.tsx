@@ -341,7 +341,7 @@ export default function AdminPartnerDetail() {
                 <InfoRow label="Company Size" value={partner.company_size || '-'} />
                 <InfoRow label="Address" value={partner.address || '-'} />
                 <InfoRow label="Tier" value={partner.tier || 'reseller'} />
-                <InfoRow label="Monthly Fee" value={`$${partner.monthly_fee || 0}`} />
+                <InfoRow label="Monthly Fee" value={`$${(partner.monthly_fee || 0).toFixed(2)}`} />
                 <InfoRow label="Joined" value={partner.created_at ? format(new Date(partner.created_at), 'MMM d, yyyy') : '-'} />
               </CardContent>
             </Card>
@@ -349,7 +349,7 @@ export default function AdminPartnerDetail() {
               <CardHeader><CardTitle className="text-lg">Volume Discount Status</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 <InfoRow label="Discount Active" value={latestUsage?.volume_discount_active ? 'Yes' : 'No'} />
-                <InfoRow label="Fixed Rate" value={pricing?.volume_discount_fixed_rate ? `$${pricing.volume_discount_fixed_rate}/min` : 'Not set'} />
+                <InfoRow label="Fixed Rate" value={pricing?.volume_discount_fixed_rate ? `$${pricing.volume_discount_fixed_rate.toFixed(2)}/min` : 'Not set'} />
                 <InfoRow label="Min Minutes Threshold" value={`${pricing?.volume_discount_min_minutes?.toLocaleString() || 10000} min`} />
                 <InfoRow label="Current Monthly Minutes" value={`${latestUsage?.total_minutes_all_clients?.toLocaleString() || 0} min`} />
                 {pricing?.volume_discount_min_minutes && latestUsage?.total_minutes_all_clients && (
@@ -400,8 +400,8 @@ export default function AdminPartnerDetail() {
                     return (
                       <TableRow key={product.id}>
                         <TableCell className="font-medium">{product.name}</TableCell>
-                        <TableCell>${product.default_price}</TableCell>
-                        <TableCell>{ap ? `$${ap.wholesale_price}` : '-'}</TableCell>
+                        <TableCell>${product.default_price.toFixed(2)}</TableCell>
+                        <TableCell>{ap ? `$${ap.wholesale_price.toFixed(2)}` : '-'}</TableCell>
                         <TableCell>{ap ? (ap.is_available ? <Check className="w-4 h-4 text-green-500" /> : <X className="w-4 h-4 text-destructive" />) : '-'}</TableCell>
                       </TableRow>
                     );

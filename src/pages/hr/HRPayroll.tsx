@@ -98,7 +98,7 @@ export default function HRPayroll() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant="secondary" className="capitalize">{br.employment_type}</Badge>
-                        {br.hourly_rate && <span className="text-sm font-medium">${br.hourly_rate}/hr</span>}
+                        {br.hourly_rate && <span className="text-sm font-medium">${Number(br.hourly_rate).toFixed(2)}/hr</span>}
                         <Button size="sm" variant="outline" onClick={() => { setSelectedAgentId(br.agent_id); setBankingDialogOpen(true); }}>Edit</Button>
                       </div>
                     </CardContent>

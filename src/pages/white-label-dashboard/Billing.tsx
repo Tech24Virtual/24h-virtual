@@ -125,7 +125,7 @@ export default function WhiteLabelBilling() {
                       </Badge>
                     </div>
                     <p className="text-3xl font-bold text-primary mb-4">
-                      ${displayPrice}<span className="text-sm font-normal text-muted-foreground">/month</span>
+                      ${displayPrice.toFixed(2)}<span className="text-sm font-normal text-muted-foreground">/month</span>
                     </p>
                     <ul className="space-y-2">
                       {currentTier.features.map((feature) => (
@@ -149,7 +149,7 @@ export default function WhiteLabelBilling() {
               <Card>
                 <CardContent className="pt-6">
                   <p className="text-sm text-muted-foreground mb-1">Next Payment</p>
-                  <p className="text-2xl font-bold text-heading">${displayPrice}</p>
+                  <p className="text-2xl font-bold text-heading">${displayPrice.toFixed(2)}</p>
                   <p className="text-xs text-muted-foreground">Due {nextPaymentStr}</p>
                 </CardContent>
               </Card>
@@ -199,7 +199,7 @@ export default function WhiteLabelBilling() {
                           <TableCell>
                             {new Date(invoice.billing_period_start).toLocaleDateString()} – {new Date(invoice.billing_period_end).toLocaleDateString()}
                           </TableCell>
-                          <TableCell>${invoice.amount}</TableCell>
+                          <TableCell>${invoice.amount.toFixed(2)}</TableCell>
                           <TableCell>
                             <Badge variant="secondary" className={
                               invoice.status === 'paid' ? 'bg-cta/10 text-cta' :

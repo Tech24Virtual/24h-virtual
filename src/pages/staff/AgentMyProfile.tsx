@@ -139,7 +139,7 @@ export default function AgentMyProfile() {
             <CardContent className="space-y-3">
               {banking ? (
                 <>
-                  <InfoRow label="Hourly Rate" value={banking.hourly_rate ? `$${banking.hourly_rate}/${banking.currency || 'USD'}` : 'N/A'} />
+                  <InfoRow label="Hourly Rate" value={banking.hourly_rate ? `$${Number(banking.hourly_rate).toFixed(2)}/${banking.currency || 'USD'}` : 'N/A'} />
                   <InfoRow label="Employment Type" value={<Badge variant="outline" className="capitalize">{banking.employment_type}</Badge>} />
                   <InfoRow label="Country" value={banking.country} />
                   <InfoRow label="Break Policy" value={banking.break_policy} />

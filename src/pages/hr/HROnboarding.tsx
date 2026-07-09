@@ -160,7 +160,7 @@ export default function HROnboarding() {
                           <Progress value={progress} className="h-2" />
                         </div>
                         <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-                          {ob.pay_rate && <span>Pay: ${ob.pay_rate}/{ob.pay_type === 'hourly' ? 'hr' : 'min'}</span>}
+                          {ob.pay_rate && <span>Pay: ${Number(ob.pay_rate).toFixed(2)}/{ob.pay_type === 'hourly' ? 'hr' : 'min'}</span>}
                           {ob.schedule_type && <span className="capitalize">Schedule: {ob.schedule_type?.replace('_', ' ')}</span>}
                           {ob.banking_submitted && <span className="text-primary">Banking ✓</span>}
                         </div>

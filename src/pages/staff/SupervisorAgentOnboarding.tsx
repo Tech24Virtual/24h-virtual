@@ -208,7 +208,7 @@ export default function SupervisorAgentOnboarding() {
                         {o.agent_name || 'Unknown Agent'}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {o.pay_type === 'hourly' ? `$${o.pay_rate}/hr` : `$${o.pay_rate}/min`}
+                        {o.pay_type === 'hourly' ? `$${Number(o.pay_rate).toFixed(2)}/hr` : `$${Number(o.pay_rate).toFixed(2)}/min`}
                         {' · '}
                         {o.schedule_type?.replace('_', ' ')}
                         {' · Started '}

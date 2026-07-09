@@ -86,7 +86,7 @@ function TierCard({ tier, plan, isAnnual }: { tier: HybridTier; plan: HybridPlan
 
           {/* Overage rates */}
           <div className="text-xs text-muted-foreground pt-2 border-t">
-            <p>Overage: AI ${plan.aiOverageRate}/min • Human ${plan.humanOverageRate}/min</p>
+            <p>Overage: AI ${plan.aiOverageRate.toFixed(2)}/min • Human ${plan.humanOverageRate.toFixed(2)}/min</p>
           </div>
 
           {/* CTA */}

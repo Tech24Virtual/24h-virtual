@@ -113,7 +113,7 @@ export function ClientBillingItemsManager({ leadId, basePlan }: ClientBillingIte
     onSuccess: (data, addon) => {
       toast({
         title: 'One-time charge created',
-        description: `${addon.name} - $${addon.price} has been invoiced`,
+        description: `${addon.name} - $${addon.price.toFixed(2)} has been invoiced`,
       });
       queryClient.invalidateQueries({ queryKey: ['client-addons', leadId] });
     },
@@ -180,7 +180,7 @@ export function ClientBillingItemsManager({ leadId, basePlan }: ClientBillingIte
                 </div>
               </div>
               <div className="text-right">
-                <div className="font-bold">${basePlan.price}/mo</div>
+                <div className="font-bold">${basePlan.price.toFixed(2)}/mo</div>
                 <Badge variant="default" className="mt-1">Active</Badge>
               </div>
             </div>
@@ -272,16 +272,16 @@ export function ClientBillingItemsManager({ leadId, basePlan }: ClientBillingIte
         <div className="bg-muted/50 rounded-lg p-4 space-y-2">
           <div className="flex justify-between text-sm">
             <span>Base Plan:</span>
-            <span>${basePlan?.price || 0}</span>
+            <span>${(basePlan?.price || 0).toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span>Active Add-Ons ({activeAddOns?.filter(a => a.billing_type === 'recurring').length || 0}):</span>
-            <span>${monthlyAddOnsTotal}</span>
+            <span>${monthlyAddOnsTotal.toFixed(2)}</span>
           </div>
           <Separator />
           <div className="flex justify-between font-bold">
             <span>Total Monthly:</span>
-            <span>${totalMonthly}/mo</span>
+            <span>${totalMonthly.toFixed(2)}/mo</span>
           </div>
         </div>
       </CardContent>

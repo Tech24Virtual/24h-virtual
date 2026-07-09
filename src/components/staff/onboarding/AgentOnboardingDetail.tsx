@@ -188,7 +188,7 @@ export function AgentOnboardingDetail({ onboarding, onBack, onRefresh }: AgentOn
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
             <div>
               <p className="text-muted-foreground">Pay Rate</p>
-              <p className="font-medium">${onboarding.pay_rate}/{onboarding.pay_type === 'hourly' ? 'hr' : 'min'}</p>
+              <p className="font-medium">${Number(onboarding.pay_rate).toFixed(2)}/{onboarding.pay_type === 'hourly' ? 'hr' : 'min'}</p>
             </div>
             <div>
               <p className="text-muted-foreground">Schedule</p>

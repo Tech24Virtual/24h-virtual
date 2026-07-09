@@ -82,9 +82,9 @@ export function CustomPlanBuilder({ open, onOpenChange, preselectedLeadId }: Cus
           leadId,
           planType,
           planName: planName.trim(),
-          minuteRate: minuteRate ? parseFloat(minuteRate) : undefined,
-          fixedAmount: fixedAmount ? parseFloat(fixedAmount) : undefined,
-          minimumMonthly: minimumMonthly ? parseFloat(minimumMonthly) : undefined,
+          minuteRate: minuteRate ? Math.round(parseFloat(minuteRate) * 100) / 100 : undefined,
+          fixedAmount: fixedAmount ? Math.round(parseFloat(fixedAmount) * 100) / 100 : undefined,
+          minimumMonthly: minimumMonthly ? Math.round(parseFloat(minimumMonthly) * 100) / 100 : undefined,
           notes: notes.trim() || undefined,
         },
       });
@@ -265,11 +265,11 @@ export function CustomPlanBuilder({ open, onOpenChange, preselectedLeadId }: Cus
             <div className="bg-muted/50 rounded-lg p-3 text-sm">
               <div className="font-medium">{planName}</div>
               <div className="text-muted-foreground">
-                {planType === 'per_minute' && minuteRate && `$${minuteRate}/minute`}
-                {planType === 'fixed' && fixedAmount && `$${fixedAmount}/month`}
-                {planType === 'hybrid' && fixedAmount && minuteRate && 
-                  `$${fixedAmount}/month base + $${minuteRate}/minute`}
-                {minimumMonthly && ` (min $${minimumMonthly}/mo)`}
+                {planType === 'per_minute' && minuteRate && `$${Number(minuteRate).toFixed(2)}/minute`}
+                {planType === 'fixed' && fixedAmount && `$${Number(fixedAmount).toFixed(2)}/month`}
+                {planType === 'hybrid' && fixedAmount && minuteRate &&
+                  `$${Number(fixedAmount).toFixed(2)}/month base + $${Number(minuteRate).toFixed(2)}/minute`}
+                {minimumMonthly && ` (min $${Number(minimumMonthly).toFixed(2)}/mo)`}
               </div>
             </div>
           )}

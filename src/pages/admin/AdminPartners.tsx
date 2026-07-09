@@ -564,7 +564,7 @@ export default function AdminPartners() {
                           </TableCell>
                           <TableCell>
                             {partner.reward_paid_at ? (
-                              <span className="text-cta font-medium">${partner.reward_amount} Paid</span>
+                              <span className="text-cta font-medium">${(partner.reward_amount || 0).toFixed(2)} Paid</span>
                             ) : (
                               <span className="text-muted-foreground">$150 Pending</span>
                             )}

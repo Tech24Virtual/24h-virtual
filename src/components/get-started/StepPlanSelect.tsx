@@ -766,7 +766,7 @@ export function StepPlanSelect({ data, updateData, nextStep, prevStep }: StepPro
           <p className="text-center text-sm text-muted-foreground">
             {isHybrid ? (
               <>
-                AI overage: ${hybridPlan.aiOverageRate}/min • Human overage: ${hybridPlan.humanOverageRate}/min
+                AI overage: ${hybridPlan.aiOverageRate.toFixed(2)}/min • Human overage: ${hybridPlan.humanOverageRate.toFixed(2)}/min
               </>
             ) : (
               <>

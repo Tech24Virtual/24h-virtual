@@ -298,10 +298,10 @@ export default function AdminBilling() {
                             {plan.plan_type}
                           </Badge>
                           {plan.minute_rate && (
-                            <div className="text-sm font-medium mt-1">${plan.minute_rate}/min</div>
+                            <div className="text-sm font-medium mt-1">${plan.minute_rate.toFixed(2)}/min</div>
                           )}
                           {plan.fixed_amount && (
-                            <div className="text-sm font-medium mt-1">${plan.fixed_amount}/mo</div>
+                            <div className="text-sm font-medium mt-1">${plan.fixed_amount.toFixed(2)}/mo</div>
                           )}
                         </div>
                       </div>

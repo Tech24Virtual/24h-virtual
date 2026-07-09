@@ -130,7 +130,7 @@ export default function WLCampaigns() {
                 </div>
                 <div className="p-3 bg-muted/50 rounded-lg text-sm">
                   <p className="font-medium">Pricing</p>
-                  <p className="text-muted-foreground">First campaign: ${setupFee} setup · Additional: ${additionalFee} each</p>
+                  <p className="text-muted-foreground">First campaign: ${setupFee.toFixed(2)} setup · Additional: ${additionalFee.toFixed(2)} each</p>
                 </div>
                 <Button onClick={handleCreate} className="w-full">Add Campaign</Button>
               </div>
