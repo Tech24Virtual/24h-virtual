@@ -75,7 +75,13 @@ export default function AgentNotifications() {
 
   const handleClick = async (n: typeof notifications[0]) => {
     if (!n.is_read) await markAsRead(n.id);
-    if (n.action_url) navigate(n.action_url);
+    if (n.action_url) {
+      if (n.action_url.startsWith('http')) {
+        window.open(n.action_url, '_blank');
+      } else {
+        navigate(n.action_url);
+      }
+    }
   };
 
   const unreadCount = notifications.filter(n => !n.is_read).length;

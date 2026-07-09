@@ -21,7 +21,7 @@ export const ROLE_CONFIG: RoleInfo[] = [
   { role: 'white_label', label: 'White Label Portal', description: 'Partner branding and client management', portalUrl: '/white-label-dashboard', color: 'bg-pink-100 text-pink-800' },
   { role: 'affiliate', label: 'Affiliate Portal', description: 'Referral tracking and commissions', portalUrl: '/affiliate', color: 'bg-indigo-100 text-indigo-800' },
   { role: 'referrer', label: 'Referrer', description: 'Referral program participation', portalUrl: null, color: 'bg-gray-100 text-gray-800' },
-  { role: 'hr', label: 'HR Portal', description: 'Human resources and payroll management', portalUrl: '/staff/hr', color: 'bg-teal-100 text-teal-800' },
+  { role: 'hr', label: 'HR Portal', description: 'Human resources and payroll management', portalUrl: '/hr-portal', color: 'bg-teal-100 text-teal-800' },
   { role: 'wl_client', label: 'WL Client', description: 'White label end-client portal access', portalUrl: null, color: 'bg-slate-100 text-slate-800' },
 ];
 

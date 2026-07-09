@@ -62,7 +62,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (isBreach && p.hours_pending != null) detailBits.push(`pending ${p.hours_pending.toFixed(1)}h (SLA ${p.sla_hours ?? "?"}h)`);
 
     const message = `${p.scope} · stage ${p.stage} · ${detailBits.join(" · ")}. ${p.reason ?? ""}`.trim();
-    const actionUrl = `${SITE_BASE}/admin/intelligence?tab=approvals`;
+    const actionUrl = `${SITE_BASE}/admin/intelligence?tab=approvals`; // absolute — used in the email HTML below, which needs a real browser link
+    const inAppActionUrl = "/admin/intelligence?tab=approvals"; // relative — client-side SPA nav (Link/navigate) only resolves relative paths
 
     // 1) Fan out in-app notifications to every admin
     const { data: admins, error: adminsErr } = await supabase
@@ -75,7 +76,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       message,
       type: isBreach ? "warning" : "info",
       category: "approval",
-      action_url: actionUrl,
+      action_url: inAppActionUrl,
     }));
     if (rows.length > 0) {
       const { error: insErr } = await supabase.from("notifications").insert(rows);

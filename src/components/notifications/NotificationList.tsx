@@ -159,15 +159,29 @@ export function NotificationList({
                 </p>
               </div>
               {notification.action_url && (
-                <Link
-                  to={notification.action_url}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onClose();
-                  }}
-                >
-                  <ExternalLink className="w-4 h-4 text-muted-foreground hover:text-foreground" />
-                </Link>
+                notification.action_url.startsWith('http') ? (
+                  <a
+                    href={notification.action_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onClose();
+                    }}
+                  >
+                    <ExternalLink className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                  </a>
+                ) : (
+                  <Link
+                    to={notification.action_url}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onClose();
+                    }}
+                  >
+                    <ExternalLink className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                  </Link>
+                )
               )}
             </div>
           </div>
