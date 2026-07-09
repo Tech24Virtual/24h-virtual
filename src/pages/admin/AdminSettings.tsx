@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -425,17 +426,18 @@ function ShiftBreakSettingsCard() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="lunch-minutes">Lunch Break Duration (minutes)</Label>
-          <Input
-            id="lunch-minutes"
-            type="number"
-            min="0"
-            max="120"
-            value={lunchMinutes}
-            onChange={(e) => setLunchMinutes(parseInt(e.target.value) || 0)}
-          />
+          <Label htmlFor="lunch-minutes">Lunch Break Duration</Label>
+          <Select value={String(lunchMinutes)} onValueChange={(v) => setLunchMinutes(Number(v))}>
+            <SelectTrigger id="lunch-minutes">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="30">30 minutes</SelectItem>
+              <SelectItem value="60">60 minutes</SelectItem>
+            </SelectContent>
+          </Select>
           <p className="text-sm text-muted-foreground">
-            The full lunch duration is deducted from billable hours.
+            Lunch is always unpaid — the full duration is deducted from billable hours.
           </p>
         </div>
         <div className="space-y-2">

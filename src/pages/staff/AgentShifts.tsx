@@ -18,6 +18,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
+import { calcBreakDeductionMinutes } from '@/lib/shiftBreaks';
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   active:    { label: 'Active',    className: 'bg-blue-100 text-blue-800 border border-blue-200' },
@@ -151,25 +152,9 @@ export default function AgentShifts() {
   }, [periodBreaks]);
 
   const calcBreakDeduction = useCallback(
-    (shiftId: string): number => {
-      const breaks = breaksByShift.get(shiftId) ?? [];
-      if (!breaks.length) return 0;
-      let deductedMinutes = 0;
-      for (const b of breaks) {
-        if (!b.started_at || !b.ended_at) continue;
-        const mins =
-          (new Date(b.ended_at).getTime() - new Date(b.started_at).getTime()) / 60000;
-        if (b.break_type === 'lunch') {
-          deductedMinutes += mins;
-        } else if (b.break_type === 'bathroom') {
-          deductedMinutes += Math.max(0, mins - bathroomAllowance);
-        } else {
-          deductedMinutes += mins;
-        }
-      }
-      return deductedMinutes;
-    },
-    [breaksByShift, bathroomAllowance],
+    (shiftId: string): number =>
+      calcBreakDeductionMinutes(breaksByShift.get(shiftId) ?? [], bathroomAllowance, breaksPaid),
+    [breaksByShift, bathroomAllowance, breaksPaid],
   );
 
   const approveMutation = useMutation({
@@ -229,11 +214,11 @@ export default function AgentShifts() {
     if (!shift.clock_out) return '—';
     const totalMins = differenceInMinutes(new Date(shift.clock_out), new Date(shift.clock_in));
     const deduction = shift.manual_deduction_minutes || 0;
-    const breakDeduct = breaksPaid
-      ? 0
-      : breaksByShift.has(shift.id)
+    // Lunch (always) and bathroom (excess only) deduct regardless of breaksPaid;
+    // only the raw fallback for shifts with no per-break rows honors breaksPaid.
+    const breakDeduct = breaksByShift.has(shift.id)
       ? calcBreakDeduction(shift.id)
-      : (shift.total_break_minutes ?? 0);
+      : (breaksPaid ? 0 : (shift.total_break_minutes ?? 0));
     const netMins = Math.max(0, totalMins - breakDeduct - deduction);
     return `${Math.floor(netMins / 60)}h ${netMins % 60}m`;
   };
@@ -250,16 +235,14 @@ export default function AgentShifts() {
     if (!s.clock_out) return acc;
     const rawMins = differenceInMinutes(new Date(s.clock_out), new Date(s.clock_in));
     const deduction = s.manual_deduction_minutes || 0;
-    const breakDeduct = breaksPaid
-      ? 0
-      : breaksByShift.has(s.id)
+    const breakDeduct = breaksByShift.has(s.id)
       ? calcBreakDeduction(s.id)
-      : (s.total_break_minutes ?? 0);
+      : (breaksPaid ? 0 : (s.total_break_minutes ?? 0));
     return acc + Math.max(0, rawMins - breakDeduct - deduction);
   }, 0);
 
   const breakBreakdown = (() => {
-    if (breaksPaid) return null;
+    // Lunch and bathroom deduction always applies, independent of breaksPaid.
     let lunchMinutes = 0;
     let bathroomActualMinutes = 0;
     let bathroomDeductedMinutes = 0;
@@ -320,7 +303,12 @@ export default function AgentShifts() {
           </div>
         </div>
 
-        <PayPeriodSummary shifts={periodShifts} breaksPaid={breaksPaid} />
+        <PayPeriodSummary
+          shifts={periodShifts}
+          breaksPaid={breaksPaid}
+          breaksByShift={breaksByShift}
+          bathroomAllowance={bathroomAllowance}
+        />
 
         <Card>
           <CardHeader>

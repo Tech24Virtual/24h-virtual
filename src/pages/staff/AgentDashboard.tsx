@@ -15,9 +15,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { BreakButtons, BreakTimer, type BreakType } from '@/components/staff/BreakControls';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { usePageView } from '@/lib/analytics';
+import { computeBreakEndDeductionMinutes, useBathroomAllowanceMinutes, useLunchMinutesSetting } from '@/lib/shiftBreaks';
 
 interface ActiveShift {
   id: string;
@@ -73,7 +75,6 @@ export default function AgentDashboard() {
   const { user, profile } = useAuth();
   const queryClient = useQueryClient();
   const [elapsed, setElapsed] = useState(0);
-  const [breakElapsed, setBreakElapsed] = useState(0);
 
   const firstName = profile?.full_name?.split(' ')[0] || 'Agent';
   const todayLabel = format(new Date(), 'EEEE, MMMM d');
@@ -107,6 +108,10 @@ export default function AgentDashboard() {
     enabled: !!activeShift?.id,
   });
 
+  // Bathroom breaks are paid up to this allowance; only the excess is deducted.
+  const bathroomAllowance = useBathroomAllowanceMinutes();
+  const lunchMinutesDefault = useLunchMinutesSetting();
+
   useEffect(() => {
     if (!activeShift) return;
     const clockIn = new Date(activeShift.clock_in).getTime();
@@ -115,15 +120,6 @@ export default function AgentDashboard() {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [activeShift]);
-
-  useEffect(() => {
-    if (!activeBreak) return;
-    const startedAt = new Date(activeBreak.started_at).getTime();
-    const tick = () => setBreakElapsed(Math.floor((Date.now() - startedAt) / 1000));
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [activeBreak]);
 
   const clockInMutation = useMutation({
     mutationFn: async () => {
@@ -195,11 +191,12 @@ export default function AgentDashboard() {
   });
 
   const startBreakMutation = useMutation({
-    mutationFn: async (breakType: 'lunch' | 'bathroom') => {
+    mutationFn: async ({ type, durationMinutes }: { type: 'lunch' | 'bathroom'; durationMinutes: number }) => {
       const { error } = await (supabase as any).from('agent_shift_breaks').insert({
         shift_id: activeShift!.id,
         started_at: new Date().toISOString(),
-        break_type: breakType,
+        break_type: type,
+        break_duration_minutes: durationMinutes,
       });
       if (error) throw error;
     },
@@ -219,6 +216,7 @@ export default function AgentDashboard() {
       const actualMinutes = Math.ceil(
         (Date.now() - new Date(activeBreak.started_at).getTime()) / 60000,
       );
+      const deductMinutes = computeBreakEndDeductionMinutes(activeBreak.break_type, actualMinutes, bathroomAllowance);
       const { error: breakError } = await supabase
         .from('agent_shift_breaks')
         .update({ ended_at: new Date().toISOString() })
@@ -227,7 +225,7 @@ export default function AgentDashboard() {
       const { error: shiftError } = await supabase
         .from('agent_shifts')
         .update({
-          total_break_minutes: (activeShift!.total_break_minutes || 0) + actualMinutes,
+          total_break_minutes: (activeShift!.total_break_minutes || 0) + deductMinutes,
         })
         .eq('id', activeShift!.id);
       if (shiftError) throw shiftError;
@@ -352,31 +350,14 @@ export default function AgentDashboard() {
           ) : activeBreak ? (
             // On break
             <Card className="border-l-4 border-l-orange-400 border-orange-100 dark:border-orange-900 bg-background">
-              <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6">
-                <div>
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className="h-2 w-2 rounded-full bg-orange-500 animate-pulse shrink-0" />
-                    <p className="text-sm font-medium text-muted-foreground">
-                      {activeBreak.break_type === 'lunch'
-                        ? '🍽️ Lunch Break'
-                        : activeBreak.break_type === 'bathroom'
-                        ? '🚻 Bathroom Break'
-                        : 'On Break'}{' '}
-                      · Shift started {clockInLabel}
-                    </p>
-                  </div>
-                  <p className="text-3xl font-mono font-bold text-orange-600 dark:text-orange-400">
-                    {formatHMS(breakElapsed)}
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  className="shrink-0"
-                  onClick={() => endBreakMutation.mutate()}
-                  disabled={endBreakMutation.isPending}
-                >
-                  End Break
-                </Button>
+              <CardContent className="p-6">
+                <BreakTimer
+                  breakType={(activeBreak.break_type as BreakType) ?? 'general'}
+                  durationMinutes={activeBreak.break_duration_minutes ?? 0}
+                  startedAt={activeBreak.started_at}
+                  onEndBreak={() => endBreakMutation.mutate()}
+                  isPending={endBreakMutation.isPending}
+                />
               </CardContent>
             </Card>
           ) : activeShift ? (
@@ -394,23 +375,13 @@ export default function AgentDashboard() {
                     {formatHMS(elapsed)}
                   </p>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-2 shrink-0">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => startBreakMutation.mutate('lunch')}
-                    disabled={startBreakMutation.isPending}
-                  >
-                    🍽️ Lunch Break
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => startBreakMutation.mutate('bathroom')}
-                    disabled={startBreakMutation.isPending}
-                  >
-                    🚻 Bathroom Break
-                  </Button>
+                <div className="flex flex-col sm:flex-row gap-2 shrink-0 items-start sm:items-center">
+                  <BreakButtons
+                    onStartBreak={(type, durationMinutes) => startBreakMutation.mutate({ type, durationMinutes })}
+                    isPending={startBreakMutation.isPending}
+                    bathroomAllowanceMinutes={bathroomAllowance}
+                    lunchMinutes={lunchMinutesDefault}
+                  />
                   <Button
                     variant="outline"
                     onClick={() => clockOutMutation.mutate()}

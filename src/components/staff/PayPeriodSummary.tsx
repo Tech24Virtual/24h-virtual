@@ -1,6 +1,7 @@
 import { differenceInMinutes } from 'date-fns';
 import { Clock, CheckCircle, Coffee, Calculator } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { calcBreakDeductionMinutes, type ShiftBreakRow } from '@/lib/shiftBreaks';
 
 interface Shift {
   id: string;
@@ -14,9 +15,11 @@ interface Shift {
 interface PayPeriodSummaryProps {
   shifts: Shift[];
   breaksPaid: boolean;
+  breaksByShift: Map<string, ShiftBreakRow[]>;
+  bathroomAllowance: number;
 }
 
-export function PayPeriodSummary({ shifts, breaksPaid }: PayPeriodSummaryProps) {
+export function PayPeriodSummary({ shifts, breaksPaid, breaksByShift, bathroomAllowance }: PayPeriodSummaryProps) {
   const approvedShifts = shifts.filter(s => s.status === 'approved');
   const completedShifts = shifts.filter(s => s.status === 'completed');
 
@@ -24,14 +27,20 @@ export function PayPeriodSummary({ shifts, breaksPaid }: PayPeriodSummaryProps) 
     let totalMins = 0;
     let totalBreakMins = 0;
     let totalDeductMins = 0;
+    let breakDeductMins = 0;
     for (const s of shiftList) {
       if (!s.clock_out) continue;
       const mins = differenceInMinutes(new Date(s.clock_out), new Date(s.clock_in));
       totalMins += mins;
       totalBreakMins += s.total_break_minutes || 0;
       totalDeductMins += s.manual_deduction_minutes || 0;
+      // Lunch (always) and bathroom (excess only) deduct regardless of breaksPaid;
+      // only the raw fallback for shifts with no per-break rows honors breaksPaid.
+      breakDeductMins += breaksByShift.has(s.id)
+        ? calcBreakDeductionMinutes(breaksByShift.get(s.id)!, bathroomAllowance, breaksPaid)
+        : (breaksPaid ? 0 : (s.total_break_minutes || 0));
     }
-    const netMins = breaksPaid ? Math.max(0, totalMins - totalDeductMins) : Math.max(0, totalMins - totalBreakMins - totalDeductMins);
+    const netMins = Math.max(0, totalMins - breakDeductMins - totalDeductMins);
     return { totalMins, totalBreakMins, totalDeductMins, netMins };
   };
 

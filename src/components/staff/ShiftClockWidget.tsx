@@ -1,20 +1,28 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Clock, Coffee, Play, Square, Timer } from 'lucide-react';
+import { Clock, Play, Square, Timer } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { toast } from '@/hooks/use-toast';
+import { BreakButtons, BreakTimer, type BreakType } from '@/components/staff/BreakControls';
+import { computeBreakEndDeductionMinutes, useBathroomAllowanceMinutes, useLunchMinutesSetting } from '@/lib/shiftBreaks';
+
+interface ActiveBreak {
+  id: string;
+  shift_id: string;
+  break_duration_minutes: number | null;
+  break_type: string | null;
+  started_at: string;
+  ended_at: string | null;
+}
 
 export function ShiftClockWidget() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [elapsed, setElapsed] = useState(0);
-  const [breakRemaining, setBreakRemaining] = useState(0);
-  const breakEndedRef = useRef(false);
 
   const { data: activeShift, isLoading } = useQuery({
     queryKey: ['active-shift', user?.id],
@@ -30,10 +38,10 @@ export function ShiftClockWidget() {
     enabled: !!user?.id,
   });
 
-  const { data: activeBreak } = useQuery({
+  const { data: activeBreak } = useQuery<ActiveBreak | null>({
     queryKey: ['active-break', activeShift?.id],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from('agent_shift_breaks')
         .select('*')
         .eq('shift_id', activeShift!.id)
@@ -43,6 +51,9 @@ export function ShiftClockWidget() {
     },
     enabled: !!activeShift?.id,
   });
+
+  const bathroomAllowance = useBathroomAllowanceMinutes();
+  const lunchMinutesDefault = useLunchMinutesSetting();
 
   // Elapsed timer - ALWAYS counts from clock_in, never pauses for breaks
   useEffect(() => {
@@ -55,28 +66,6 @@ export function ShiftClockWidget() {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [activeShift]);
-
-  // Break countdown ticker
-  useEffect(() => {
-    if (!activeBreak) {
-      breakEndedRef.current = false;
-      return;
-    }
-    const startedAt = new Date(activeBreak.started_at).getTime();
-    const duration = activeBreak.break_type * 60 * 1000;
-    const tick = () => {
-      const remaining = Math.max(0, Math.floor((startedAt + duration - Date.now()) / 1000));
-      setBreakRemaining(remaining);
-      if (remaining <= 0 && !breakEndedRef.current) {
-        breakEndedRef.current = true;
-        toast({ title: 'Break over!', description: 'Please resume work.' });
-        endBreakMutation.mutate();
-      }
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [activeBreak]);
 
   const clockInMutation = useMutation({
     mutationFn: async () => {
@@ -105,10 +94,11 @@ export function ShiftClockWidget() {
   });
 
   const startBreakMutation = useMutation({
-    mutationFn: async (breakType: number) => {
-      const { error } = await supabase.from('agent_shift_breaks').insert({
+    mutationFn: async ({ type, durationMinutes }: { type: 'lunch' | 'bathroom'; durationMinutes: number }) => {
+      const { error } = await (supabase as any).from('agent_shift_breaks').insert({
         shift_id: activeShift!.id,
-        break_type: breakType,
+        break_type: type,
+        break_duration_minutes: durationMinutes,
       });
       if (error) throw error;
     },
@@ -123,6 +113,7 @@ export function ShiftClockWidget() {
       if (!activeBreak) return;
       const startedAt = new Date(activeBreak.started_at).getTime();
       const actualMinutes = Math.ceil((Date.now() - startedAt) / 60000);
+      const deductMinutes = computeBreakEndDeductionMinutes(activeBreak.break_type, actualMinutes, bathroomAllowance);
 
       const { error: breakError } = await supabase
         .from('agent_shift_breaks')
@@ -132,7 +123,7 @@ export function ShiftClockWidget() {
 
       const { error: shiftError } = await supabase
         .from('agent_shifts')
-        .update({ total_break_minutes: (activeShift!.total_break_minutes || 0) + actualMinutes })
+        .update({ total_break_minutes: (activeShift!.total_break_minutes || 0) + deductMinutes })
         .eq('id', activeShift!.id);
       if (shiftError) throw shiftError;
     },
@@ -150,12 +141,6 @@ export function ShiftClockWidget() {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 
-  const formatCountdown = (totalSeconds: number) => {
-    const m = Math.floor(totalSeconds / 60);
-    const s = totalSeconds % 60;
-    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  };
-
   /** Returns the clock-in time formatted for display (e.g. "9:02 AM") */
   const clockInTimeLabel = activeShift
     ? format(new Date(activeShift.clock_in), 'h:mm a')
@@ -165,38 +150,23 @@ export function ShiftClockWidget() {
 
   // On break state — main timer still visible, break overlay on top
   if (activeShift && activeBreak) {
-    const totalBreakSecs = activeBreak.break_type * 60;
-    const progress = ((totalBreakSecs - breakRemaining) / totalBreakSecs) * 100;
-
     return (
       <Card className="border-orange-200 bg-orange-50 dark:bg-orange-950/20 dark:border-orange-800">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Coffee className="h-4 w-4 text-orange-500" />
-            On Break — {activeBreak.break_type} min
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="pt-6 space-y-3">
           {/* Main elapsed timer continues */}
           <div className="text-lg font-mono text-muted-foreground text-center">
             Shift: {formatTime(Math.max(0, elapsed))}
           </div>
-          <div className="text-3xl font-mono font-bold text-orange-600 text-center">
-            {formatCountdown(breakRemaining)}
-          </div>
-          <Progress value={progress} className="h-2" />
+          <BreakTimer
+            breakType={(activeBreak.break_type as BreakType) ?? 'general'}
+            durationMinutes={activeBreak.break_duration_minutes ?? 0}
+            startedAt={activeBreak.started_at}
+            onEndBreak={() => endBreakMutation.mutate()}
+            isPending={endBreakMutation.isPending}
+          />
           <p className="text-xs text-muted-foreground text-center">
             Clocked in at {clockInTimeLabel}
           </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full"
-            onClick={() => endBreakMutation.mutate()}
-            disabled={endBreakMutation.isPending}
-          >
-            End Break Early
-          </Button>
         </CardContent>
       </Card>
     );
@@ -219,21 +189,12 @@ export function ShiftClockWidget() {
           <p className="text-xs text-muted-foreground text-center">
             Clocked in at {clockInTimeLabel}
           </p>
-          <div className="flex gap-2 flex-wrap">
-            {[15, 30, 45, 60].map((mins) => (
-              <Button
-                key={mins}
-                variant="outline"
-                size="sm"
-                className="flex-1"
-                onClick={() => startBreakMutation.mutate(mins)}
-                disabled={startBreakMutation.isPending}
-              >
-                <Coffee className="h-3 w-3 mr-1" />
-                {mins}m
-              </Button>
-            ))}
-          </div>
+          <BreakButtons
+            onStartBreak={(type, durationMinutes) => startBreakMutation.mutate({ type, durationMinutes })}
+            isPending={startBreakMutation.isPending}
+            bathroomAllowanceMinutes={bathroomAllowance}
+            lunchMinutes={lunchMinutesDefault}
+          />
           <Button
             variant="destructive"
             size="sm"

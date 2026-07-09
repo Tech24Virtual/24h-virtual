@@ -1,20 +1,29 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Clock, Coffee, Play, Square } from 'lucide-react';
+import { Clock, Play, Square } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from '@/hooks/use-toast';
+import { BreakButtons, BreakTimer, type BreakType } from '@/components/staff/BreakControls';
+import { computeBreakEndDeductionMinutes, useBathroomAllowanceMinutes, useLunchMinutesSetting } from '@/lib/shiftBreaks';
+
+interface ActiveBreak {
+  id: string;
+  shift_id: string;
+  break_duration_minutes: number | null;
+  break_type: string | null;
+  started_at: string;
+  ended_at: string | null;
+}
 
 export function HeaderShiftIndicator() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [elapsed, setElapsed] = useState(0);
-  const [breakRemaining, setBreakRemaining] = useState(0);
-  const breakEndedRef = useRef(false);
+  const [now, setNow] = useState(() => Date.now());
 
   const { data: activeShift } = useQuery({
     queryKey: ['active-shift', user?.id],
@@ -30,10 +39,10 @@ export function HeaderShiftIndicator() {
     enabled: !!user?.id,
   });
 
-  const { data: activeBreak } = useQuery({
+  const { data: activeBreak } = useQuery<ActiveBreak | null>({
     queryKey: ['active-break', activeShift?.id],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from('agent_shift_breaks')
         .select('*')
         .eq('shift_id', activeShift!.id)
@@ -44,6 +53,9 @@ export function HeaderShiftIndicator() {
     enabled: !!activeShift?.id,
   });
 
+  const bathroomAllowance = useBathroomAllowanceMinutes();
+  const lunchMinutesDefault = useLunchMinutesSetting();
+
   useEffect(() => {
     if (!activeShift) return;
     const clockIn = new Date(activeShift.clock_in).getTime();
@@ -53,19 +65,10 @@ export function HeaderShiftIndicator() {
     return () => clearInterval(id);
   }, [activeShift]);
 
+  // Drives the compact header pill's live countdown (BreakTimer owns the detailed popover display).
   useEffect(() => {
-    if (!activeBreak) { breakEndedRef.current = false; return; }
-    const startedAt = new Date(activeBreak.started_at).getTime();
-    const duration = activeBreak.break_type * 60 * 1000;
-    const tick = () => {
-      const remaining = Math.max(0, Math.floor((startedAt + duration - Date.now()) / 1000));
-      setBreakRemaining(remaining);
-      if (remaining <= 0 && !breakEndedRef.current) {
-        breakEndedRef.current = true;
-        toast({ title: 'Break over!', description: 'Please resume work.' });
-        endBreakMutation.mutate();
-      }
-    };
+    if (!activeBreak) return;
+    const tick = () => setNow(Date.now());
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
@@ -98,10 +101,11 @@ export function HeaderShiftIndicator() {
   });
 
   const startBreakMutation = useMutation({
-    mutationFn: async (breakType: number) => {
-      const { error } = await supabase.from('agent_shift_breaks').insert({
+    mutationFn: async ({ type, durationMinutes }: { type: 'lunch' | 'bathroom'; durationMinutes: number }) => {
+      const { error } = await (supabase as any).from('agent_shift_breaks').insert({
         shift_id: activeShift!.id,
-        break_type: breakType,
+        break_type: type,
+        break_duration_minutes: durationMinutes,
       });
       if (error) throw error;
     },
@@ -116,6 +120,7 @@ export function HeaderShiftIndicator() {
       if (!activeBreak) return;
       const startedAt = new Date(activeBreak.started_at).getTime();
       const actualMinutes = Math.ceil((Date.now() - startedAt) / 60000);
+      const deductMinutes = computeBreakEndDeductionMinutes(activeBreak.break_type, actualMinutes, bathroomAllowance);
       const { error: breakError } = await supabase
         .from('agent_shift_breaks')
         .update({ ended_at: new Date().toISOString() })
@@ -123,7 +128,7 @@ export function HeaderShiftIndicator() {
       if (breakError) throw breakError;
       const { error: shiftError } = await supabase
         .from('agent_shifts')
-        .update({ total_break_minutes: (activeShift!.total_break_minutes || 0) + actualMinutes })
+        .update({ total_break_minutes: (activeShift!.total_break_minutes || 0) + deductMinutes })
         .eq('id', activeShift!.id);
       if (shiftError) throw shiftError;
     },
@@ -150,16 +155,23 @@ export function HeaderShiftIndicator() {
   const isOnBreak = !!activeShift && !!activeBreak;
   const isClockedIn = !!activeShift && !activeBreak;
 
+  const breakTotalSeconds = activeBreak ? Math.max(0, (activeBreak.break_duration_minutes ?? 0) * 60) : 0;
+  const breakElapsedSeconds = activeBreak ? Math.floor((now - new Date(activeBreak.started_at).getTime()) / 1000) : 0;
+  const breakRemainingSeconds = breakTotalSeconds - breakElapsedSeconds;
+  const breakIsOvertime = breakRemainingSeconds <= 0;
+
   // Trigger badge content
   const renderTrigger = () => {
     if (isOnBreak) {
       return (
         <Button variant="ghost" size="sm" className="gap-2 px-2 h-9 relative">
           <span className="relative flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-orange-500" />
+            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${breakIsOvertime ? 'bg-red-400' : 'bg-orange-400'}`} />
+            <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${breakIsOvertime ? 'bg-red-500' : 'bg-orange-500'}`} />
           </span>
-          <span className="font-mono text-sm text-orange-600 dark:text-orange-400">{formatCountdown(breakRemaining)}</span>
+          <span className={`font-mono text-sm ${breakIsOvertime ? 'text-red-600 dark:text-red-400' : 'text-orange-600 dark:text-orange-400'}`}>
+            {breakIsOvertime ? `⚠️ ${formatCountdown(Math.abs(breakRemainingSeconds))}` : formatCountdown(breakRemainingSeconds)}
+          </span>
         </Button>
       );
     }
@@ -184,27 +196,21 @@ export function HeaderShiftIndicator() {
   // Popover content
   const renderContent = () => {
     if (isOnBreak) {
-      const totalBreakSecs = activeBreak!.break_type * 60;
-      const progress = ((totalBreakSecs - breakRemaining) / totalBreakSecs) * 100;
       return (
         <div className="space-y-3 w-56">
-          <div className="flex items-center gap-2 text-orange-600">
-            <Coffee className="h-4 w-4" />
-            <span className="text-sm font-medium">On Break — {activeBreak!.break_type}m</span>
-          </div>
           <div className="text-lg font-mono text-muted-foreground text-center">
             Shift: {formatTime(Math.max(0, elapsed))}
           </div>
-          <div className="text-3xl font-mono font-bold text-orange-600 text-center">
-            {formatCountdown(breakRemaining)}
-          </div>
-          <Progress value={progress} className="h-2" />
+          <BreakTimer
+            breakType={(activeBreak!.break_type as BreakType) ?? 'general'}
+            durationMinutes={activeBreak!.break_duration_minutes ?? 0}
+            startedAt={activeBreak!.started_at}
+            onEndBreak={() => endBreakMutation.mutate()}
+            isPending={endBreakMutation.isPending}
+          />
           <p className="text-xs text-muted-foreground text-center">
             Clocked in at {format(new Date(activeShift!.clock_in), 'h:mm a')}
           </p>
-          <Button variant="outline" size="sm" className="w-full" onClick={() => endBreakMutation.mutate()} disabled={endBreakMutation.isPending}>
-            End Break Early
-          </Button>
         </div>
       );
     }
@@ -218,13 +224,12 @@ export function HeaderShiftIndicator() {
           <p className="text-xs text-muted-foreground text-center">
             Clocked in at {format(new Date(activeShift!.clock_in), 'h:mm a')}
           </p>
-          <div className="grid grid-cols-2 gap-2">
-            {[15, 30, 45, 60].map((mins) => (
-              <Button key={mins} variant="outline" size="sm" onClick={() => startBreakMutation.mutate(mins)} disabled={startBreakMutation.isPending}>
-                <Coffee className="h-3 w-3 mr-1" />{mins}m
-              </Button>
-            ))}
-          </div>
+          <BreakButtons
+            onStartBreak={(type, durationMinutes) => startBreakMutation.mutate({ type, durationMinutes })}
+            isPending={startBreakMutation.isPending}
+            bathroomAllowanceMinutes={bathroomAllowance}
+            lunchMinutes={lunchMinutesDefault}
+          />
           <Button variant="destructive" size="sm" className="w-full" onClick={() => clockOutMutation.mutate()} disabled={clockOutMutation.isPending}>
             <Square className="h-3 w-3 mr-1" /> Clock Out
           </Button>
