@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Dialog,
@@ -124,12 +124,14 @@ export function SubmitTicketDialog({
     setAssignedTo('');
   };
 
-  const handleOpenChange = (newOpen: boolean) => {
-    if (newOpen) {
+  // Reset every field whenever the dialog closes — covers Cancel, the X button,
+  // outside-click, and Escape alike, since they all end up flipping `open` to false.
+  useEffect(() => {
+    if (!open) {
       resetForm();
     }
-    onOpenChange(newOpen);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -222,7 +224,7 @@ export function SubmitTicketDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Submit a Support Ticket</DialogTitle>
