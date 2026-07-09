@@ -450,13 +450,14 @@ function TrainingDialog({
       toast.success('Module submitted for supervisor approval.');
 
       // Fire-and-forget: notify all supervisors — non-blocking
-      supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'supervisor')
-        .then(({ data: supervisors }) => {
+      void (async () => {
+        try {
+          const { data: supervisors } = await supabase
+            .from('user_roles')
+            .select('user_id')
+            .eq('role', 'supervisor');
           if (!supervisors?.length) return;
-          return supabase.from('notifications').insert(
+          await supabase.from('notifications').insert(
             supervisors.map(s => ({
               user_id: s.user_id,
               title: 'Training Completion Pending Review',
@@ -465,8 +466,10 @@ function TrainingDialog({
               action_url: '/staff/supervisor/training-signoffs',
             }))
           );
-        })
-        .catch(() => {});
+        } catch {
+          // non-fatal
+        }
+      })();
 
       onClose();
     } catch {

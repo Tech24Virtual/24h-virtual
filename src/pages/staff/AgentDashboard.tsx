@@ -97,7 +97,7 @@ export default function AgentDashboard() {
   const { data: activeBreak } = useQuery<ActiveBreak | null>({
     queryKey: ['active-break', activeShift?.id],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from('agent_shift_breaks')
         .select('*')
         .eq('shift_id', activeShift!.id)

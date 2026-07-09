@@ -37,8 +37,12 @@ export function QuizRunner({ lesson, campaignId, onPass }: Props) {
     () =>
       (questionsQ.data ?? []).map((q) => ({
         id: q.id,
-        prompt: q.prompt,
-        choices: q.choices,
+        prompt: q.question,
+        choices: q.choices.map((text, idx) => ({
+          id: String(idx),
+          text,
+          correct: idx === q.correct_index,
+        })),
       })),
     [questionsQ.data],
   );

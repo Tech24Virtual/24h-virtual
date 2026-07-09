@@ -356,7 +356,7 @@ export default function SupervisorTrainingSignoffs() {
         message: `Your completion of "${moduleName}" has been approved by your supervisor.`,
         type: 'training',
         action_url: '/staff/agent/training',
-      }).catch(() => {});
+      }).then(undefined, () => {});
 
       const intervalMonths = refresherIntervalsQ.data?.get(active.agent_id) ?? 1;
       toast.success(`Training signed off. Refresher due in ${intervalMonths} month(s).`);
@@ -384,7 +384,7 @@ export default function SupervisorTrainingSignoffs() {
         message: `Your completion of "${moduleName}" was not approved. Please review the material and resubmit.`,
         type: 'training',
         action_url: '/staff/agent/training',
-      }).catch(() => {});
+      }).then(undefined, () => {});
 
       toast.success('Completion cleared');
       setActive(null);
