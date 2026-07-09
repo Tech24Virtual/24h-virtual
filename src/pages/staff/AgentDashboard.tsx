@@ -5,7 +5,7 @@ import {
   Play, Square,
   Users, MessageSquare, ClipboardList,
   Layers, Search, CalendarDays, FileText,
-  ChevronRight, Bell, Building2, ArrowRight,
+  ChevronRight, Bell, Building2, ArrowRight, Send,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,6 +21,7 @@ import { toast } from '@/hooks/use-toast';
 import { usePageView } from '@/lib/analytics';
 import { computeBreakEndDeductionMinutes, useBathroomAllowanceMinutes, useLunchMinutesSetting } from '@/lib/shiftBreaks';
 import { useShiftHeartbeat } from '@/hooks/useShiftHeartbeat';
+import { SendToChannelDialog } from '@/components/staff/SendToChannelDialog';
 
 interface ActiveShift {
   id: string;
@@ -76,6 +77,7 @@ export default function AgentDashboard() {
   const { user, profile } = useAuth();
   const queryClient = useQueryClient();
   const [elapsed, setElapsed] = useState(0);
+  const [sendToChannelOpen, setSendToChannelOpen] = useState(false);
 
   const firstName = profile?.full_name?.split(' ')[0] || 'Agent';
   const todayLabel = format(new Date(), 'EEEE, MMMM d');
@@ -509,7 +511,7 @@ export default function AgentDashboard() {
               </Link>
             </Button>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <Button
                 asChild
                 variant="outline"
@@ -542,6 +544,15 @@ export default function AgentDashboard() {
                   <FileText className="h-4 w-4 mr-2 shrink-0 text-orange-600 dark:text-orange-400" />
                   Submit Timesheet
                 </Link>
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="h-12 justify-start bg-slate-50 hover:bg-slate-100 border-slate-200 dark:bg-slate-900/50 dark:hover:bg-slate-900 dark:border-slate-700"
+                onClick={() => setSendToChannelOpen(true)}
+              >
+                <Send className="h-4 w-4 mr-2 shrink-0 text-blue-600 dark:text-blue-400" />
+                Send to Channel
               </Button>
             </div>
           </div>
@@ -685,6 +696,8 @@ export default function AgentDashboard() {
 
         </div>
       </div>
+
+      <SendToChannelDialog open={sendToChannelOpen} onOpenChange={setSendToChannelOpen} />
     </StaffLayout>
   );
 }

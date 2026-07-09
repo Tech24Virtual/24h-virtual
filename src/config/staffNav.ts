@@ -183,11 +183,11 @@ export function getStaffNav(role: StaffRole): NavGroup[] {
           children: [
             { name: 'Tickets', href: `${root}/tickets` },
             { name: 'Call Logs', href: `${root}/call-logs` },
-            { name: 'Messages', href: `${root}/messages` },
             { name: 'Tasks', href: `${root}/tasks` },
             { name: 'Outbound', href: `${root}/outbound-calls` },
           ],
         },
+        { name: 'Messages', icon: MessageCircle, basePath: `${root}/messages`, children: [{ name: 'Messages', href: `${root}/messages` }] },
         {
           name: 'Support',
           icon: LifeBuoy,

@@ -17,9 +17,20 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import {
   Search, Phone, Clock, PhoneIncoming, PhoneOutgoing,
-  Calendar, MessageSquare, User, Building2, PhoneCall,
+  Calendar, MessageSquare, User, Building2, PhoneCall, Send,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { SendToChannelDialog } from '@/components/staff/SendToChannelDialog';
+
+function buildCallSummary(call: CallLog): string {
+  const parts = [
+    `Caller: ${call.caller_name || 'Unknown'}`,
+    call.caller_phone ? `Phone: ${call.caller_phone}` : null,
+    call.disposition ? `Disposition: ${call.disposition}` : null,
+    call.notes ? `Notes: ${call.notes}` : null,
+  ].filter(Boolean);
+  return parts.join('\n');
+}
 
 // agent_notes is a new column added via migration 20260626000012 — not yet in generated types
 interface CallLog {
@@ -106,6 +117,7 @@ export default function AgentCallLogs() {
   const [selectedCall, setSelectedCall] = useState<CallLog | null>(null);
   const [agentNotesDraft, setAgentNotesDraft] = useState('');
   const [noteSaved, setNoteSaved] = useState(false);
+  const [sendToChannelOpen, setSendToChannelOpen] = useState(false);
 
   const { data: onboarding } = useQuery({
     queryKey: ['agent-onboarding-username', user?.id],
@@ -405,6 +417,15 @@ export default function AgentCallLogs() {
                   <Calendar className="h-3.5 w-3.5" />
                   <span>{callDateTime(selectedCall)}</span>
                 </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 mt-3 w-fit"
+                  onClick={() => setSendToChannelOpen(true)}
+                >
+                  <Send className="h-3.5 w-3.5" />
+                  Send to Channel
+                </Button>
               </SheetHeader>
 
               {/* Scrollable body */}
@@ -549,6 +570,13 @@ export default function AgentCallLogs() {
           )}
         </SheetContent>
       </Sheet>
+
+      <SendToChannelDialog
+        open={sendToChannelOpen}
+        onOpenChange={setSendToChannelOpen}
+        prefillMessage={selectedCall ? buildCallSummary(selectedCall) : ''}
+        prefillContext="Call details pre-filled below — edit as needed."
+      />
     </StaffLayout>
   );
 }

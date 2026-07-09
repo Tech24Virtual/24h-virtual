@@ -19,8 +19,9 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
-import { Search, UserPlus, Users, AlertCircle, Briefcase, ShieldAlert, Trash2 } from 'lucide-react';
+import { Search, UserPlus, Users, AlertCircle, Briefcase, ShieldAlert, Trash2, Hash } from 'lucide-react';
 import { useAgentPendingAckCounts } from '@/hooks/campaign-os/usePolicyAcknowledgments';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -32,6 +33,69 @@ interface Assignment {
   is_primary: boolean;
   notes: string | null;
   created_at: string;
+  slack_channel_id: string | null;
+  slack_channel_name: string | null;
+}
+
+interface SlackChannel {
+  slack_channel_id: string;
+  name: string;
+}
+
+function LinkChannelPopover({
+  assignment,
+  channels,
+  onLink,
+  isPending,
+}: {
+  assignment: Assignment;
+  channels: SlackChannel[];
+  onLink: (assignmentId: string, channelId: string, channelName: string) => void;
+  isPending: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState(assignment.slack_channel_id ?? '');
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button size="sm" variant={assignment.slack_channel_id ? 'ghost' : 'outline'} className="gap-1.5">
+          {assignment.slack_channel_id ? (
+            <>
+              <Hash className="h-3.5 w-3.5 text-muted-foreground" />
+              {assignment.slack_channel_name || assignment.slack_channel_id}
+            </>
+          ) : (
+            <>🔗 Link Channel</>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 space-y-3">
+        <p className="text-sm font-medium">Link Slack Channel</p>
+        <Select value={selected} onValueChange={setSelected}>
+          <SelectTrigger><SelectValue placeholder="Select a channel..." /></SelectTrigger>
+          <SelectContent>
+            {channels.map((c) => (
+              <SelectItem key={c.slack_channel_id} value={c.slack_channel_id}>{c.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          size="sm"
+          className="w-full"
+          disabled={!selected || isPending}
+          onClick={() => {
+            const channel = channels.find((c) => c.slack_channel_id === selected);
+            if (!channel) return;
+            onLink(assignment.id, channel.slack_channel_id, channel.name);
+            setOpen(false);
+          }}
+        >
+          {isPending ? 'Saving...' : 'Save'}
+        </Button>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 interface Lead {
@@ -83,10 +147,25 @@ export default function SupervisorClientAssignments() {
     queryKey: ['client-agent-assignments'],
     staleTime: 30_000,
     queryFn: async (): Promise<Assignment[]> => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('client_agent_assignments')
-        .select('id, client_id, agent_id, is_primary, notes, created_at')
+        .select('id, client_id, agent_id, is_primary, notes, created_at, slack_channel_id, slack_channel_name')
         .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // ── Slack channels (for linking) ──────────────────────────────────────────
+
+  const { data: slackChannels = [] } = useQuery<SlackChannel[]>({
+    queryKey: ['slack-channels-for-linking'],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('slack_channels')
+        .select('slack_channel_id, name')
+        .order('name');
       if (error) throw error;
       return data ?? [];
     },
@@ -197,6 +276,21 @@ export default function SupervisorClientAssignments() {
       setSelectedAgentId('');
       setNotes('');
       setIsPrimary(true);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const linkChannelMutation = useMutation({
+    mutationFn: async ({ assignmentId, channelId, channelName }: { assignmentId: string; channelId: string; channelName: string }) => {
+      const { error } = await (supabase as any)
+        .from('client_agent_assignments')
+        .update({ slack_channel_id: channelId, slack_channel_name: channelName })
+        .eq('id', assignmentId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['client-agent-assignments'] });
+      toast.success('Slack channel linked');
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -324,6 +418,7 @@ export default function SupervisorClientAssignments() {
                       <TableHead>Stage</TableHead>
                       <TableHead>Agent</TableHead>
                       <TableHead>Primary</TableHead>
+                      <TableHead>Slack Channel</TableHead>
                       <TableHead>Assigned</TableHead>
                       <TableHead />
                     </TableRow>
@@ -332,12 +427,12 @@ export default function SupervisorClientAssignments() {
                     {isLoading ? (
                       Array.from({ length: 4 }).map((_, i) => (
                         <TableRow key={i}>
-                          <TableCell colSpan={7}><Skeleton className="h-8 w-full" /></TableCell>
+                          <TableCell colSpan={8}><Skeleton className="h-8 w-full" /></TableCell>
                         </TableRow>
                       ))
                     ) : filtered.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                           No assignments found
                         </TableCell>
                       </TableRow>
@@ -354,6 +449,15 @@ export default function SupervisorClientAssignments() {
                             {a.is_primary
                               ? <Badge>Primary</Badge>
                               : <Badge variant="outline">Secondary</Badge>}
+                          </TableCell>
+                          <TableCell>
+                            <LinkChannelPopover
+                              assignment={a}
+                              channels={slackChannels}
+                              onLink={(assignmentId, channelId, channelName) =>
+                                linkChannelMutation.mutate({ assignmentId, channelId, channelName })}
+                              isPending={linkChannelMutation.isPending}
+                            />
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {new Date(a.created_at).toLocaleDateString()}

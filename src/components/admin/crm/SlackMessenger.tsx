@@ -86,7 +86,7 @@ export function SlackMessenger() {
   }
 
   return (
-    <div className="border rounded-lg overflow-hidden flex h-[600px] bg-card">
+    <div className="border rounded-lg overflow-hidden flex h-[calc(100vh-260px)] min-h-[500px] bg-card">
       <div className="w-64 shrink-0">
         <SlackChannelList
           channels={channels}
