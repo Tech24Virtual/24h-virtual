@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { usePageView } from '@/lib/analytics';
 import { computeBreakEndDeductionMinutes, useBathroomAllowanceMinutes, useLunchMinutesSetting } from '@/lib/shiftBreaks';
+import { useShiftHeartbeat } from '@/hooks/useShiftHeartbeat';
 
 interface ActiveShift {
   id: string;
@@ -111,6 +112,25 @@ export default function AgentDashboard() {
   // Bathroom breaks are paid up to this allowance; only the excess is deducted.
   const bathroomAllowance = useBathroomAllowanceMinutes();
   const lunchMinutesDefault = useLunchMinutesSetting();
+
+  useShiftHeartbeat(activeShift?.id);
+
+  // Most recent shift — used to show a banner if it was auto-clocked-out (browser closed / crash).
+  // .limit(1) before .maybeSingle() keeps this safe even if an agent somehow has zero shifts.
+  const { data: lastShift } = useQuery({
+    queryKey: ['last-shift', user?.id],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('agent_shifts')
+        .select('id, clock_out, auto_clocked_out, auto_clockout_reason')
+        .eq('agent_id', user!.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user?.id,
+  });
 
   useEffect(() => {
     if (!activeShift) return;
@@ -343,6 +363,16 @@ export default function AgentDashboard() {
             </h1>
             <p className="mt-0.5 text-sm text-muted-foreground">{todayLabel}</p>
           </div>
+
+          {/* ── Auto-clockout notice ──────────────────────────────────────────── */}
+          {lastShift?.auto_clocked_out && !activeShift && (
+            <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/20 dark:border-amber-800">
+              <p className="text-sm text-amber-800 dark:text-amber-300 font-medium">
+                ⚠️ Your last shift was automatically ended — your browser was closed or you lost connection.
+                Please review your shift time and clock back in when ready.
+              </p>
+            </div>
+          )}
 
           {/* ── Section 1: Shift Status Card ─────────────────────────────────── */}
           {shiftLoading ? (

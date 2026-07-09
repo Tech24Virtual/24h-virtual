@@ -155,6 +155,7 @@ export function getStaffNav(role: StaffRole): NavGroup[] {
           basePath: `${root}/quality-group`,
           children: [
             { name: 'Performance', href: `${root}/performance` },
+            { name: 'Productivity', href: `${root}/productivity` },
             { name: 'Shift Reviews', href: `${root}/shift-reviews` },
             { name: 'Script Reviews', href: `${root}/script-reviews` },
             { name: 'Escalations', href: `${root}/escalations` },

@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { toast } from '@/hooks/use-toast';
 import { BreakButtons, BreakTimer, type BreakType } from '@/components/staff/BreakControls';
 import { computeBreakEndDeductionMinutes, useBathroomAllowanceMinutes, useLunchMinutesSetting } from '@/lib/shiftBreaks';
+import { useShiftHeartbeat } from '@/hooks/useShiftHeartbeat';
 
 interface ActiveBreak {
   id: string;
@@ -55,6 +56,8 @@ export function HeaderShiftIndicator() {
 
   const bathroomAllowance = useBathroomAllowanceMinutes();
   const lunchMinutesDefault = useLunchMinutesSetting();
+
+  useShiftHeartbeat(activeShift?.id);
 
   useEffect(() => {
     if (!activeShift) return;

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { BreakButtons, BreakTimer, type BreakType } from '@/components/staff/BreakControls';
 import { computeBreakEndDeductionMinutes, useBathroomAllowanceMinutes, useLunchMinutesSetting } from '@/lib/shiftBreaks';
+import { useShiftHeartbeat } from '@/hooks/useShiftHeartbeat';
 
 interface ActiveBreak {
   id: string;
@@ -54,6 +55,8 @@ export function ShiftClockWidget() {
 
   const bathroomAllowance = useBathroomAllowanceMinutes();
   const lunchMinutesDefault = useLunchMinutesSetting();
+
+  useShiftHeartbeat(activeShift?.id);
 
   // Elapsed timer - ALWAYS counts from clock_in, never pauses for breaks
   useEffect(() => {

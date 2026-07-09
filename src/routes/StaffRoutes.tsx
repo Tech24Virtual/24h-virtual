@@ -48,6 +48,7 @@ const SupervisorScriptReviews = lazy(() => import("@/pages/staff/SupervisorScrip
 const SupervisorAgentOnboarding = lazy(() => import("@/pages/staff/SupervisorAgentOnboarding"));
 const SupervisorClientAssignments = lazy(() => import("@/pages/staff/SupervisorClientAssignments"));
 const SupervisorPerformance = lazy(() => import("@/pages/staff/SupervisorPerformance"));
+const SupervisorProductivity = lazy(() => import("@/pages/staff/SupervisorProductivity"));
 const SupervisorEscalations = lazy(() => import("@/pages/staff/SupervisorEscalations"));
 const SupervisorMessages = lazy(() => import("@/pages/staff/SupervisorMessages"));
 const SupervisorFulfillment = lazy(() => import("@/pages/staff/SupervisorFulfillment"));
@@ -143,6 +144,7 @@ export const StaffRoutes = (
     <Route path="/staff/supervisor/agent-onboarding" element={guard("supervisor", <SupervisorAgentOnboarding />)} />
     <Route path="/staff/supervisor/client-assignments" element={guard("supervisor", <SupervisorClientAssignments />)} />
     <Route path="/staff/supervisor/performance" element={guard("supervisor", <SupervisorPerformance />)} />
+    <Route path="/staff/supervisor/productivity" element={guard("supervisor", <SupervisorProductivity />)} />
     <Route path="/staff/supervisor/escalations" element={guard("supervisor", <SupervisorEscalations />)} />
     <Route path="/staff/supervisor/fulfillment" element={guard("supervisor", <SupervisorFulfillment />)} />
     <Route path="/staff/supervisor/fulfillment/:id" element={guard("supervisor", <SupervisorFulfillmentDetail />)} />
