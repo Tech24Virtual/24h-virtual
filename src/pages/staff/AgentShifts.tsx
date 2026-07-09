@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format, differenceInMinutes, startOfMonth, endOfMonth, setDate, isAfter, isBefore, addMonths } from 'date-fns';
+import { format, differenceInMinutes, setDate, isAfter, isBefore, addMonths } from 'date-fns';
 import { Clock, Ban, CheckCircle, Pencil, AlertCircle, Send, ChevronDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
 import { calcBreakDeductionMinutes } from '@/lib/shiftBreaks';
+import { getPayCycleBounds, type PayCycleBounds } from '@/lib/payCycle';
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   active:    { label: 'Active',    className: 'bg-blue-100 text-blue-800 border border-blue-200' },
@@ -27,23 +28,15 @@ const statusConfig: Record<string, { label: string; className: string }> = {
   voided:    { label: 'Voided',    className: 'bg-red-100 text-red-800 border border-red-200' },
 };
 
-// Generate semi-monthly pay periods (last 6 months)
-function generatePayPeriods() {
-  const periods: { start: Date; end: Date; label: string }[] = [];
+// Generate semi-monthly pay periods (last 6 months), reusing the shared cycle-bounds math from payCycle.ts
+function generatePayPeriods(): PayCycleBounds[] {
+  const periods: PayCycleBounds[] = [];
   const now = new Date();
   for (let i = 0; i < 12; i++) {
     const month = addMonths(now, -Math.floor(i / 2));
-    if (i % 2 === 0) {
-      // 16th to end of month
-      const s = setDate(month, 16);
-      const e = endOfMonth(month);
-      periods.push({ start: s, end: e, label: `${format(s, 'MMM d')} – ${format(e, 'MMM d, yyyy')}` });
-    } else {
-      // 1st to 15th
-      const s = startOfMonth(month);
-      const e = setDate(month, 15);
-      periods.push({ start: s, end: e, label: `${format(s, 'MMM d')} – ${format(e, 'MMM d, yyyy')}` });
-    }
+    // Alternates 16th-end / 1st-15th of the same month, matching the original ordering.
+    const refDate = i % 2 === 0 ? setDate(month, 16) : setDate(month, 1);
+    periods.push(getPayCycleBounds(refDate));
   }
   return periods;
 }

@@ -1,14 +1,13 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  format, startOfWeek, addDays, addWeeks, subWeeks, isToday,
-} from 'date-fns';
+import { format, addDays, isToday } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { StaffLayout } from '@/components/staff/StaffLayout';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { getPayCycleBounds, getNextPayCycle, getPrevPayCycle } from '@/lib/payCycle';
 
 type EventType = 'scheduled' | 'actual' | 'time_off' | 'claimed';
 
@@ -51,13 +50,22 @@ function fmtTime(t: string): string {
 
 export default function AgentCalendar() {
   const { user } = useAuth();
-  const [weekStart, setWeekStart] = useState(() =>
-    startOfWeek(new Date(), { weekStartsOn: 1 })
-  );
+  const [cycleAnchor, setCycleAnchor] = useState(() => new Date());
 
-  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-  const rangeStart = format(weekStart, 'yyyy-MM-dd');
-  const rangeEnd = format(days[6], 'yyyy-MM-dd');
+  const cycle = useMemo(() => getPayCycleBounds(cycleAnchor), [cycleAnchor]);
+
+  const days = useMemo(() => {
+    const result: Date[] = [];
+    let d = cycle.start;
+    while (d <= cycle.end) {
+      result.push(new Date(d));
+      d = addDays(d, 1);
+    }
+    return result;
+  }, [cycle]);
+
+  const rangeStart = format(cycle.start, 'yyyy-MM-dd');
+  const rangeEnd = format(cycle.end, 'yyyy-MM-dd');
 
   const { data: schedules = [] } = useQuery({
     queryKey: ['cal-schedules', user?.id, rangeStart],
@@ -197,22 +205,25 @@ export default function AgentCalendar() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">My Calendar</h1>
+            <h2 className="text-lg font-semibold">{cycle.label}</h2>
             <p className="text-sm text-muted-foreground">
-              {format(weekStart, 'MMM d')} – {format(days[6], 'MMM d, yyyy')}
+              {cycle.isFirstHalf ? 'First half' : 'Second half'} pay cycle · {days.length} days
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setWeekStart(w => subWeeks(w, 1))}>
+            <Button variant="outline" size="sm" onClick={() => setCycleAnchor(getPrevPayCycle(cycle).start)}>
               <ChevronLeft className="h-4 w-4" />
+              Prev Cycle
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))}
+              onClick={() => setCycleAnchor(new Date())}
             >
               Today
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setWeekStart(w => addWeeks(w, 1))}>
+            <Button variant="outline" size="sm" onClick={() => setCycleAnchor(getNextPayCycle(cycle).start)}>
+              Next Cycle
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
@@ -220,7 +231,7 @@ export default function AgentCalendar() {
 
         {/* Grid */}
         <div className="overflow-x-auto">
-          <div className="grid grid-cols-7 gap-1.5 min-w-[600px]">
+          <div className="grid grid-cols-8 gap-2 min-w-[720px]">
             {days.map(day => {
               const ds = format(day, 'yyyy-MM-dd');
               const events = eventsByDay.get(ds) ?? [];
