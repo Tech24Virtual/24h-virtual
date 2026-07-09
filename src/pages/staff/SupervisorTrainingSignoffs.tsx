@@ -99,6 +99,24 @@ function useAgentNames(agentIds: string[]) {
   });
 }
 
+/** Agent's current refresher cadence — used to tell a supervisor when a fresh signoff will next come due. */
+function useAgentRefresherIntervals(agentIds: string[]) {
+  return useQuery({
+    queryKey: ['profiles', 'training-agent-refresher-intervals', agentIds.sort().join(',')],
+    enabled: agentIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('profiles')
+        .select('id, refresher_interval_months')
+        .in('id', agentIds);
+      if (error) throw error;
+      const map = new Map<string, number>();
+      for (const p of data ?? []) map.set(p.id, p.refresher_interval_months ?? 1);
+      return map;
+    },
+  });
+}
+
 // ── Assign Training dialog ─────────────────────────────────────────────────────
 
 function AssignTrainingDialog({
@@ -317,6 +335,7 @@ export default function SupervisorTrainingSignoffs() {
     [completionsQ.data, signoffsWithExpiryQ.data],
   );
   const namesQ = useAgentNames(agentIds);
+  const refresherIntervalsQ = useAgentRefresherIntervals(agentIds);
 
   const approveActive = async (note: string) => {
     if (!active) return;
@@ -339,7 +358,8 @@ export default function SupervisorTrainingSignoffs() {
         action_url: '/staff/agent/training',
       }).catch(() => {});
 
-      toast.success('Signed off');
+      const intervalMonths = refresherIntervalsQ.data?.get(active.agent_id) ?? 1;
+      toast.success(`Training signed off. Refresher due in ${intervalMonths} month(s).`);
       setActive(null);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e ?? '');

@@ -197,7 +197,7 @@ function Milestone({ label, value, done }: { label: string; value: string | null
 
 // ─── Main component ────────────────────────────────────────────────────────────
 export default function AgentOnboarding() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [expandedLead, setExpandedLead] = useState<string | null>(null);
@@ -344,9 +344,16 @@ export default function AgentOnboarding() {
         <div className="px-6 py-6 lg:px-8 lg:py-8 space-y-6">
 
           {/* Header */}
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Onboarding</h1>
-            <p className="text-sm text-slate-500 mt-1">Your onboarding journey and client progress</p>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Onboarding</h1>
+              <p className="text-sm text-slate-500 mt-1">Your onboarding journey and client progress</p>
+            </div>
+            {(profile as any)?.is_ready_for_live_calls && (
+              <Badge className="bg-green-600 hover:bg-green-600 text-white">
+                ✅ Ready for Live Calls
+              </Badge>
+            )}
           </div>
 
           {/* ── My Onboarding Journey ─────────────────────────────────────── */}

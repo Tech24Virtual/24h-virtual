@@ -14,8 +14,9 @@ export interface TrainingLesson {
 export interface QuizQuestionRow {
   id: string;
   lesson_id: string;
-  prompt: string;
-  choices: Array<{ id: string; text: string; correct: boolean }>;
+  question: string;
+  choices: string[];
+  correct_index: number;
   explanation: string | null;
   sort_order: number;
 }
@@ -28,6 +29,31 @@ export interface QuizAttemptRow {
   passed: boolean;
   answers: any;
   created_at: string;
+}
+
+export interface QuizAttemptSummary {
+  lesson_id: string;
+  score: number;
+  passed: boolean;
+}
+
+/** The current agent's attempts for a set of quiz lessons — used to persist pass/fail across dialog re-opens. */
+export function useMyQuizAttempts(lessonIds: string[]) {
+  return useQuery({
+    queryKey: ['campaign-os', 'my-quiz-attempts', lessonIds.slice().sort().join(',')],
+    enabled: lessonIds.length > 0,
+    queryFn: async (): Promise<QuizAttemptSummary[]> => {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) return [];
+      const { data, error } = await (supabase as any)
+        .from('campaign_training_quiz_attempts')
+        .select('lesson_id, score, passed')
+        .eq('agent_id', u.user.id)
+        .in('lesson_id', lessonIds);
+      if (error) throw error;
+      return (data ?? []) as QuizAttemptSummary[];
+    },
+  });
 }
 
 export function useModuleLessons(moduleId?: string | null) {
@@ -233,6 +259,7 @@ export function useSubmitQuizAttempt() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['campaign-os', 'training-coverage'] });
+      qc.invalidateQueries({ queryKey: ['campaign-os', 'my-quiz-attempts'] });
     },
   });
 }

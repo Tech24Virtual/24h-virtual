@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Markdown from 'react-markdown';
 import { isAfter } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { StaffLayout } from '@/components/staff/StaffLayout';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   useMyAssignedModules,
@@ -23,12 +24,14 @@ import {
   useModuleLessons,
   useQuizQuestions,
   useSubmitQuizAttempt,
+  useMyQuizAttempts,
   type TrainingLesson,
 } from '@/hooks/campaign-os/useTrainingQuizzes';
 
 // ─── Stable empty-array sentinels ─────────────────────────────────────────────
 const EMPTY_ASSIGNMENTS: AssignedModuleRow[] = [];
 const EMPTY_COMPLETIONS: TrainingCompletion[] = [];
+const EMPTY_LESSONS: TrainingLesson[] = [];
 const EMPTY_SIGNOFFS: SignoffWithExpiry[] = [];
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -155,6 +158,11 @@ function ModuleCard({
               Required
             </span>
           )}
+          {assignment.trigger_type === 'refresher' && (
+            <Badge variant="outline" className="text-orange-600 border-orange-300">
+              🔄 Refresher
+            </Badge>
+          )}
           <StatusBadge status={status} />
         </div>
       </div>
@@ -227,12 +235,13 @@ function QuizLesson({ lesson, campaignId, moduleId, onDone }: {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [passed, setPassed] = useState(false);
+  const [scorePct, setScorePct] = useState(0);
 
   const questions = questionsQ.data ?? [];
-  const passing = lesson.passing_score ?? 70;
+  const passing = lesson.passing_score ?? 90;
 
   const handleSubmit = async () => {
-    const correct = questions.filter(q => answers[q.id] === q.choices.find(c => c.correct)?.id).length;
+    const correct = questions.filter(q => Number(answers[q.id]) === q.correct_index).length;
     const score = questions.length ? Math.round((correct / questions.length) * 100) : 0;
     const didPass = score >= passing;
 
@@ -249,9 +258,15 @@ function QuizLesson({ lesson, campaignId, moduleId, onDone }: {
       // non-fatal — still show result
     }
 
+    setScorePct(score);
     setSubmitted(true);
     setPassed(didPass);
     if (didPass) onDone();
+  };
+
+  const handleRetake = () => {
+    setAnswers({});
+    setSubmitted(false);
   };
 
   if (questionsQ.isLoading) {
@@ -262,16 +277,18 @@ function QuizLesson({ lesson, campaignId, moduleId, onDone }: {
     return (
       <div className={cn('rounded-xl p-4 text-center', passed ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200')}>
         <p className={cn('font-semibold text-sm', passed ? 'text-green-700' : 'text-red-700')}>
-          {passed ? 'Quiz passed!' : 'Quiz not passed — try again'}
+          {passed
+            ? `Quiz passed! You scored ${scorePct}%.`
+            : `You scored ${scorePct}%. You need ${passing}% or higher to pass. Please retake the quiz.`}
         </p>
         {!passed && (
           <Button
             size="sm"
             variant="outline"
             className="mt-3"
-            onClick={() => { setAnswers({}); setSubmitted(false); }}
+            onClick={handleRetake}
           >
-            Retry
+            Retake Quiz
           </Button>
         )}
       </div>
@@ -282,19 +299,19 @@ function QuizLesson({ lesson, campaignId, moduleId, onDone }: {
     <div className="space-y-5">
       {questions.map((q, i) => (
         <div key={q.id} className="space-y-2">
-          <p className="text-sm font-medium text-slate-800">{i + 1}. {q.prompt}</p>
+          <p className="text-sm font-medium text-slate-800">{i + 1}. {q.question}</p>
           <div className="space-y-1.5">
-            {q.choices.map(c => (
-              <label key={c.id} className="flex items-start gap-2.5 cursor-pointer group">
+            {q.choices.map((choiceText, idx) => (
+              <label key={idx} className="flex items-start gap-2.5 cursor-pointer group">
                 <input
                   type="radio"
                   name={q.id}
-                  value={c.id}
-                  checked={answers[q.id] === c.id}
-                  onChange={() => setAnswers(prev => ({ ...prev, [q.id]: c.id }))}
+                  value={idx}
+                  checked={answers[q.id] === String(idx)}
+                  onChange={() => setAnswers(prev => ({ ...prev, [q.id]: String(idx) }))}
                   className="mt-0.5 accent-blue-600"
                 />
-                <span className="text-sm text-slate-700 group-hover:text-slate-900">{c.text}</span>
+                <span className="text-sm text-slate-700 group-hover:text-slate-900">{choiceText}</span>
               </label>
             ))}
           </div>
@@ -392,11 +409,32 @@ function TrainingDialog({
   const [acknowledged, setAcknowledged] = useState(false);
 
   const mod = assignment.module;
-  const lessons = lessonsQ.data ?? [];
+  const lessons = lessonsQ.data ?? EMPTY_LESSONS;
   const noLessons = !lessonsQ.isLoading && lessons.length === 0;
 
-  // Complete is enabled when: all lessons done (if lessons exist), or acknowledged (if no lessons)
+  // Quiz pass/fail is persisted server-side — re-derive from it (not just local
+  // doneLessons state) so a passed quiz still counts if the dialog is reopened.
+  const quizLessonIds = useMemo(() => lessons.filter(l => l.kind === 'quiz').map(l => l.id), [lessons]);
+  const myAttemptsQ = useMyQuizAttempts(quizLessonIds);
+
+  useEffect(() => {
+    if (!myAttemptsQ.data) return;
+    const passedIds = myAttemptsQ.data.filter(a => a.passed).map(a => a.lesson_id);
+    if (!passedIds.length) return;
+    setDoneLessons(prev => {
+      const next = new Set(prev);
+      passedIds.forEach(id => next.add(id));
+      return next;
+    });
+  }, [myAttemptsQ.data]);
+
+  const allQuizzesPassed = quizLessonIds.every(id =>
+    (myAttemptsQ.data ?? []).some(a => a.lesson_id === id && a.passed)
+  );
+
+  // Complete is enabled when: all lessons done (if lessons exist), or acknowledged (if no lessons) — and every quiz passed at 90%+
   const allDone = noLessons ? acknowledged : lessons.length > 0 && lessons.every(l => doneLessons.has(l.id));
+  const canComplete = allDone && allQuizzesPassed;
   const alreadyCompleted = !!completion;
 
   const handleMarkDone = (lessonId: string) => {
@@ -505,17 +543,24 @@ function TrainingDialog({
         )}
 
         {!alreadyCompleted && (
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-3">
-            <p className="text-xs text-slate-400">
-              Submission requires supervisor approval before being marked complete.
-            </p>
-            <Button
-              onClick={handleComplete}
-              disabled={!allDone || markComplete.isPending}
-              className="shrink-0 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl"
-            >
-              {markComplete.isPending ? 'Submitting…' : 'Mark as Complete'}
-            </Button>
+          <div className="pt-2 border-t border-slate-100 space-y-2">
+            {!allQuizzesPassed && (
+              <p className="text-sm text-amber-600">
+                Complete all quizzes with 90% or higher to mark this module as complete.
+              </p>
+            )}
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-slate-400">
+                Submission requires supervisor approval before being marked complete.
+              </p>
+              <Button
+                onClick={handleComplete}
+                disabled={!canComplete || markComplete.isPending}
+                className="shrink-0 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl"
+              >
+                {markComplete.isPending ? 'Submitting…' : 'Mark as Complete'}
+              </Button>
+            </div>
           </div>
         )}
 

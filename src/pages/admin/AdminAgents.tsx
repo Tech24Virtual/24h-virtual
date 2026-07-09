@@ -60,6 +60,8 @@ interface AgentRow {
   employment_type: string;
   break_policy: string;
   skill_count: number;
+  refresher_interval_months: number;
+  agent_start_date: string | null;
 }
 
 // ── Invite Dialog ─────────────────────────────────────────────────────────
@@ -231,7 +233,7 @@ export default function AdminAgents() {
       const [profilesResult, bankingResult, skillsResult] = await Promise.all([
         (supabase as any)
           .from('profiles')
-          .select('id, full_name, phone, employment_status, email')
+          .select('id, full_name, phone, employment_status, email, refresher_interval_months, agent_start_date')
           .in('id', ids),
         supabase
           .from('agent_banking')
@@ -252,6 +254,8 @@ export default function AdminAgents() {
         phone: string | null;
         employment_status: string | null;
         email: string | null;
+        refresher_interval_months: number | null;
+        agent_start_date: string | null;
       }> = profilesResult.data || [];
       const banking = (bankingResult.data || []) as Array<{
         agent_id: string;
@@ -276,6 +280,8 @@ export default function AdminAgents() {
           employment_type: b?.employment_type ?? 'contractor',
           break_policy: b?.break_policy ?? 'global',
           skill_count: skillCounts[p.id] || 0,
+          refresher_interval_months: p.refresher_interval_months ?? 1,
+          agent_start_date: p.agent_start_date,
         } as AgentRow;
       });
     },
@@ -298,6 +304,17 @@ export default function AdminAgents() {
           { onConflict: 'agent_id' }
         );
       if (error) throw error;
+
+      if ('refresher_interval_months' in changes || 'agent_start_date' in changes) {
+        const { error: profileError } = await (supabase as any)
+          .from('profiles')
+          .update({
+            refresher_interval_months: changes.refresher_interval_months ?? base?.refresher_interval_months ?? 1,
+            agent_start_date: changes.agent_start_date ?? base?.agent_start_date ?? null,
+          })
+          .eq('id', agentId);
+        if (profileError) throw profileError;
+      }
     },
     onSuccess: (_, agentId) => {
       queryClient.invalidateQueries({ queryKey: ['admin-agents'] });
@@ -397,6 +414,8 @@ export default function AdminAgents() {
                     <TableHead>Hourly Rate</TableHead>
                     <TableHead>Employment</TableHead>
                     <TableHead>Break Policy</TableHead>
+                    <TableHead>Refresher</TableHead>
+                    <TableHead>Start Date</TableHead>
                     <TableHead>Skills</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-20" />
@@ -411,6 +430,8 @@ export default function AdminAgents() {
                       <TableCell><Skeleton className="h-8 w-20" /></TableCell>
                       <TableCell><Skeleton className="h-8 w-28" /></TableCell>
                       <TableCell><Skeleton className="h-8 w-32" /></TableCell>
+                      <TableCell><Skeleton className="h-8 w-28" /></TableCell>
+                      <TableCell><Skeleton className="h-8 w-28" /></TableCell>
                       <TableCell><Skeleton className="h-8 w-14" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-14" /></TableCell>
                       <TableCell><Skeleton className="h-8 w-8 rounded" /></TableCell>
@@ -443,6 +464,8 @@ export default function AdminAgents() {
                     <TableHead>Hourly Rate</TableHead>
                     <TableHead>Employment</TableHead>
                     <TableHead>Break Policy</TableHead>
+                    <TableHead>Refresher</TableHead>
+                    <TableHead>Start Date</TableHead>
                     <TableHead>Skills</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-20" />
@@ -497,6 +520,26 @@ export default function AdminAgents() {
                             <SelectItem value="unpaid">Always Unpaid</SelectItem>
                           </SelectContent>
                         </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={String(getVal(agent, 'refresher_interval_months') as number)}
+                          onValueChange={v => setVal(agent.id, 'refresher_interval_months', Number(v))}
+                        >
+                          <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">Monthly</SelectItem>
+                            <SelectItem value="3">Quarterly</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="date"
+                          className="w-36"
+                          value={(getVal(agent, 'agent_start_date') as string | null) ?? ''}
+                          onChange={e => setVal(agent.id, 'agent_start_date', e.target.value || null)}
+                        />
                       </TableCell>
                       <TableCell>
                         <Button

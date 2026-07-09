@@ -105,9 +105,16 @@ export default function AgentMyProfile() {
   return (
     <StaffLayout role="agent">
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">My Profile</h1>
-          <p className="text-muted-foreground">Your employment information and performance</p>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold">My Profile</h1>
+            <p className="text-muted-foreground">Your employment information and performance</p>
+          </div>
+          {(profile as any)?.is_ready_for_live_calls && (
+            <Badge className="bg-green-600 hover:bg-green-600 text-white">
+              ✅ Ready for Live Calls
+            </Badge>
+          )}
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">

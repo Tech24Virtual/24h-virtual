@@ -41,7 +41,7 @@ export function QuizAuthoringDialog({ open, onOpenChange, lesson }: Props) {
   const delQ = useDeleteQuizQuestion();
   const upsertLesson = useUpsertLesson();
 
-  const [passingScore, setPassingScore] = useState(lesson.passing_score ?? 80);
+  const [passingScore, setPassingScore] = useState(lesson.passing_score ?? 90);
   const [draftPrompt, setDraftPrompt] = useState('');
   const [draftExplanation, setDraftExplanation] = useState('');
   const [draftChoices, setDraftChoices] = useState<ChoiceDraft[]>([
@@ -57,17 +57,19 @@ export function QuizAuthoringDialog({ open, onOpenChange, lesson }: Props) {
 
   const addQuestion = async () => {
     if (!draftPrompt.trim()) return toast.error('Question prompt required');
-    if (draftChoices.filter((c) => c.text.trim()).length < 2)
-      return toast.error('Need at least 2 choices');
-    if (!draftChoices.some((c) => c.correct)) return toast.error('Mark a correct choice');
+    const validChoices = draftChoices.filter((c) => c.text.trim());
+    if (validChoices.length < 2) return toast.error('Need at least 2 choices');
+    const correctIndex = validChoices.findIndex((c) => c.correct);
+    if (correctIndex === -1) return toast.error('Mark a correct choice');
     try {
       await upsertQ.mutateAsync({
         lesson_id: lesson.id,
-        prompt: draftPrompt.trim(),
+        question: draftPrompt.trim(),
         explanation: draftExplanation.trim() || null,
-        choices: draftChoices.filter((c) => c.text.trim()),
+        choices: validChoices.map((c) => c.text.trim()),
+        correct_index: correctIndex,
         sort_order: (questionsQ.data?.length ?? 0) + 1,
-      } as any);
+      });
       setDraftPrompt('');
       setDraftExplanation('');
       setDraftChoices([
@@ -128,11 +130,11 @@ export function QuizAuthoringDialog({ open, onOpenChange, lesson }: Props) {
                 <Card key={q.id}>
                   <CardContent className="py-3 flex items-start justify-between gap-3">
                     <div className="space-y-1 min-w-0 flex-1">
-                      <div className="text-sm font-medium">{q.prompt}</div>
+                      <div className="text-sm font-medium">{q.question}</div>
                       <div className="flex flex-wrap gap-1.5">
-                        {q.choices.map((c) => (
-                          <Badge key={c.id} variant={c.correct ? 'default' : 'outline'}>
-                            {c.text}
+                        {q.choices.map((text, idx) => (
+                          <Badge key={idx} variant={idx === q.correct_index ? 'default' : 'outline'}>
+                            {text}
                           </Badge>
                         ))}
                       </div>
