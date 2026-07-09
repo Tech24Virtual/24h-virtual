@@ -192,6 +192,7 @@ export default function SalesProposals() {
                       <SelectContent>
                         <SelectItem value="USD">USD</SelectItem>
                         <SelectItem value="CAD">CAD</SelectItem>
+                        <SelectItem value="PHP">PHP — Philippine Peso</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

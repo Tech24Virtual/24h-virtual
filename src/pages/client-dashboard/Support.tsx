@@ -20,7 +20,7 @@ export default function Support() {
         <p className="text-muted-foreground mt-0.5">Get help from our team</p>
       </div>
 
-      <Tabs defaultValue="tickets">
+      <Tabs defaultValue="ai-support">
         <TabsList>
           <TabsTrigger value="ai-support" className="gap-2">
             <Sparkles className="h-4 w-4" />

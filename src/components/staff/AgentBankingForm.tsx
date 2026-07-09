@@ -9,11 +9,33 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { COUNTRIES } from '@/lib/countries';
 
 interface AgentBankingFormProps {
   agentId?: string; // If not provided, uses current user
   showHourlyRate?: boolean; // Only billing/admin should set this
 }
+
+const IBAN_COUNTRIES = new Set([
+  'AD', 'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR',
+  'HU', 'IS', 'IE', 'IT', 'LV', 'LI', 'LT', 'LU', 'MT', 'MC', 'NL', 'NO', 'PL',
+  'PT', 'RO', 'SM', 'SK', 'SI', 'ES', 'SE', 'CH', 'GB',
+]);
+
+function routingLabel(country: string): string {
+  switch (country) {
+    case 'US': return 'Routing Number (ABA)';
+    case 'GB': return 'Sort Code';
+    default: return 'Routing / Transit Number';
+  }
+}
+
+const PAYMENT_METHODS = [
+  { value: 'bank_transfer', label: 'Direct Deposit / Bank Transfer' },
+  { value: 'e_transfer', label: 'E-Transfer (Canada only)', canadaOnly: true },
+  { value: 'paypal', label: 'PayPal' },
+  { value: 'wise', label: 'Wise / TransferWise' },
+];
 
 export function AgentBankingForm({ agentId, showHourlyRate = false }: AgentBankingFormProps) {
   const { user } = useAuth();
@@ -33,6 +55,8 @@ export function AgentBankingForm({ agentId, showHourlyRate = false }: AgentBanki
     currency: 'CAD',
     country: 'CA',
     hourly_rate: '',
+    payment_method: 'bank_transfer',
+    e_transfer_email: '',
   });
 
   const { data: banking, isLoading } = useQuery({
@@ -52,19 +76,22 @@ export function AgentBankingForm({ agentId, showHourlyRate = false }: AgentBanki
 
   useEffect(() => {
     if (banking) {
+      const b = banking as any;
       setFormData({
-        bank_name: banking.bank_name || '',
-        account_holder_name: banking.account_holder_name || '',
-        account_number_encrypted: banking.account_number_encrypted || '',
-        routing_number: banking.routing_number || '',
-        institution_number: banking.institution_number || '',
-        transit_number: banking.transit_number || '',
-        account_type: banking.account_type || 'checking',
-        swift_bic: banking.swift_bic || '',
-        iban: banking.iban || '',
-        currency: banking.currency || 'CAD',
-        country: banking.country || 'CA',
-        hourly_rate: banking.hourly_rate?.toString() || '',
+        bank_name: b.bank_name || '',
+        account_holder_name: b.account_holder_name || '',
+        account_number_encrypted: b.account_number_encrypted || '',
+        routing_number: b.routing_number || '',
+        institution_number: b.institution_number || '',
+        transit_number: b.transit_number || '',
+        account_type: b.account_type || 'checking',
+        swift_bic: b.swift_bic || '',
+        iban: b.iban || '',
+        currency: b.currency || 'CAD',
+        country: b.country || 'CA',
+        hourly_rate: b.hourly_rate?.toString() || '',
+        payment_method: b.payment_method || 'bank_transfer',
+        e_transfer_email: b.e_transfer_email || '',
       });
     }
   }, [banking]);
@@ -85,6 +112,8 @@ export function AgentBankingForm({ agentId, showHourlyRate = false }: AgentBanki
         iban: formData.iban || null,
         currency: formData.currency,
         country: formData.country,
+        payment_method: formData.payment_method,
+        e_transfer_email: formData.payment_method === 'e_transfer' ? (formData.e_transfer_email || null) : null,
       };
       if (showHourlyRate && formData.hourly_rate) {
         payload.hourly_rate = parseFloat(formData.hourly_rate);
@@ -93,7 +122,7 @@ export function AgentBankingForm({ agentId, showHourlyRate = false }: AgentBanki
       if (banking) {
         const { error } = await supabase
           .from('agent_banking')
-          .update(payload)
+          .update(payload as any)
           .eq('agent_id', effectiveAgentId);
         if (error) throw error;
       } else {
@@ -117,8 +146,17 @@ export function AgentBankingForm({ agentId, showHourlyRate = false }: AgentBanki
     setFormData(prev => ({ ...prev, [key]: value }));
   };
 
-  const showCanadianFields = formData.country === 'CA';
-  const showInternationalFields = formData.country !== 'CA' && formData.country !== 'US';
+  const updateCountry = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      country: value,
+      // e-Transfer only exists for Canada — fall back if the country changes away from it.
+      payment_method: value !== 'CA' && prev.payment_method === 'e_transfer' ? 'bank_transfer' : prev.payment_method,
+    }));
+  };
+
+  const isCanada = formData.country === 'CA';
+  const showIban = IBAN_COUNTRIES.has(formData.country);
 
   if (isLoading) {
     return (
@@ -145,6 +183,37 @@ export function AgentBankingForm({ agentId, showHourlyRate = false }: AgentBanki
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
+            <Label>Country</Label>
+            <Select value={formData.country} onValueChange={updateCountry}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent className="max-h-72">
+                {COUNTRIES.map((c) => (
+                  <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Currency</Label>
+            <Select value={formData.currency} onValueChange={(v) => update('currency', v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="CAD">CAD</SelectItem>
+                <SelectItem value="USD">USD</SelectItem>
+                <SelectItem value="GBP">GBP</SelectItem>
+                <SelectItem value="EUR">EUR</SelectItem>
+                <SelectItem value="PHP">PHP — Philippine Peso</SelectItem>
+                <SelectItem value="AUD">AUD</SelectItem>
+                <SelectItem value="NZD">NZD</SelectItem>
+                <SelectItem value="SGD">SGD</SelectItem>
+                <SelectItem value="HKD">HKD</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
             <Label>Account Holder Name</Label>
             <Input
               value={formData.account_holder_name}
@@ -159,33 +228,6 @@ export function AgentBankingForm({ agentId, showHourlyRate = false }: AgentBanki
               onChange={(e) => update('bank_name', e.target.value)}
               placeholder="e.g. TD Canada Trust"
             />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label>Country</Label>
-            <Select value={formData.country} onValueChange={(v) => update('country', v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="CA">Canada</SelectItem>
-                <SelectItem value="US">United States</SelectItem>
-                <SelectItem value="GB">United Kingdom</SelectItem>
-                <SelectItem value="OTHER">Other</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Currency</Label>
-            <Select value={formData.currency} onValueChange={(v) => update('currency', v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="CAD">CAD</SelectItem>
-                <SelectItem value="USD">USD</SelectItem>
-                <SelectItem value="GBP">GBP</SelectItem>
-                <SelectItem value="EUR">EUR</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </div>
 
@@ -211,8 +253,8 @@ export function AgentBankingForm({ agentId, showHourlyRate = false }: AgentBanki
           </div>
         </div>
 
-        {showCanadianFields && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {isCanada ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Institution Number</Label>
               <Input
@@ -231,38 +273,28 @@ export function AgentBankingForm({ agentId, showHourlyRate = false }: AgentBanki
                 maxLength={5}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Routing Number</Label>
-              <Input
-                value={formData.routing_number}
-                onChange={(e) => update('routing_number', e.target.value)}
-                placeholder="Auto-generated or manual"
-              />
-            </div>
           </div>
-        )}
-
-        {!showCanadianFields && (
+        ) : (
           <div className="space-y-2">
-            <Label>Routing Number</Label>
+            <Label>{routingLabel(formData.country)}</Label>
             <Input
               value={formData.routing_number}
               onChange={(e) => update('routing_number', e.target.value)}
-              placeholder="Routing / Sort Code"
+              placeholder={routingLabel(formData.country)}
             />
           </div>
         )}
 
-        {showInternationalFields && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>SWIFT / BIC</Label>
-              <Input
-                value={formData.swift_bic}
-                onChange={(e) => update('swift_bic', e.target.value)}
-                placeholder="e.g. TDOMCATTTOR"
-              />
-            </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>SWIFT / BIC <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <Input
+              value={formData.swift_bic}
+              onChange={(e) => update('swift_bic', e.target.value)}
+              placeholder="e.g. TDOMCATTTOR"
+            />
+          </div>
+          {showIban && (
             <div className="space-y-2">
               <Label>IBAN</Label>
               <Input
@@ -271,6 +303,30 @@ export function AgentBankingForm({ agentId, showHourlyRate = false }: AgentBanki
                 placeholder="International account number"
               />
             </div>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label>Payment Method</Label>
+          <Select value={formData.payment_method} onValueChange={(v) => update('payment_method', v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {PAYMENT_METHODS.filter((m) => !m.canadaOnly || isCanada).map((m) => (
+                <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {formData.payment_method === 'e_transfer' && (
+          <div className="space-y-2">
+            <Label>E-Transfer Email</Label>
+            <Input
+              type="email"
+              value={formData.e_transfer_email}
+              onChange={(e) => update('e_transfer_email', e.target.value)}
+              placeholder="you@example.com"
+            />
           </div>
         )}
 

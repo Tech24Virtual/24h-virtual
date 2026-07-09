@@ -87,7 +87,7 @@ function StaffSupportPage({ role }: StaffSupportProps) {
   const [body, setBody] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [pipOpen, setPipOpen] = useState(false);
+  const [pipOpen, setPipOpen] = useState(true);
 
   const { data: requests = [], isLoading } = useQuery<SupportRequestRow[]>({
     queryKey: ['my-support-requests', user?.id],
@@ -155,6 +155,34 @@ function StaffSupportPage({ role }: StaffSupportProps) {
             </div>
           </div>
         </div>
+
+        {/* PiP AI Assistant (collapsible, open by default) */}
+        <Card className="shadow-sm rounded-2xl overflow-hidden">
+          <button
+            className="w-full flex items-center justify-between px-6 py-4 hover:bg-muted/40 transition-colors"
+            onClick={() => setPipOpen((o) => !o)}
+          >
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Sparkles className="h-4 w-4 text-primary" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-semibold text-foreground">Ask PiP AI</p>
+                <p className="text-xs text-muted-foreground">Get instant AI-powered guidance</p>
+              </div>
+            </div>
+            {pipOpen
+              ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+              : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+            }
+          </button>
+
+          {pipOpen && (
+            <div className="px-6 pb-6 pt-1 border-t">
+              <PiPAssistant dashboardContext={role} />
+            </div>
+          )}
+        </Card>
 
         {/* Submit a Support Request */}
         <Card className="shadow-sm rounded-2xl">
@@ -343,34 +371,6 @@ function StaffSupportPage({ role }: StaffSupportProps) {
               </div>
             )}
           </CardContent>
-        </Card>
-
-        {/* PiP AI Assistant (collapsible) */}
-        <Card className="shadow-sm rounded-2xl overflow-hidden">
-          <button
-            className="w-full flex items-center justify-between px-6 py-4 hover:bg-muted/40 transition-colors"
-            onClick={() => setPipOpen((o) => !o)}
-          >
-            <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Sparkles className="h-4 w-4 text-primary" />
-              </div>
-              <div className="text-left">
-                <p className="text-sm font-semibold text-foreground">Ask PiP AI</p>
-                <p className="text-xs text-muted-foreground">Get instant AI-powered guidance</p>
-              </div>
-            </div>
-            {pipOpen
-              ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
-              : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-            }
-          </button>
-
-          {pipOpen && (
-            <div className="px-6 pb-6 pt-1 border-t">
-              <PiPAssistant dashboardContext={role} />
-            </div>
-          )}
         </Card>
 
       </div>
