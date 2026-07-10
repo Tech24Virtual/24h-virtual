@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,6 +33,7 @@ export interface SignoffWithExpiry {
   expires_at: string | null;
   needs_refresh: boolean;
   refresh_reason: string | null;
+  signoff_note: string | null;
 }
 
 export function useMyAssignedModules() {
@@ -69,7 +71,7 @@ export function useMySignoffsWithExpiry() {
     queryFn: async (): Promise<SignoffWithExpiry[]> => {
       const { data, error } = await (supabase as any)
         .from('campaign_training_signoffs')
-        .select('id, completion_id, module_id, campaign_id, agent_id, signed_off_at, expires_at, needs_refresh, refresh_reason')
+        .select('id, completion_id, module_id, campaign_id, agent_id, signed_off_at, expires_at, needs_refresh, refresh_reason, signoff_note')
         .eq('agent_id', user!.id);
       if (error) throw error;
       return (data ?? []) as SignoffWithExpiry[];

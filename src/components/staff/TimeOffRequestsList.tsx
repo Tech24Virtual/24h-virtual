@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { useState } from 'react';
 
@@ -186,8 +187,9 @@ export function TimeOffRequestsList({ role }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [postCoverage, setPostCoverage] = useState<Record<string, boolean>>({});
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
   const [confirmApprove, setConfirmApprove] = useState<{
-    id: string; agentId: string; startDate: string; endDate: string;
+    id: string; agentId: string; startDate: string; endDate: string; notes: string;
   } | null>(null);
   const [confirmReset, setConfirmReset] = useState<string | null>(null);
 
@@ -214,14 +216,29 @@ export function TimeOffRequestsList({ role }: Props) {
 
   const reviewMutation = useMutation({
     mutationFn: async ({
-      id, status, agentId, startDate, endDate,
-    }: { id: string; status: 'approved' | 'denied'; agentId: string; startDate: string; endDate: string }) => {
+      id, status, agentId, startDate, endDate, notes,
+    }: { id: string; status: 'approved' | 'denied'; agentId: string; startDate: string; endDate: string; notes?: string }) => {
       const { error } = await supabase.from('time_off_requests').update({
         status,
         reviewed_by: user!.id,
         reviewed_at: new Date().toISOString(),
+        review_notes: notes?.trim() || null,
       }).eq('id', id);
       if (error) throw error;
+
+      // Notify the agent of the decision
+      const noteText = notes?.trim() ? ` Note: ${notes.trim()}` : '';
+      const dateLabel = startDate === endDate
+        ? format(new Date(startDate), 'MMM d')
+        : `${format(new Date(startDate), 'MMM d')} – ${format(new Date(endDate), 'MMM d')}`;
+      const { error: notifError } = await supabase.from('notifications').insert({
+        user_id: agentId,
+        title: status === 'approved' ? 'Time Off Request Approved' : 'Time Off Request Denied',
+        message: `Your time off request for ${dateLabel} was ${status}.${noteText}`,
+        category: 'schedule',
+        action_url: '/staff/agent/schedule',
+      });
+      if (notifError) console.error('Time-off notification insert failed:', notifError);
 
       if (status === 'approved') {
         // Fetch and cancel the agent's scheduled shifts in the approved date range
@@ -313,7 +330,7 @@ export function TimeOffRequestsList({ role }: Props) {
                     </p>
                     {req.reason && <p className="text-sm">{req.reason}</p>}
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 w-full sm:w-56">
                     <div className="flex items-center gap-2">
                       <Checkbox
                         id={`coverage-${req.id}`}
@@ -321,6 +338,17 @@ export function TimeOffRequestsList({ role }: Props) {
                         onCheckedChange={(c) => setPostCoverage(prev => ({ ...prev, [req.id]: !!c }))}
                       />
                       <Label htmlFor={`coverage-${req.id}`} className="text-xs">Post for coverage</Label>
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor={`notes-${req.id}`} className="text-xs text-muted-foreground">Notes (optional)</Label>
+                      <Textarea
+                        id={`notes-${req.id}`}
+                        value={reviewNotes[req.id] || ''}
+                        onChange={(e) => setReviewNotes(prev => ({ ...prev, [req.id]: e.target.value }))}
+                        placeholder="Add a note for the agent…"
+                        rows={2}
+                        className="text-sm"
+                      />
                     </div>
                     <div className="flex gap-2">
                       <Button
@@ -330,6 +358,7 @@ export function TimeOffRequestsList({ role }: Props) {
                           agentId: req.agent_id,
                           startDate: req.start_date,
                           endDate: req.end_date,
+                          notes: reviewNotes[req.id] || '',
                         })}
                         disabled={reviewMutation.isPending}
                       >
@@ -344,6 +373,7 @@ export function TimeOffRequestsList({ role }: Props) {
                           agentId: req.agent_id,
                           startDate: req.start_date,
                           endDate: req.end_date,
+                          notes: reviewNotes[req.id] || '',
                         })}
                         disabled={reviewMutation.isPending}
                       >
@@ -379,6 +409,9 @@ export function TimeOffRequestsList({ role }: Props) {
                       </span>
                     </div>
                     {req.reason && <p className="text-xs text-muted-foreground">{req.reason}</p>}
+                    {req.review_notes && (
+                      <p className="text-xs text-muted-foreground italic">Supervisor note: {req.review_notes}</p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <Badge className={statusColors[req.status]}>{req.status}</Badge>

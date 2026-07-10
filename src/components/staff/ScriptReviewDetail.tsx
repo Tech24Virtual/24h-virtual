@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import { ArrowLeft, CheckCircle, XCircle, MessageSquare, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -107,10 +108,10 @@ export function ScriptReviewDetail({ request, onBack }: ScriptReviewDetailProps)
         : 'More Info Needed on Script Request';
       const notifMessage =
         action === 'approved'
-          ? 'Your script change request has been approved and applied.'
+          ? `Your script change request has been approved.${reviewerNotes ? ` Supervisor note: ${reviewerNotes}` : ''}`
           : action === 'rejected'
           ? `Your script change request was rejected.${reviewerNotes ? ` Reason: ${reviewerNotes}` : ''}`
-          : 'Your supervisor needs more information about your script change request. Check the conversation thread.';
+          : `More information needed on your script change request.${reviewerNotes ? ` Notes: ${reviewerNotes}` : ''}`;
       await supabase.from('notifications').insert({
         user_id: request.client_id,
         title: notifTitle,

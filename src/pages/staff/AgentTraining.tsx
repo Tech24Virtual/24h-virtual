@@ -397,10 +397,12 @@ function LessonCard({ lesson, index, isDone, onDone, campaignId, moduleId }: {
 function TrainingDialog({
   assignment,
   completion,
+  signoff,
   onClose,
 }: {
   assignment: AssignedModuleRow;
   completion: TrainingCompletion | null;
+  signoff: SignoffWithExpiry | null;
   onClose: () => void;
 }) {
   const lessonsQ = useModuleLessons(assignment.module_id);
@@ -573,6 +575,12 @@ function TrainingDialog({
             Submitted {new Date(completion!.completed_at).toLocaleDateString()} — awaiting supervisor approval
           </div>
         )}
+
+        {signoff?.signoff_note && (
+          <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-800">
+            <span className="font-medium">Supervisor note:</span> {signoff.signoff_note}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -635,6 +643,7 @@ export default function AgentTraining() {
   }).length;
 
   const activeCompletion = active ? (completionByModule.get(active.module_id) ?? null) : null;
+  const activeSignoff = active ? (signoffByModule.get(active.module_id) ?? null) : null;
 
   const isLoading = assignedQ.isLoading || completionsQ.isLoading || signoffsQ.isLoading;
 
@@ -747,6 +756,7 @@ export default function AgentTraining() {
         <TrainingDialog
           assignment={active}
           completion={activeCompletion}
+          signoff={activeSignoff}
           onClose={() => setActive(null)}
         />
       )}

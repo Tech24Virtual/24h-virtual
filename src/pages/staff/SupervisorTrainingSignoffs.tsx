@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
@@ -228,13 +229,14 @@ function ReviewDialog({
   moduleName: string;
   agentName: string;
   onApprove: (note: string) => void;
-  onReject: () => void;
+  onReject: (reason: string) => void;
   onClose: () => void;
   approving: boolean;
   rejecting: boolean;
 }) {
   const [note, setNote] = useState('');
   const [rejectConfirmOpen, setRejectConfirmOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
   if (!completion) return null;
 
   return (
@@ -278,9 +280,18 @@ function ReviewDialog({
               This will clear the completion. The agent will need to review the material and resubmit.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Reason (optional)</label>
+            <Textarea
+              rows={3}
+              value={rejectReason}
+              onChange={e => setRejectReason(e.target.value)}
+              placeholder="Let the agent know what to fix…"
+            />
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={onReject}>Reject</AlertDialogAction>
+            <AlertDialogAction onClick={() => onReject(rejectReason)}>Reject</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -353,7 +364,7 @@ export default function SupervisorTrainingSignoffs() {
       supabase.from('notifications').insert({
         user_id: active.agent_id,
         title: 'Training Module Approved',
-        message: `Your completion of "${moduleName}" has been approved by your supervisor.`,
+        message: `Your completion of "${moduleName}" has been approved by your supervisor.${note ? ` Supervisor note: ${note}` : ''}`,
         type: 'training',
         action_url: '/staff/agent/training',
       }).then(undefined, () => {});
@@ -371,17 +382,18 @@ export default function SupervisorTrainingSignoffs() {
     }
   };
 
-  const rejectActive = async () => {
+  const rejectActive = async (reason: string) => {
     if (!active) return;
     try {
       await deleteCompletion.mutateAsync(active.id);
 
       // Fire-and-forget: notify the agent their completion was not approved
       const moduleName = moduleMap.get(active.module_id)?.title ?? 'the module';
+      const reasonText = reason.trim() ? ` Reason: ${reason.trim()}` : '';
       supabase.from('notifications').insert({
         user_id: active.agent_id,
         title: 'Training Completion Rejected',
-        message: `Your completion of "${moduleName}" was not approved. Please review the material and resubmit.`,
+        message: `Your training completion was rejected.${reasonText} Please review "${moduleName}" and resubmit.`,
         type: 'training',
         action_url: '/staff/agent/training',
       }).then(undefined, () => {});
