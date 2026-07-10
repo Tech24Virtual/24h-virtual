@@ -104,6 +104,7 @@ export function ChangeRequestThread({ request, onStatusChange }: ChangeRequestTh
 
       if (error) throw error;
       setNewMessage('');
+      await fetchComments();
     } catch {
       toast.error('Failed to send message');
     } finally {
