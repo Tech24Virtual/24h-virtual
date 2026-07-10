@@ -24,6 +24,7 @@ import {
   ClipboardCheck,
   GitCompare,
   CheckSquare,
+  Rocket,
 } from 'lucide-react';
 import type { NavGroup } from '@/components/navigation/types';
 
@@ -167,9 +168,9 @@ export function getStaffNav(role: StaffRole): NavGroup[] {
           basePath: `${root}/training-group`,
           children: [
             { name: 'Signoffs', href: `${root}/training-signoffs` },
-            { name: 'Go-Live Approvals', href: `${root}/go-live` },
           ],
         },
+        { name: 'Go-Live Approvals', icon: Rocket, basePath: `${root}/go-live`, children: [{ name: 'Go-Live Approvals', href: `${root}/go-live` }] },
         {
           name: 'Fulfillment',
           icon: Inbox,
