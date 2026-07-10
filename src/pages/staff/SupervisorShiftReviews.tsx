@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format, addBusinessDays } from 'date-fns';
-import { FileCheck, CheckCircle, XCircle, ChevronDown, ChevronUp, Pencil, Clock, Banknote } from 'lucide-react';
+import { format, addBusinessDays, differenceInMinutes } from 'date-fns';
+import { FileCheck, CheckCircle, XCircle, ChevronDown, ChevronUp, Pencil, Clock, Banknote, AlertTriangle } from 'lucide-react';
 import { SupervisorEditShiftDialog } from '@/components/staff/SupervisorEditShiftDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,14 +12,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+import { computeBreakEndDeductionMinutes, useBathroomAllowanceMinutes } from '@/lib/shiftBreaks';
 
-type StatusFilter = 'all' | 'draft' | 'submitted' | 'supervisor_approved' | 'paid' | 'rejected';
+type StatusFilter = 'all' | 'submitted' | 'supervisor_approved' | 'paid' | 'rejected';
 
 const statusBadge: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   draft:                { label: 'Draft',          variant: 'outline' },
@@ -67,7 +68,7 @@ export default function SupervisorShiftReviews() {
       if (!expandedId) return [];
       const invoice = invoices?.find(i => i.id === expandedId);
       if (!invoice) return [];
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from('agent_shifts')
         .select('*')
         .eq('agent_id', invoice.agent_id)
@@ -75,16 +76,33 @@ export default function SupervisorShiftReviews() {
         .lte('clock_in', invoice.period_end + 'T23:59:59')
         .in('status', ['approved', 'completed'])
         .order('clock_in', { ascending: true });
-      return data ?? [];
+      return (data ?? []) as any[];
     },
     enabled: !!expandedId,
   });
+
+  const shiftIds = useMemo(() => invoiceShifts.map((s: any) => s.id), [invoiceShifts]);
+
+  const { data: shiftBreaks = [] } = useQuery({
+    queryKey: ['supervisor-shift-breaks', expandedId],
+    queryFn: async () => {
+      if (!shiftIds.length) return [];
+      const { data } = await (supabase as any)
+        .from('agent_shift_breaks')
+        .select('*')
+        .in('shift_id', shiftIds)
+        .order('started_at');
+      return (data ?? []) as any[];
+    },
+    enabled: !!shiftIds.length,
+  });
+
+  const bathroomAllowance = useBathroomAllowanceMinutes();
 
   // ── Derived state ─────────────────────────────────────────────────────────────
 
   const counts = useMemo(() => ({
     all:                  invoices?.length ?? 0,
-    draft:                invoices?.filter(i => i.status === 'draft').length ?? 0,
     submitted:            invoices?.filter(i => i.status === 'submitted').length ?? 0,
     supervisor_approved:  invoices?.filter(i => i.status === 'supervisor_approved').length ?? 0,
     paid:                 invoices?.filter(i => i.status === 'paid').length ?? 0,
@@ -143,12 +161,14 @@ export default function SupervisorShiftReviews() {
     mutationFn: async ({ invoiceId, reason }: { invoiceId: string; reason: string }) => {
       const invoice = invoices?.find(i => i.id === invoiceId);
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('shift_invoices')
         .update({
-          status: 'rejected' as any,
+          status: 'rejected',
           supervisor_id: user!.id,
           supervisor_notes: reason,
+          rejection_reason: reason,
+          rejected_at: new Date().toISOString(),
         })
         .eq('id', invoiceId);
       if (error) throw error;
@@ -248,10 +268,6 @@ export default function SupervisorShiftReviews() {
             <TabsTrigger value="submitted" className="gap-1.5">
               Pending
               {counts.submitted > 0 && <Badge className="h-4 px-1 text-xs bg-amber-500">{counts.submitted}</Badge>}
-            </TabsTrigger>
-            <TabsTrigger value="draft" className="gap-1.5">
-              Drafts
-              {counts.draft > 0 && <Badge variant="outline" className="h-4 px-1 text-xs">{counts.draft}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="supervisor_approved" className="gap-1.5">
               Approved
@@ -393,26 +409,39 @@ export default function SupervisorShiftReviews() {
                           </div>
                         </div>
 
-                        {/* Shift breakdown table */}
+                        {/* Shift breakdown */}
                         {invoiceShifts.length > 0 && (
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Clock In</TableHead>
-                                <TableHead>Clock Out</TableHead>
-                                <TableHead>Breaks</TableHead>
-                                <TableHead className="w-12" />
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {invoiceShifts.map(s => (
-                                <TableRow key={s.id}>
-                                  <TableCell>{format(new Date(s.clock_in), 'MMM d')}</TableCell>
-                                  <TableCell>{format(new Date(s.clock_in), 'h:mm a')}</TableCell>
-                                  <TableCell>{s.clock_out ? format(new Date(s.clock_out), 'h:mm a') : '—'}</TableCell>
-                                  <TableCell>{s.total_break_minutes} min</TableCell>
-                                  <TableCell>
+                          <div className="space-y-2">
+                            {invoiceShifts.map((s: any) => {
+                              const breaks = shiftBreaks.filter((b: any) => b.shift_id === s.id);
+                              const shiftMins = s.clock_out
+                                ? differenceInMinutes(new Date(s.clock_out), new Date(s.clock_in))
+                                : 0;
+                              const breakMinsTotal = breaks.reduce((acc: number, b: any) => {
+                                if (!b.ended_at) return acc;
+                                return acc + differenceInMinutes(new Date(b.ended_at), new Date(b.started_at));
+                              }, 0);
+                              const breakDeductionTotal = breaks.reduce((acc: number, b: any) => {
+                                if (!b.ended_at) return acc;
+                                const mins = differenceInMinutes(new Date(b.ended_at), new Date(b.started_at));
+                                return acc + computeBreakEndDeductionMinutes(b.break_type, mins, bathroomAllowance);
+                              }, 0);
+                              const manualDeduction = s.manual_deduction_minutes || 0;
+                              const netMins = Math.max(0, shiftMins - breakDeductionTotal - manualDeduction);
+
+                              return (
+                                <div key={s.id} className="border rounded-md p-3">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <p className="text-sm font-medium">
+                                        {format(new Date(s.clock_in), 'MMM d')} · {format(new Date(s.clock_in), 'h:mm a')}
+                                        {' – '}
+                                        {s.clock_out ? format(new Date(s.clock_out), 'h:mm a') : '—'}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">
+                                        Duration: {Math.floor(shiftMins / 60)}h {shiftMins % 60}m
+                                      </p>
+                                    </div>
                                     <Button
                                       variant="ghost" size="sm"
                                       onClick={() => setEditShift({
@@ -424,11 +453,56 @@ export default function SupervisorShiftReviews() {
                                     >
                                       <Pencil className="h-3 w-3" />
                                     </Button>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
+                                  </div>
+
+                                  {s.auto_clocked_out && (
+                                    <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
+                                      <AlertTriangle className="h-3 w-3" /> Auto ended — browser closed
+                                    </p>
+                                  )}
+
+                                  {breaks.length > 0 && (
+                                    <div className="mt-2 pl-3 border-l-2 border-muted space-y-1">
+                                      {breaks.map((b: any) => {
+                                        const mins = b.ended_at
+                                          ? differenceInMinutes(new Date(b.ended_at), new Date(b.started_at))
+                                          : 0;
+                                        const ded = b.ended_at
+                                          ? computeBreakEndDeductionMinutes(b.break_type, mins, bathroomAllowance)
+                                          : 0;
+                                        const label = b.break_type === 'lunch'
+                                          ? '🍽️ Lunch'
+                                          : b.break_type === 'bathroom'
+                                          ? '🚻 Bathroom'
+                                          : '⏸️ Break';
+                                        return (
+                                          <p key={b.id} className="text-xs text-muted-foreground">
+                                            {label} · {format(new Date(b.started_at), 'h:mm a')}
+                                            {'–'}
+                                            {b.ended_at ? format(new Date(b.ended_at), 'h:mm a') : '—'} · {mins}m
+                                            {ded > 0 && <span className="text-orange-600"> · -{ded}m deducted</span>}
+                                          </p>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+
+                                  {manualDeduction > 0 && (
+                                    <p className="text-xs text-orange-600 mt-1">System deduction: {manualDeduction} min</p>
+                                  )}
+
+                                  <div className="mt-2 pt-2 border-t flex items-center justify-between text-xs">
+                                    <span className="text-muted-foreground">
+                                      Total breaks: {breakMinsTotal}m · Total deducted: {breakDeductionTotal + manualDeduction}m
+                                    </span>
+                                    <span className="font-medium">
+                                      Net billable: {Math.floor(netMins / 60)}h {netMins % 60}m
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         )}
                       </div>
                     </CollapsibleContent>

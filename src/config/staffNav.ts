@@ -17,14 +17,12 @@ import {
   Settings,
   MessageCircle,
   KanbanSquare,
-  Inbox,
-  GraduationCap,
   LifeBuoy,
   Share2,
   ClipboardCheck,
   GitCompare,
   CheckSquare,
-  Rocket,
+  Briefcase,
 } from 'lucide-react';
 import type { NavGroup } from '@/components/navigation/types';
 
@@ -140,42 +138,30 @@ export function getStaffNav(role: StaffRole): NavGroup[] {
         { name: 'Overview', icon: LayoutDashboard, basePath: root, children: [{ name: 'Overview', href: root }] },
         { name: 'Workspace', icon: MessageSquareText, basePath: `${root}/workspace`, children: [{ name: 'Workspace', href: `${root}/workspace` }] },
         {
-          name: 'Team',
+          name: 'Agents',
           icon: Users,
-          basePath: `${root}/team-group`,
+          basePath: `${root}/agents-group`,
           children: [
             { name: 'Agents', href: `${root}/agents` },
             { name: 'Onboarding', href: `${root}/agent-onboarding` },
-            { name: 'Assignments', href: `${root}/client-assignments` },
             { name: 'Schedule', href: `${root}/schedule` },
-          ],
-        },
-        {
-          name: 'Quality',
-          icon: TrendingUp,
-          basePath: `${root}/quality-group`,
-          children: [
+            { name: 'Assignments', href: `${root}/client-assignments` },
+            { name: 'Shift Reviews', href: `${root}/shift-reviews` },
             { name: 'Performance', href: `${root}/performance` },
             { name: 'Productivity', href: `${root}/productivity` },
-            { name: 'Shift Reviews', href: `${root}/shift-reviews` },
+            { name: 'Training Signoffs', href: `${root}/training-signoffs` },
+          ],
+        },
+        {
+          name: 'Campaigns',
+          icon: Briefcase,
+          basePath: `${root}/campaigns-group`,
+          children: [
             { name: 'Script Reviews', href: `${root}/script-reviews` },
+            { name: 'Go-Live Approvals', href: `${root}/go-live` },
+            { name: 'Fulfillment', href: `${root}/fulfillment` },
             { name: 'Escalations', href: `${root}/escalations` },
           ],
-        },
-        {
-          name: 'Training',
-          icon: GraduationCap,
-          basePath: `${root}/training-group`,
-          children: [
-            { name: 'Signoffs', href: `${root}/training-signoffs` },
-          ],
-        },
-        { name: 'Go-Live Approvals', icon: Rocket, basePath: `${root}/go-live`, children: [{ name: 'Go-Live Approvals', href: `${root}/go-live` }] },
-        {
-          name: 'Fulfillment',
-          icon: Inbox,
-          basePath: `${root}/fulfillment`,
-          children: [{ name: 'Fulfillment', href: `${root}/fulfillment` }],
         },
         {
           name: 'Comms',

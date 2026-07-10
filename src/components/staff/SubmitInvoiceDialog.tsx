@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -36,7 +37,7 @@ export function SubmitInvoiceDialog({
 
   const submitMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await (supabase as any).from('shift_invoices').insert({
+      const { error } = await (supabase as any).from('shift_invoices').upsert({
         agent_id:            user!.id,
         period_start:        format(periodStart, 'yyyy-MM-dd'),
         period_end:          format(periodEnd, 'yyyy-MM-dd'),
@@ -46,7 +47,9 @@ export function SubmitInvoiceDialog({
         agent_notes:         notes || null,
         status:              'submitted',
         submitted_at:        new Date().toISOString(),
-      });
+        rejection_reason:    null,
+        rejected_at:         null,
+      }, { onConflict: 'agent_id,period_start,period_end' });
       if (error) throw error;
 
       // Notify all supervisors so the Pending tab badge lights up

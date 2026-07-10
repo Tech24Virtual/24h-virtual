@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format, differenceInMinutes, setDate, isAfter, isBefore, addMonths } from 'date-fns';
+import { format, differenceInMinutes, setDate, isAfter, isBefore, addMonths, formatDistanceToNow } from 'date-fns';
 import { Clock, Ban, CheckCircle, Pencil, AlertCircle, Send, ChevronDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -178,6 +179,21 @@ export default function AgentShifts() {
       toast.success('All completed shifts in this period have been approved.');
     },
     onError: () => toast.error('Failed to bulk approve.'),
+  });
+
+  const resubmitMutation = useMutation({
+    mutationFn: async (invoiceId: string) => {
+      const { error } = await (supabase as any)
+        .from('shift_invoices')
+        .update({ status: 'draft', rejection_reason: null, rejected_at: null })
+        .eq('id', invoiceId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shift-invoices'] });
+      toast.success('Invoice moved back to draft — please review and resubmit.');
+    },
+    onError: () => toast.error('Failed to move invoice back to draft.'),
   });
 
   // Filter shifts for selected period
@@ -424,14 +440,14 @@ export default function AgentShifts() {
             )}
 
             {/* Submit button */}
-            {!currentInvoice && approvedPeriodShifts.length > 0 && (
+            {(!currentInvoice || currentInvoice.status === 'draft') && approvedPeriodShifts.length > 0 && (
               <div className="mt-4 flex justify-end">
                 <Button onClick={() => setShowSubmitDialog(true)}>
                   <Send className="h-4 w-4 mr-2" /> Submit for Review
                 </Button>
               </div>
             )}
-            {currentInvoice && (
+            {currentInvoice && currentInvoice.status !== 'draft' && (
               <div className="mt-4 p-3 rounded-md bg-muted/50 text-sm">
                 <Badge className={invoiceStatusBadge[currentInvoice.status]?.className}>
                   {invoiceStatusBadge[currentInvoice.status]?.label || currentInvoice.status}
@@ -439,9 +455,27 @@ export default function AgentShifts() {
                 <span className="ml-2 text-muted-foreground">
                   Submitted {format(new Date(currentInvoice.submitted_at), 'MMM d, h:mm a')}
                 </span>
-                {currentInvoice.supervisor_notes && (
-                  <p className="mt-1 text-destructive text-xs">Supervisor: {currentInvoice.supervisor_notes}</p>
-                )}
+              </div>
+            )}
+            {currentInvoice?.status === 'rejected' && (
+              <div className="mt-3 p-4 rounded-lg bg-red-50 border border-red-200">
+                <p className="font-medium text-red-800">❌ Invoice Rejected</p>
+                <p className="text-sm text-red-700 mt-1">
+                  Reason: {(currentInvoice as any).rejection_reason || currentInvoice.supervisor_notes}
+                </p>
+                <p className="text-xs text-red-500 mt-1">
+                  Rejected {(currentInvoice as any).rejected_at
+                    ? formatDistanceToNow(new Date((currentInvoice as any).rejected_at)) + ' ago'
+                    : ''}
+                </p>
+                <Button
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => resubmitMutation.mutate(currentInvoice.id)}
+                  disabled={resubmitMutation.isPending}
+                >
+                  Fix & Resubmit
+                </Button>
               </div>
             )}
           </CardContent>
