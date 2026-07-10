@@ -12,6 +12,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -21,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { CheckCircle2, XCircle, Clock, Loader2, Rocket } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, Loader2, Rocket, ChevronDown } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { StaffLayout } from '@/components/staff/StaffLayout';
@@ -31,6 +36,11 @@ import {
   useSupervisorApproveGoLive,
   useAllGoLiveSnapshots,
 } from '@/hooks/campaign-os/useSupervisorGoLive';
+import type { GoLiveSnapshot } from '@/hooks/campaign-os/useGoLiveSnapshot';
+
+type SnapshotWithCampaign = GoLiveSnapshot & {
+  campaign: { id: string; display_name: string; status: string } | null;
+};
 
 function CheckPill({ ok, label }: { ok: boolean; label: string }) {
   return (
@@ -38,7 +48,7 @@ function CheckPill({ ok, label }: { ok: boolean; label: string }) {
       className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium ${
         ok
           ? 'bg-status-success-bg text-status-success'
-          : 'bg-status-warning-bg text-status-warning'
+          : 'bg-status-error-bg text-status-error'
       }`}
     >
       {ok ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
@@ -47,16 +57,65 @@ function CheckPill({ ok, label }: { ok: boolean; label: string }) {
   );
 }
 
+function StatusPill({ done, label }: { done: boolean; label: string }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium ${
+        done
+          ? 'bg-status-success-bg text-status-success'
+          : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+      }`}
+    >
+      {done ? <CheckCircle2 className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+      {label}
+    </span>
+  );
+}
+
+function ChecklistPills({ snapshot }: { snapshot: GoLiveSnapshot }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      <StatusPill done={snapshot.client_confirmed} label="Client confirmed" />
+      <StatusPill done={snapshot.supervisor_approved} label="Supervisor approved" />
+      <CheckPill ok={snapshot.five9_ok} label="Five9" />
+      <CheckPill ok={snapshot.script_published} label="Script" />
+      <CheckPill ok={snapshot.faqs_ok} label="FAQs" />
+      <CheckPill ok={snapshot.policies_ok} label="Policies" />
+      <CheckPill ok={snapshot.training_ok} label="Training" />
+    </div>
+  );
+}
+
 export default function SupervisorGoLiveApprovals() {
-  const { data: pending, isLoading, error, refetch } = usePendingGoLiveApprovals();
-  const { data: allSnapshots } = useAllGoLiveSnapshots();
+  const {
+    data: pending,
+    isLoading: pendingLoading,
+    error: pendingError,
+    refetch: refetchPending,
+  } = usePendingGoLiveApprovals();
+  const {
+    data: allSnapshots,
+    isLoading: allLoading,
+    error: allError,
+    refetch: refetchAll,
+  } = useAllGoLiveSnapshots();
   const approve = useSupervisorApproveGoLive();
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [approvedOpen, setApprovedOpen] = useState(false);
+
+  const isLoading = pendingLoading || allLoading;
+  const error = pendingError || allError;
+
+  const snapshots = (allSnapshots ?? []) as SnapshotWithCampaign[];
+  const awaitingClient = snapshots.filter(
+    (s) => !s.client_confirmed && !s.supervisor_approved
+  );
+  const approvedSnapshots = snapshots.filter((s) => s.supervisor_approved);
 
   const pendingCount = pending?.length ?? 0;
-  const approvedCount = allSnapshots?.filter(s => s.supervisor_approved).length ?? 0;
-  const totalCount = allSnapshots?.length ?? 0;
+  const approvedCount = approvedSnapshots.length;
+  const totalCount = snapshots.length;
 
   const confirmName =
     pending?.find(r => r.campaign_id === confirmId)?.campaign_name ?? 'Campaign';
@@ -165,90 +224,220 @@ export default function SupervisorGoLiveApprovals() {
           </div>
         )}
 
-        {error && (
+        {!!error && (
           <Card>
             <CardContent className="p-6 text-sm text-destructive">
               Could not load approvals.{' '}
-              <Button variant="link" size="sm" onClick={() => refetch()}>
+              <Button
+                variant="link"
+                size="sm"
+                onClick={() => {
+                  refetchPending();
+                  refetchAll();
+                }}
+              >
                 Retry
               </Button>
             </CardContent>
           </Card>
         )}
 
-        {!isLoading && !error && pendingCount === 0 && (
-          <Card>
-            <CardContent className="py-10 flex flex-col items-center gap-3 text-center">
-              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                <Clock className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div>
-                <div className="font-medium">No pending approvals</div>
-                <div className="text-sm text-muted-foreground">
-                  All campaigns are either waiting for client confirmation or already approved.
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {!isLoading && !error && (
+          <>
+            {/* Section 1 — Pending Approval */}
+            <div className="space-y-3">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                Pending Approval
+              </h2>
+              {pendingCount === 0 ? (
+                <Card>
+                  <CardContent className="py-10 flex flex-col items-center gap-3 text-center">
+                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                      <Clock className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <div className="font-medium">No pending approvals</div>
+                      <div className="text-sm text-muted-foreground">
+                        All campaigns are either waiting for client confirmation or already approved.
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Campaign</TableHead>
+                          <TableHead className="hidden md:table-cell">Checklist</TableHead>
+                          <TableHead className="hidden sm:table-cell">Client confirmed</TableHead>
+                          <TableHead className="text-right">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {pending!.map((row) => (
+                          <TableRow key={row.campaign_id}>
+                            <TableCell>
+                              <div className="font-medium">{row.campaign_name}</div>
+                              <Badge variant="outline" className="text-xs mt-1">
+                                {row.campaign_status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              <div className="flex flex-wrap gap-1">
+                                <CheckPill ok={row.snapshot.script_published} label="Script" />
+                                <CheckPill ok={row.snapshot.faqs_ok} label="FAQs" />
+                                <CheckPill ok={row.snapshot.policies_ok} label="Policies" />
+                                <CheckPill ok={row.snapshot.training_ok} label="Training" />
+                                <CheckPill ok={row.snapshot.five9_ok} label="Five9" />
+                              </div>
+                            </TableCell>
+                            <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
+                              {row.client_confirmed_at
+                                ? formatDistanceToNow(new Date(row.client_confirmed_at), {
+                                    addSuffix: true,
+                                  })
+                                : '—'}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                size="sm"
+                                onClick={() => setConfirmId(row.campaign_id)}
+                                disabled={approve.isPending && approvingId === row.campaign_id}
+                              >
+                                {approve.isPending && approvingId === row.campaign_id ? (
+                                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                                ) : (
+                                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                                )}
+                                Approve
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
 
-        {pendingCount > 0 && (
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Campaign</TableHead>
-                    <TableHead className="hidden md:table-cell">Checklist</TableHead>
-                    <TableHead className="hidden sm:table-cell">Client confirmed</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pending!.map((row) => (
-                    <TableRow key={row.campaign_id}>
-                      <TableCell>
-                        <div className="font-medium">{row.campaign_name}</div>
-                        <Badge variant="outline" className="text-xs mt-1">
-                          {row.campaign_status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <div className="flex flex-wrap gap-1">
-                          <CheckPill ok={row.snapshot.script_published} label="Script" />
-                          <CheckPill ok={row.snapshot.faqs_ok} label="FAQs" />
-                          <CheckPill ok={row.snapshot.policies_ok} label="Policies" />
-                          <CheckPill ok={row.snapshot.training_ok} label="Training" />
-                          <CheckPill ok={row.snapshot.five9_ok} label="Five9" />
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
-                        {row.client_confirmed_at
-                          ? formatDistanceToNow(new Date(row.client_confirmed_at), {
-                              addSuffix: true,
-                            })
-                          : '—'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          onClick={() => setConfirmId(row.campaign_id)}
-                          disabled={approve.isPending && approvingId === row.campaign_id}
-                        >
-                          {approve.isPending && approvingId === row.campaign_id ? (
-                            <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                          ) : (
-                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                          )}
-                          Approve
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+            {/* Section 2 — Awaiting Client Confirmation */}
+            <div className="space-y-3">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                Awaiting Client Confirmation
+              </h2>
+              {awaitingClient.length === 0 ? (
+                <Card>
+                  <CardContent className="py-6 text-sm text-muted-foreground text-center">
+                    No campaigns are waiting on the client right now.
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Campaign</TableHead>
+                          <TableHead>Checklist</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {awaitingClient.map((row) => (
+                          <TableRow key={row.campaign_id}>
+                            <TableCell>
+                              <div className="font-medium">
+                                {row.campaign?.display_name ?? 'Unknown'}
+                              </div>
+                              <Badge variant="outline" className="text-xs mt-1">
+                                {row.campaign?.status ?? 'draft'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <ChecklistPills snapshot={row} />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            {/* Section 3 — Approved (collapsed by default) */}
+            <Collapsible open={approvedOpen} onOpenChange={setApprovedOpen}>
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  Approved
+                </h2>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-1">
+                    {approvedSnapshots.length} campaign{approvedSnapshots.length === 1 ? '' : 's'}
+                    <ChevronDown
+                      className={`h-4 w-4 transition-transform ${approvedOpen ? 'rotate-180' : ''}`}
+                    />
+                  </Button>
+                </CollapsibleTrigger>
+              </div>
+              <CollapsibleContent className="mt-3">
+                {approvedSnapshots.length === 0 ? (
+                  <Card>
+                    <CardContent className="py-6 text-sm text-muted-foreground text-center">
+                      No campaigns have been approved yet.
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card>
+                    <CardContent className="p-0">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Campaign</TableHead>
+                            <TableHead className="hidden md:table-cell">Checklist</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {approvedSnapshots.map((row) => (
+                            <TableRow key={row.campaign_id}>
+                              <TableCell>
+                                <div className="font-medium">
+                                  {row.campaign?.display_name ?? 'Unknown'}
+                                </div>
+                                <Badge variant="outline" className="text-xs mt-1">
+                                  {row.campaign?.status ?? 'draft'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="hidden md:table-cell">
+                                <ChecklistPills snapshot={row} />
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-col gap-1">
+                                  <Badge className="w-fit bg-status-success-bg text-status-success border-transparent">
+                                    ✅ Approved
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    {row.supervisor_approved_at
+                                      ? formatDistanceToNow(new Date(row.supervisor_approved_at), {
+                                          addSuffix: true,
+                                        })
+                                      : '—'}
+                                  </span>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+          </>
         )}
       </div>
 

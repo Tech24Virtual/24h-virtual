@@ -60,6 +60,7 @@ export function useSupervisorApproveGoLive() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['campaign-os', 'supervisor', 'go-live-approvals'] });
+      qc.invalidateQueries({ queryKey: ['campaign-os', 'supervisor', 'all-snapshots'] });
       qc.invalidateQueries({ queryKey: ['campaign-os', 'go-live-snapshot'] });
       qc.invalidateQueries({ queryKey: ['campaign-os', 'go-live-checks'] });
     },
