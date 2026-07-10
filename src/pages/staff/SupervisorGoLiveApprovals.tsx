@@ -12,11 +12,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -26,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { CheckCircle2, XCircle, Clock, Loader2, Rocket, ChevronDown } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, Loader2, Rocket } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { StaffLayout } from '@/components/staff/StaffLayout';
@@ -102,7 +97,6 @@ export default function SupervisorGoLiveApprovals() {
   const approve = useSupervisorApproveGoLive();
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
-  const [approvedOpen, setApprovedOpen] = useState(false);
 
   const isLoading = pendingLoading || allLoading;
   const error = pendingError || allError;
@@ -367,22 +361,17 @@ export default function SupervisorGoLiveApprovals() {
               )}
             </div>
 
-            {/* Section 3 — Approved (collapsed by default) */}
-            <Collapsible open={approvedOpen} onOpenChange={setApprovedOpen}>
+            {/* Section 3 — Approved */}
+            <div>
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                   Approved
                 </h2>
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-1">
-                    {approvedSnapshots.length} campaign{approvedSnapshots.length === 1 ? '' : 's'}
-                    <ChevronDown
-                      className={`h-4 w-4 transition-transform ${approvedOpen ? 'rotate-180' : ''}`}
-                    />
-                  </Button>
-                </CollapsibleTrigger>
+                <span className="text-xs text-muted-foreground">
+                  {approvedSnapshots.length} campaign{approvedSnapshots.length === 1 ? '' : 's'}
+                </span>
               </div>
-              <CollapsibleContent className="mt-3">
+              <div className="mt-3">
                 {approvedSnapshots.length === 0 ? (
                   <Card>
                     <CardContent className="py-6 text-sm text-muted-foreground text-center">
@@ -435,8 +424,8 @@ export default function SupervisorGoLiveApprovals() {
                     </CardContent>
                   </Card>
                 )}
-              </CollapsibleContent>
-            </Collapsible>
+              </div>
+            </div>
           </>
         )}
       </div>
