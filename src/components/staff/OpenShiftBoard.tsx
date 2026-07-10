@@ -7,12 +7,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Props {
   role: 'agent' | 'supervisor';
@@ -61,6 +62,8 @@ export function OpenShiftBoard({ role }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+  const [assignDialog, setAssignDialog] = useState<{ open: boolean; shiftId: string | null }>({ open: false, shiftId: null });
+  const [selectedAgentId, setSelectedAgentId] = useState('');
 
   const { data: shifts = [], isLoading } = useQuery({
     queryKey: ['open-shifts'],
@@ -107,6 +110,21 @@ export function OpenShiftBoard({ role }: Props) {
       return data || [];
     },
   });
+
+  // Agents eligible for direct assignment (supervisor only)
+  const { data: agentRoles = [] } = useQuery({
+    queryKey: ['agents-for-assignment'],
+    queryFn: async () => {
+      const { data } = await supabase.from('user_roles').select('user_id').eq('role', 'agent');
+      return data ?? [];
+    },
+    enabled: role === 'supervisor',
+  });
+
+  const agents = agentRoles.map(r => ({
+    id: r.user_id,
+    full_name: profiles.find(p => p.id === r.user_id)?.full_name || 'Unknown agent',
+  }));
 
   // Synchronous eligibility check using cached schedules — avoids async race before insert
   const getClaimError = (shift: OpenShift): string | null => {
@@ -181,11 +199,12 @@ export function OpenShiftBoard({ role }: Props) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['open-shifts'] });
+      queryClient.invalidateQueries({ queryKey: ['open-shift-count'] });
       queryClient.invalidateQueries({ queryKey: ['agent-schedules'] });
-      toast({ title: 'Shift claimed!', description: 'Added to your schedule.' });
+      toast.success('Shift claimed!', { description: 'Added to your schedule.' });
     },
     onError: (error: Error) => {
-      toast({ title: 'Cannot claim shift', description: error.message || 'Failed to claim shift.', variant: 'destructive' });
+      toast.error('Cannot claim shift', { description: error.message || 'Failed to claim shift.' });
     },
   });
 
@@ -196,8 +215,52 @@ export function OpenShiftBoard({ role }: Props) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['open-shifts'] });
-      toast({ title: 'Shift cancelled' });
+      queryClient.invalidateQueries({ queryKey: ['open-shift-count'] });
+      toast.success('Shift cancelled');
     },
+  });
+
+  const assignMutation = useMutation({
+    mutationFn: async ({ shiftId, agentId }: { shiftId: string; agentId: string }) => {
+      const shift = shifts.find(s => s.id === shiftId);
+      if (!shift) throw new Error('Shift not found');
+
+      // 1. Update open_shifts
+      const { error: shiftError } = await supabase
+        .from('open_shifts')
+        .update({ claimed_by: agentId, claimed_at: new Date().toISOString(), status: 'claimed' })
+        .eq('id', shiftId);
+      if (shiftError) throw shiftError;
+
+      // 2. Insert agent_schedules row for the assigned agent
+      const { error: schedError } = await supabase.from('agent_schedules').insert({
+        agent_id: agentId,
+        created_by: user!.id,
+        shift_date: shift.shift_date,
+        start_time: shift.start_time,
+        end_time: shift.end_time,
+        notes: 'Supervisor-assigned coverage shift',
+      });
+      if (schedError) throw schedError;
+
+      // 3. Notify the agent
+      await supabase.from('notifications').insert({
+        user_id: agentId,
+        title: 'You have been assigned a shift',
+        message: `A supervisor has assigned you a coverage shift on ${shift.shift_date}`,
+        category: 'schedule',
+        action_url: '/staff/agent/schedule',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['open-shifts'] });
+      queryClient.invalidateQueries({ queryKey: ['open-shift-count'] });
+      queryClient.invalidateQueries({ queryKey: ['agent-schedules'] });
+      setAssignDialog({ open: false, shiftId: null });
+      setSelectedAgentId('');
+      toast.success('Shift assigned successfully');
+    },
+    onError: (e: Error) => toast.error(e.message || 'Failed to assign shift.'),
   });
 
   const getName = (id: string) => profiles.find(p => p.id === id)?.full_name || 'Unknown';
@@ -305,6 +368,16 @@ export function OpenShiftBoard({ role }: Props) {
 
                       {role === 'supervisor' && shift.status === 'open' && (
                         <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setAssignDialog({ open: true, shiftId: shift.id })}
+                        >
+                          Assign to Agent
+                        </Button>
+                      )}
+
+                      {role === 'supervisor' && shift.status === 'open' && (
+                        <Button
                           variant="ghost"
                           size="sm"
                           className="text-destructive hover:text-destructive hover:bg-destructive/10"
@@ -341,6 +414,44 @@ export function OpenShiftBoard({ role }: Props) {
               onClick={() => confirmCancelId && cancelMutation.mutate(confirmCancelId)}
             >
               Cancel Shift
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={assignDialog.open}
+        onOpenChange={open => { if (!open) { setAssignDialog({ open: false, shiftId: null }); setSelectedAgentId(''); } }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Assign shift to an agent</AlertDialogTitle>
+            <AlertDialogDescription>
+              Select an agent to directly assign this open shift to. They'll be notified and it'll be added to their schedule.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-2">
+            <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
+              <SelectTrigger><SelectValue placeholder="Select an agent" /></SelectTrigger>
+              <SelectContent>
+                {agents.map(a => (
+                  <SelectItem key={a.id} value={a.id}>{a.full_name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedAgentId('')}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!selectedAgentId || assignMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (assignDialog.shiftId && selectedAgentId) {
+                  assignMutation.mutate({ shiftId: assignDialog.shiftId, agentId: selectedAgentId });
+                }
+              }}
+            >
+              {assignMutation.isPending ? 'Assigning...' : 'Assign'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

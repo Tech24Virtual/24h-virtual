@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -13,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { useState } from 'react';
 
 interface Props {
@@ -27,7 +28,7 @@ const statusColors: Record<string, string> = {
 };
 
 // Minimum fraction of an agent's clients that a covering agent must handle
-const COVERAGE_THRESHOLD = 0.8;
+const COVERAGE_THRESHOLD = 0.5; // was 0.8 — too strict, almost never met
 
 // Create smart open shifts for eligible agents when a time-off request is approved.
 // Eligible = handles >= 80% of the requesting agent's clients.
@@ -61,11 +62,38 @@ async function createSmartOpenShifts(
     coverageCount[a.agent_id] = (coverageCount[a.agent_id] ?? 0) + 1;
   });
 
-  const eligibleAgents = Object.entries(coverageCount)
-    .filter(([, count]) => count / clientIds.length >= COVERAGE_THRESHOLD)
-    .map(([id]) => id);
+  const eligibleAgents = clientIds.length === 0
+    ? []
+    : Object.entries(coverageCount)
+        .filter(([, count]) => count / clientIds.length >= COVERAGE_THRESHOLD)
+        .map(([id]) => id);
 
-  if (eligibleAgents.length === 0) return;
+  // Fallback: no agent meets the coverage threshold (or the agent had no
+  // assigned clients to match against) — post general open shifts that any
+  // agent can claim, rather than silently posting nothing.
+  if (eligibleAgents.length === 0) {
+    try {
+      const fallbackRows = schedules.map(s => ({
+        shift_date: s.shift_date,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        status: 'open',
+        original_agent_id: agentId,
+        original_schedule_id: s.id,
+        posted_by: postedBy,
+        total_blocks: 1,
+        required_skills: [],
+        notes: 'Coverage needed — open to any available agent',
+      }));
+      const { error } = await supabase.from('open_shifts').insert(fallbackRows as any);
+      if (error) throw error;
+      toast.info('Shift posted as open — no agents with matching clients found');
+    } catch (err) {
+      console.error('Fallback open_shifts insert failed:', err);
+      toast.warning('Could not post coverage — no agents available');
+    }
+    return;
+  }
 
   // Step 3: build open shift rows (with split logic)
   const rows: Record<string, unknown>[] = [];
@@ -133,7 +161,11 @@ async function createSmartOpenShifts(
 
   if (rows.length > 0) {
     const { error } = await supabase.from('open_shifts').insert(rows as any);
-    if (error) console.error('Smart open_shifts insert failed:', error);
+    if (error) {
+      console.error('Smart open_shifts insert failed:', error);
+      toast.warning('Could not post coverage — no agents available');
+      return;
+    }
   }
 
   // Step 4: notify eligible agents
@@ -146,6 +178,8 @@ async function createSmartOpenShifts(
   }));
   const { error: notifError } = await supabase.from('notifications').insert(notifications);
   if (notifError) console.error('Shift notification insert failed:', notifError);
+
+  toast.success(`Coverage shift posted for ${eligibleAgents.length} eligible agent(s)`);
 }
 
 export function TimeOffRequestsList({ role }: Props) {
@@ -209,7 +243,8 @@ export function TimeOffRequestsList({ role }: Props) {
             .lte('shift_date', endDate);
 
           if (postCoverage[id]) {
-            // Smart open shifts: only notify agents who cover 80%+ of the same clients
+            // Smart open shifts: prefer agents who cover 50%+ of the same clients,
+            // falling back to a general open shift if none qualify
             await createSmartOpenShifts(agentId, schedules, user!.id);
           }
         }
@@ -218,12 +253,13 @@ export function TimeOffRequestsList({ role }: Props) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['time-off-requests'] });
       queryClient.invalidateQueries({ queryKey: ['open-shifts'] });
+      queryClient.invalidateQueries({ queryKey: ['open-shift-count'] });
       queryClient.invalidateQueries({ queryKey: ['agent-schedules'] });
-      toast({ title: 'Request updated' });
+      toast.success('Request updated');
     },
     onError: (error: Error) => {
       console.error('Time-off review mutation error:', error);
-      toast({ title: 'Error', description: 'Failed to update request.', variant: 'destructive' });
+      toast.error('Failed to update request.');
     },
   });
 
@@ -237,11 +273,11 @@ export function TimeOffRequestsList({ role }: Props) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['time-off-requests'] });
-      toast({ title: 'Request reset to pending' });
+      toast.success('Request reset to pending');
     },
     onError: (error: Error) => {
       console.error('Reset mutation error:', error);
-      toast({ title: 'Error', description: 'Failed to reset request.', variant: 'destructive' });
+      toast.error('Failed to reset request.');
     },
   });
 
