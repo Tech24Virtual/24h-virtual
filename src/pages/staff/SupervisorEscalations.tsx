@@ -1,5 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { StaffLayout } from '@/components/staff/StaffLayout';
@@ -10,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
@@ -33,7 +36,128 @@ type EscalationForm = {
   subject: string;
   description: string;
   priority: string;
+  related_agent_id: string;
+  related_client_id: string;
 };
+
+type Escalation = {
+  id: string;
+  supervisor_id: string;
+  target_department: string;
+  subject: string;
+  description: string | null;
+  priority: string | null;
+  related_agent_id: string | null;
+  related_client_id: string | null;
+  status: string | null;
+  resolved_at: string | null;
+  resolution_notes: string | null;
+  created_at: string;
+  related_agent: { full_name: string | null } | null;
+  related_client: { name: string | null; company: string | null } | null;
+};
+
+function EscalationDetailSheet({
+  escalation,
+  onOpenChange,
+  onResolve,
+}: {
+  escalation: Escalation | null;
+  onOpenChange: (open: boolean) => void;
+  onResolve: (id: string) => void;
+}) {
+  return (
+    <Sheet open={!!escalation} onOpenChange={onOpenChange}>
+      <SheetContent className="sm:max-w-lg overflow-y-auto">
+        {escalation && (
+          <>
+            <SheetHeader>
+              <SheetTitle className="text-xl pr-6">{escalation.subject}</SheetTitle>
+            </SheetHeader>
+
+            <div className="mt-4 space-y-4">
+              <div className="flex flex-wrap gap-2">
+                <Badge
+                  variant={(statusColors[escalation.status ?? ''] ?? 'secondary') as any}
+                  className="capitalize"
+                >
+                  {escalation.status?.replace('_', ' ')}
+                </Badge>
+                <Badge
+                  variant={(priorityColors[escalation.priority ?? ''] ?? 'secondary') as any}
+                  className="capitalize"
+                >
+                  {escalation.priority} priority
+                </Badge>
+                <Badge variant="outline" className="capitalize">{escalation.target_department}</Badge>
+              </div>
+
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">Created</p>
+                <p className="text-sm mt-0.5">
+                  {format(new Date(escalation.created_at), 'MMM d, yyyy h:mm a')}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">Description</p>
+                <p className="text-sm mt-0.5 whitespace-pre-wrap">
+                  {escalation.description || 'No description provided.'}
+                </p>
+              </div>
+
+              {escalation.related_agent_id && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Related Agent</p>
+                  <p className="text-sm mt-0.5">
+                    {escalation.related_agent?.full_name || 'Unknown agent'}
+                  </p>
+                </div>
+              )}
+
+              {escalation.related_client_id && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Related Client</p>
+                  <p className="text-sm mt-0.5">
+                    {escalation.related_client?.name || 'Unknown client'}
+                    {escalation.related_client?.company && ` · ${escalation.related_client.company}`}
+                  </p>
+                </div>
+              )}
+
+              {escalation.status === 'resolved' && (
+                <div className="pt-3 border-t space-y-2">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">Resolution Notes</p>
+                    <p className="text-sm mt-0.5 whitespace-pre-wrap">
+                      {escalation.resolution_notes || '—'}
+                    </p>
+                  </div>
+                  {escalation.resolved_at && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground">Resolved At</p>
+                      <p className="text-sm mt-0.5">
+                        {format(new Date(escalation.resolved_at), 'MMM d, yyyy h:mm a')}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {escalation.status !== 'resolved' && (
+              <SheetFooter className="mt-6">
+                <Button onClick={() => onResolve(escalation.id)} className="w-full sm:w-auto">
+                  Resolve
+                </Button>
+              </SheetFooter>
+            )}
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
 
 export default function SupervisorEscalations() {
   const { user } = useAuth();
@@ -42,31 +166,62 @@ export default function SupervisorEscalations() {
   const [resolveDialog, setResolveDialog] = useState<string | null>(null);
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [search, setSearch] = useState('');
+  const [selectedEscalation, setSelectedEscalation] = useState<Escalation | null>(null);
   const [form, setForm] = useState<EscalationForm>({
     target_department: '', subject: '', description: '', priority: 'medium',
+    related_agent_id: '', related_client_id: '',
   });
 
   const { data: escalations = [], isLoading } = useQuery({
     queryKey: ['supervisor-escalations'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('supervisor_escalations')
-        .select('*')
+        .select(`
+          *,
+          related_agent:profiles!related_agent_id(full_name),
+          related_client:leads!related_client_id(name, company)
+        `)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data;
+      return (data ?? []) as Escalation[];
+    },
+  });
+
+  const { data: agents = [] } = useQuery({
+    queryKey: ['escalation-agents'],
+    queryFn: async () => {
+      const { data: roles } = await supabase.from('user_roles').select('user_id').eq('role', 'agent');
+      const ids = (roles ?? []).map(r => r.user_id);
+      if (!ids.length) return [];
+      const { data } = await supabase.from('profiles').select('id, full_name').in('id', ids);
+      return data ?? [];
+    },
+  });
+
+  const { data: activeClients = [] } = useQuery({
+    queryKey: ['escalation-active-clients'],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('leads')
+        .select('id, name, company')
+        .eq('pipeline_stage', 'active')
+        .order('name');
+      return data ?? [];
     },
   });
 
   const createEscalation = useMutation({
     // Pass form snapshot as variables so onSuccess gets the exact values used in the insert
     mutationFn: async (formData: EscalationForm) => {
-      const { error } = await supabase.from('supervisor_escalations').insert({
+      const { error } = await (supabase as any).from('supervisor_escalations').insert({
         supervisor_id: user!.id,
         target_department: formData.target_department,
         subject: formData.subject,
         description: formData.description || null,
         priority: formData.priority,
+        related_agent_id: formData.related_agent_id || null,
+        related_client_id: formData.related_client_id || null,
       });
       if (error) throw error;
     },
@@ -74,7 +229,10 @@ export default function SupervisorEscalations() {
       queryClient.invalidateQueries({ queryKey: ['supervisor-escalations'] });
       toast.success('Escalation created');
       setCreateDialog(false);
-      setForm({ target_department: '', subject: '', description: '', priority: 'medium' });
+      setForm({
+        target_department: '', subject: '', description: '', priority: 'medium',
+        related_agent_id: '', related_client_id: '',
+      });
 
       // Fire-and-forget: notify all users in the target department
       supabase
@@ -125,6 +283,7 @@ export default function SupervisorEscalations() {
 
       setResolveDialog(null);
       setResolutionNotes('');
+      setSelectedEscalation(null);
     },
     onError: (err: any) => toast.error(err.message || 'Failed to resolve escalation'),
   });
@@ -216,6 +375,7 @@ export default function SupervisorEscalations() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Subject</TableHead>
+                  <TableHead>Description</TableHead>
                   <TableHead>Department</TableHead>
                   <TableHead>Priority</TableHead>
                   <TableHead>Status</TableHead>
@@ -227,12 +387,12 @@ export default function SupervisorEscalations() {
                 {isLoading ? (
                   Array.from({ length: 3 }).map((_, i) => (
                     <TableRow key={i}>
-                      <TableCell colSpan={6}><Skeleton className="h-8 w-full" /></TableCell>
+                      <TableCell colSpan={7}><Skeleton className="h-8 w-full" /></TableCell>
                     </TableRow>
                   ))
                 ) : filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                       <AlertTriangle className="w-10 h-10 mx-auto mb-2 opacity-30" />
                       <p className="font-medium">No escalations</p>
                       <p className="text-sm mt-0.5">Use the button above to create one.</p>
@@ -240,8 +400,15 @@ export default function SupervisorEscalations() {
                   </TableRow>
                 ) : (
                   filtered.map(e => (
-                    <TableRow key={e.id}>
+                    <TableRow
+                      key={e.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => setSelectedEscalation(e)}
+                    >
                       <TableCell className="font-medium">{e.subject}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
+                        {e.description ? e.description.substring(0, 80) + (e.description.length > 80 ? '...' : '') : '—'}
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="capitalize">{e.target_department}</Badge>
                       </TableCell>
@@ -261,10 +428,14 @@ export default function SupervisorEscalations() {
                           {e.status?.replace('_', ' ')}
                         </Badge>
                       </TableCell>
-                      <TableCell>{new Date(e.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell>{format(new Date(e.created_at), 'MMM d, yyyy h:mm a')}</TableCell>
                       <TableCell>
                         {e.status !== 'resolved' && (
-                          <Button size="sm" variant="outline" onClick={() => setResolveDialog(e.id)}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(ev) => { ev.stopPropagation(); setResolveDialog(e.id); }}
+                          >
                             Resolve
                           </Button>
                         )}
@@ -277,6 +448,13 @@ export default function SupervisorEscalations() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Detail sheet */}
+      <EscalationDetailSheet
+        escalation={selectedEscalation}
+        onOpenChange={(open) => { if (!open) setSelectedEscalation(null); }}
+        onResolve={(id) => setResolveDialog(id)}
+      />
 
       {/* Create dialog */}
       <Dialog open={createDialog} onOpenChange={setCreateDialog}>
@@ -318,6 +496,38 @@ export default function SupervisorEscalations() {
                   <SelectItem value="medium">Medium</SelectItem>
                   <SelectItem value="high">High</SelectItem>
                   <SelectItem value="urgent">Urgent</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Related Agent (optional)</label>
+              <Select
+                value={form.related_agent_id || 'none'}
+                onValueChange={v => setForm(f => ({ ...f, related_agent_id: v === 'none' ? '' : v }))}
+              >
+                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {agents.map(a => (
+                    <SelectItem key={a.id} value={a.id}>{a.full_name || a.id}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Related Client (optional)</label>
+              <Select
+                value={form.related_client_id || 'none'}
+                onValueChange={v => setForm(f => ({ ...f, related_client_id: v === 'none' ? '' : v }))}
+              >
+                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {activeClients.map((c: any) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}{c.company ? ` (${c.company})` : ''}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
