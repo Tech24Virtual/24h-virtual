@@ -36,6 +36,7 @@ interface Task {
   created_at: string;
   created_by: string | null;
   assigned_to: string | null;
+  assigned_department?: string | null;
   lead_id: string | null;
   lead?: { name: string; company: string | null } | null;
 }
@@ -56,7 +57,7 @@ interface TaskDetailDialogProps {
 }
 
 export function TaskDetailDialog({ task, open, onOpenChange }: TaskDetailDialogProps) {
-  const { user, profile } = useAuth();
+  const { user, profile, roles } = useAuth();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [newNote, setNewNote] = useState('');
@@ -82,7 +83,8 @@ export function TaskDetailDialog({ task, open, onOpenChange }: TaskDetailDialogP
 
   const isCreator = task?.created_by === user?.id;
   const isAssignee = task?.assigned_to === user?.id;
-  const canComplete = isCreator || isAssignee;
+  const isDepartmentAssignee = !!task?.assigned_department && roles.some(r => r === task.assigned_department);
+  const canComplete = isCreator || isAssignee || isDepartmentAssignee;
 
   // Fetch task notes
   const { data: notes = [] } = useQuery({

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { StaffLayout } from '@/components/staff/StaffLayout';
@@ -16,7 +17,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -45,20 +46,37 @@ interface Task {
   created_at: string;
   created_by: string | null;
   assigned_to: string | null;
+  assigned_department: string | null;
   lead_id: string | null;
   visibility: string | null;
   lead?: { name: string; company: string | null } | null;
 }
 
-interface AgentProfile {
+interface StaffProfile {
   id: string;
   full_name: string | null;
+  role: string;
 }
+
+const STAFF_ROLES_FOR_ASSIGNMENT = ['agent', 'supervisor', 'sales', 'billing', 'tech', 'hr'] as const;
+
+// Departments at top (role-based, not profiles.department — profiles.department
+// is an unrelated free-text field, not the admin/agent/supervisor/... taxonomy)
+const DEPARTMENT_OPTIONS = [
+  { value: 'dept:admin', label: '📋 Admin Team', department: 'admin' },
+  { value: 'dept:agent', label: '📋 Agent Team', department: 'agent' },
+  { value: 'dept:supervisor', label: '📋 Supervisor Team', department: 'supervisor' },
+  { value: 'dept:sales', label: '📋 Sales Team', department: 'sales' },
+  { value: 'dept:billing', label: '📋 Billing Team', department: 'billing' },
+  { value: 'dept:tech', label: '📋 Tech Team', department: 'tech' },
+  { value: 'dept:hr', label: '📋 HR Team', department: 'hr' },
+];
 
 const EMPTY_FORM = {
   title: '',
   description: '',
   assignedTo: 'none',
+  assignedDepartment: '',
   priority: 'medium',
   dueDate: '',
 };
@@ -85,25 +103,44 @@ export default function SupervisorTasks() {
     },
   });
 
-  const { data: agentProfiles = [] } = useQuery<AgentProfile[]>({
-    queryKey: ['agent-profiles-for-tasks'],
+  const { data: allStaffProfiles = [] } = useQuery<StaffProfile[]>({
+    queryKey: ['staff-profiles-for-tasks'],
     queryFn: async () => {
       const { data: roles, error } = await supabase
         .from('user_roles')
-        .select('user_id')
-        .eq('role', 'agent');
+        .select('user_id, role')
+        .in('role', STAFF_ROLES_FOR_ASSIGNMENT);
       if (error) throw error;
       if (!roles?.length) return [];
-      const ids = roles.map((r: { user_id: string }) => r.user_id);
+      // A user can hold multiple roles — keep the first one encountered per
+      // user so each person appears once in the "By Name" list.
+      const roleByUser = new Map<string, string>();
+      roles.forEach((r: { user_id: string; role: string }) => {
+        if (!roleByUser.has(r.user_id)) roleByUser.set(r.user_id, r.role);
+      });
+      const ids = [...roleByUser.keys()];
       const { data: profiles, error: pe } = await supabase
         .from('profiles')
         .select('id, full_name')
         .in('id', ids);
       if (pe) throw pe;
-      return (profiles ?? []) as AgentProfile[];
+      return (profiles ?? []).map(p => ({
+        id: p.id,
+        full_name: p.full_name,
+        role: roleByUser.get(p.id) ?? '',
+      }));
     },
     enabled: newTaskOpen,
   });
+
+  const handleAssigneeChange = (value: string) => {
+    if (value.startsWith('dept:')) {
+      const dept = value.replace('dept:', '');
+      setTaskForm(f => ({ ...f, assignedTo: 'none', assignedDepartment: dept }));
+    } else {
+      setTaskForm(f => ({ ...f, assignedTo: value, assignedDepartment: '' }));
+    }
+  };
 
   const toggleStatus = useMutation({
     mutationFn: async ({ id, currentStatus }: { id: string; currentStatus: string }) => {
@@ -136,10 +173,11 @@ export default function SupervisorTasks() {
 
   const createTask = useMutation({
     mutationFn: async (form: typeof EMPTY_FORM) => {
-      const { error } = await supabase.from('crm_tasks').insert({
+      const { error } = await (supabase as any).from('crm_tasks').insert({
         title: form.title,
         description: form.description || null,
         assigned_to: form.assignedTo !== 'none' ? form.assignedTo : null,
+        assigned_department: form.assignedDepartment || null,
         created_by: user?.id ?? null,
         priority: form.priority,
         due_date: form.dueDate ? new Date(form.dueDate).toISOString() : null,
@@ -321,12 +359,17 @@ export default function SupervisorTasks() {
                         className="flex-1 min-w-0 cursor-pointer"
                         onClick={() => setSelectedTask(task)}
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <p className={cn('font-medium', task.status === 'completed' && 'line-through text-muted-foreground')}>
                             {task.title}
                           </p>
                           {expirationStatus === 'expired' && <AlertTriangle className="h-4 w-4 text-destructive" />}
                           {expirationStatus === 'warning' && <Clock className="h-4 w-4 text-yellow-600" />}
+                          {task.assigned_department && (
+                            <Badge variant="outline" className="text-xs">
+                              📋 {task.assigned_department.charAt(0).toUpperCase() + task.assigned_department.slice(1)} Team
+                            </Badge>
+                          )}
                         </div>
                         {task.lead && (
                           <p className="text-sm text-muted-foreground">
@@ -388,15 +431,26 @@ export default function SupervisorTasks() {
             <div className="space-y-1">
               <Label>Assignee</Label>
               <Select
-                value={taskForm.assignedTo}
-                onValueChange={v => setTaskForm(f => ({ ...f, assignedTo: v }))}
+                value={taskForm.assignedDepartment ? `dept:${taskForm.assignedDepartment}` : taskForm.assignedTo}
+                onValueChange={handleAssigneeChange}
               >
                 <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Unassigned</SelectItem>
-                  {agentProfiles.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.full_name ?? 'Unknown'}</SelectItem>
-                  ))}
+                  <SelectGroup>
+                    <SelectLabel>── By Department ──</SelectLabel>
+                    {DEPARTMENT_OPTIONS.map(d => (
+                      <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                    ))}
+                  </SelectGroup>
+                  <SelectGroup>
+                    <SelectLabel>── By Name ──</SelectLabel>
+                    {allStaffProfiles.map(p => (
+                      <SelectItem key={p.id} value={p.id}>
+                        👤 {p.full_name ?? 'Unknown'} ({p.role})
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>

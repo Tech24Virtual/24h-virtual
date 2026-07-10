@@ -30,6 +30,7 @@ interface Task {
   created_at: string;
   created_by: string | null;
   assigned_to: string | null;
+  assigned_department: string | null;
   lead_id: string | null;
   visibility: string | null;
   lead?: { name: string; company: string | null } | null;
@@ -421,6 +422,11 @@ export default function AgentTasks() {
                           </p>
                           {task.visibility === 'self' && (
                             <Badge variant="outline" className="text-xs">Self</Badge>
+                          )}
+                          {task.assigned_department && (
+                            <Badge variant="outline" className="text-xs">
+                              📋 {task.assigned_department.charAt(0).toUpperCase() + task.assigned_department.slice(1)} Team
+                            </Badge>
                           )}
                         </div>
                         {task.description && (
