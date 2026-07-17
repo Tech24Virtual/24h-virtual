@@ -10,6 +10,7 @@ import { toast } from '@/hooks/use-toast';
 import { BreakButtons, BreakTimer, type BreakType } from '@/components/staff/BreakControls';
 import { computeBreakEndDeductionMinutes, useBathroomAllowanceMinutes, useLunchMinutesSetting } from '@/lib/shiftBreaks';
 import { useShiftHeartbeat } from '@/hooks/useShiftHeartbeat';
+import { syncTrackabi } from '@/lib/trackabiSync';
 
 interface ActiveBreak {
   id: string;
@@ -95,26 +96,48 @@ export function HeaderShiftIndicator() {
         .update({ clock_out: new Date().toISOString(), status: 'completed' })
         .eq('id', activeShift!.id);
       if (error) throw error;
+      return activeShift!.id;
     },
-    onSuccess: () => {
+    onSuccess: (shiftId: string) => {
       queryClient.invalidateQueries({ queryKey: ['active-shift'] });
       queryClient.invalidateQueries({ queryKey: ['agent-shifts'] });
       toast({ title: 'Clocked out', description: 'Your shift has ended.' });
+      syncTrackabi({
+        action: 'clock_out',
+        agent_id: user?.id,
+        agent_email: user?.email,
+        shift_id: shiftId,
+        timestamp: new Date().toISOString(),
+      });
     },
   });
 
   const startBreakMutation = useMutation({
     mutationFn: async ({ type, durationMinutes }: { type: 'lunch' | 'bathroom'; durationMinutes: number }) => {
-      const { error } = await (supabase as any).from('agent_shift_breaks').insert({
+      const { error: breakError } = await (supabase as any).from('agent_shift_breaks').insert({
         shift_id: activeShift!.id,
         break_type: type,
         break_duration_minutes: durationMinutes,
       });
-      if (error) throw error;
+      if (breakError) throw breakError;
+      const { error: statusError } = await (supabase as any)
+        .from('agent_shifts')
+        .update({ agent_status: type === 'bathroom' ? 'on_break_bathroom' : 'on_break_lunch' })
+        .eq('id', activeShift!.id);
+      if (statusError) throw statusError;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['active-break'] });
+      queryClient.invalidateQueries({ queryKey: ['active-shift'] });
       toast({ title: 'Break started' });
+      syncTrackabi({
+        action: 'break_start',
+        agent_id: user?.id,
+        agent_email: user?.email,
+        shift_id: activeShift!.id,
+        timestamp: new Date().toISOString(),
+        break_type: variables.type,
+      });
     },
   });
 
@@ -129,9 +152,14 @@ export function HeaderShiftIndicator() {
         .update({ ended_at: new Date().toISOString() })
         .eq('id', activeBreak.id);
       if (breakError) throw breakError;
-      const { error: shiftError } = await supabase
+      const { error: incrementError } = await (supabase as any).rpc('increment_break_minutes', {
+        shift_id: activeShift!.id,
+        minutes: deductMinutes,
+      });
+      if (incrementError) throw incrementError;
+      const { error: shiftError } = await (supabase as any)
         .from('agent_shifts')
-        .update({ total_break_minutes: (activeShift!.total_break_minutes || 0) + deductMinutes })
+        .update({ agent_status: 'available' })
         .eq('id', activeShift!.id);
       if (shiftError) throw shiftError;
     },

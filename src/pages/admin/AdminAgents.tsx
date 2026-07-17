@@ -9,8 +9,10 @@ import {
   UserPlus,
   AlertTriangle,
   Loader2,
+  Link2,
 } from 'lucide-react';
 import { AgentSkillsManager } from '@/components/staff/AgentSkillsManager';
+import { TrackabiLinkDialog, trackabiMemberLabel, type TrackabiMember } from '@/components/admin/TrackabiLinkDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -62,6 +64,7 @@ interface AgentRow {
   skill_count: number;
   refresher_interval_months: number;
   agent_start_date: string | null;
+  trackabi_user_id: string | null;
 }
 
 // ── Invite Dialog ─────────────────────────────────────────────────────────
@@ -210,9 +213,11 @@ export default function AdminAgents() {
   const [searchQuery, setSearchQuery] = useState('');
   const [edits, setEdits] = useState<Record<string, Partial<AgentRow>>>({});
   const [skillsAgent, setSkillsAgent] = useState<{ id: string; name: string } | null>(null);
+  const [trackabiAgent, setTrackabiAgent] = useState<{ id: string; name: string; trackabiUserId: string | null } | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [offboardTarget, setOffboardTarget] = useState<AgentRow | null>(null);
   const [offboardingId, setOffboardingId] = useState<string | null>(null);
+  const [unlinkingTrackabiId, setUnlinkingTrackabiId] = useState<string | null>(null);
 
   const { data: agents = [], isLoading, error } = useQuery({
     queryKey: ['admin-agents'],
@@ -233,7 +238,7 @@ export default function AdminAgents() {
       const [profilesResult, bankingResult, skillsResult] = await Promise.all([
         (supabase as any)
           .from('profiles')
-          .select('id, full_name, phone, employment_status, email, refresher_interval_months, agent_start_date')
+          .select('id, full_name, phone, employment_status, email, refresher_interval_months, agent_start_date, trackabi_user_id')
           .in('id', ids),
         supabase
           .from('agent_banking')
@@ -256,6 +261,7 @@ export default function AdminAgents() {
         email: string | null;
         refresher_interval_months: number | null;
         agent_start_date: string | null;
+        trackabi_user_id: string | null;
       }> = profilesResult.data || [];
       const banking = (bankingResult.data || []) as Array<{
         agent_id: string;
@@ -282,10 +288,41 @@ export default function AdminAgents() {
           skill_count: skillCounts[p.id] || 0,
           refresher_interval_months: p.refresher_interval_months ?? 1,
           agent_start_date: p.agent_start_date,
+          trackabi_user_id: p.trackabi_user_id,
         } as AgentRow;
       });
     },
   });
+
+  const { data: trackabiMembers = [] } = useQuery({
+    queryKey: ['trackabi-members'],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke('trackabi-members');
+      if (error) throw error;
+      return (data?.members || []) as TrackabiMember[];
+    },
+  });
+
+  const trackabiMemberById: Record<string, TrackabiMember> = {};
+  trackabiMembers.forEach(m => { trackabiMemberById[String(m.id)] = m; });
+
+  async function handleUnlinkTrackabi(agent: AgentRow) {
+    setUnlinkingTrackabiId(agent.id);
+    try {
+      const { error } = await (supabase as any)
+        .from('profiles')
+        .update({ trackabi_user_id: null })
+        .eq('id', agent.id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['admin-agents'] });
+      toast({ title: 'Unlinked', description: `${agent.full_name || 'Agent'} is no longer mapped to Trackabi.` });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err?.message ?? 'Failed to unlink.', variant: 'destructive' });
+    } finally {
+      setUnlinkingTrackabiId(null);
+    }
+  }
 
   const saveMutation = useMutation({
     mutationFn: async (agentId: string) => {
@@ -417,6 +454,7 @@ export default function AdminAgents() {
                     <TableHead>Refresher</TableHead>
                     <TableHead>Start Date</TableHead>
                     <TableHead>Skills</TableHead>
+                    <TableHead>Trackabi</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-20" />
                   </TableRow>
@@ -433,6 +471,7 @@ export default function AdminAgents() {
                       <TableCell><Skeleton className="h-8 w-28" /></TableCell>
                       <TableCell><Skeleton className="h-8 w-28" /></TableCell>
                       <TableCell><Skeleton className="h-8 w-14" /></TableCell>
+                      <TableCell><Skeleton className="h-8 w-28" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-14" /></TableCell>
                       <TableCell><Skeleton className="h-8 w-8 rounded" /></TableCell>
                     </TableRow>
@@ -467,6 +506,7 @@ export default function AdminAgents() {
                     <TableHead>Refresher</TableHead>
                     <TableHead>Start Date</TableHead>
                     <TableHead>Skills</TableHead>
+                    <TableHead>Trackabi</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-20" />
                   </TableRow>
@@ -552,6 +592,53 @@ export default function AdminAgents() {
                         </Button>
                       </TableCell>
                       <TableCell>
+                        {agent.trackabi_user_id ? (
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              className="text-sm hover:underline text-left"
+                              onClick={() =>
+                                setTrackabiAgent({
+                                  id: agent.id,
+                                  name: agent.full_name || 'Agent',
+                                  trackabiUserId: agent.trackabi_user_id,
+                                })
+                              }
+                            >
+                              {trackabiMemberById[agent.trackabi_user_id]
+                                ? trackabiMemberLabel(trackabiMemberById[agent.trackabi_user_id])
+                                : `Member #${agent.trackabi_user_id}`}
+                            </button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={unlinkingTrackabiId === agent.id}
+                              onClick={() => handleUnlinkTrackabi(agent)}
+                            >
+                              {unlinkingTrackabiId === agent.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                'Unlink'
+                              )}
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground">Not mapped</span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                setTrackabiAgent({ id: agent.id, name: agent.full_name || 'Agent', trackabiUserId: null })
+                              }
+                            >
+                              <Link2 className="h-3.5 w-3.5 mr-1" />
+                              Link
+                            </Button>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         <StatusBadge status={agent.employment_status} />
                       </TableCell>
                       <TableCell>
@@ -598,6 +685,17 @@ export default function AdminAgents() {
           agentName={skillsAgent.name}
           open={!!skillsAgent}
           onOpenChange={open => { if (!open) setSkillsAgent(null); }}
+        />
+      )}
+
+      {/* Trackabi link dialog */}
+      {trackabiAgent && (
+        <TrackabiLinkDialog
+          agentId={trackabiAgent.id}
+          agentName={trackabiAgent.name}
+          currentTrackabiUserId={trackabiAgent.trackabiUserId}
+          open={!!trackabiAgent}
+          onOpenChange={open => { if (!open) setTrackabiAgent(null); }}
         />
       )}
 

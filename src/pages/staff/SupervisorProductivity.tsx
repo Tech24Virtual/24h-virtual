@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { StaffLayout } from '@/components/staff/StaffLayout';
@@ -19,6 +19,15 @@ interface ProductivityRow {
   outboundCompleted: number;
   adherencePct: number | null; // null = no scheduled shifts this cycle
   trainingPct: number | null; // null = no required modules assigned
+  currentStatus: string | null; // null = not currently clocked in
+}
+
+function StatusBadge({ status }: { status: string | null }) {
+  if (!status) return <span className="text-muted-foreground">—</span>;
+  if (status === 'on_break_bathroom') return <span>🚻 Bathroom Break</span>;
+  if (status === 'on_break_lunch') return <span>🍽️ Lunch Break</span>;
+  if (status === 'not_ready') return <span>⛔ Not Ready</span>;
+  return <span>🟢 Available</span>;
 }
 
 function fmtHours(hours: number): string {
@@ -39,8 +48,31 @@ function fmtPct(pct: number | null): string {
 }
 
 export default function SupervisorProductivity() {
+  const queryClient = useQueryClient();
   const [cycleAnchor, setCycleAnchor] = useState(() => new Date());
   const cycle = useMemo(() => getPayCycleBounds(cycleAnchor), [cycleAnchor]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('supervisor-break-monitor')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'agent_shift_breaks',
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ['supervisor-productivity'] });
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'agent_shifts',
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ['supervisor-productivity'] });
+        queryClient.invalidateQueries({ queryKey: ['supervisor-agent-status'] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
 
   const rangeStart = cycle.start.toISOString();
   const rangeEnd = cycle.end.toISOString();
@@ -65,6 +97,16 @@ export default function SupervisorProductivity() {
         .in('id', agentIds);
       const nameById = new Map((profiles ?? []).map((p) => [p.id, p.full_name ?? 'Unknown']));
 
+      // Live status — current active shift's agent_status, independent of the pay cycle window
+      const { data: liveShifts } = await (supabase as any)
+        .from('agent_shifts')
+        .select('agent_id, agent_status')
+        .in('agent_id', agentIds)
+        .eq('status', 'active');
+      const statusByAgent = new Map<string, string>(
+        (liveShifts ?? []).map((s: any) => [s.agent_id, s.agent_status ?? 'available'])
+      );
+
       // 2. Shifts within the cycle
       const { data: shifts } = await supabase
         .from('agent_shifts')
@@ -77,14 +119,13 @@ export default function SupervisorProductivity() {
       const shiftIds = shiftRows.map((s) => s.id);
       const shiftAgentById = new Map(shiftRows.map((s) => [s.id, s.agent_id]));
 
-      // 3. Breaks on those shifts (bathroom + lunch only)
+      // 3. Breaks on those shifts (bathroom + lunch only) — includes in-progress breaks (ended_at IS NULL)
       const { data: breaks } = shiftIds.length
         ? await (supabase as any)
             .from('agent_shift_breaks')
             .select('shift_id, break_type, started_at, ended_at')
             .in('shift_id', shiftIds)
             .in('break_type', ['bathroom', 'lunch'])
-            .not('ended_at', 'is', null)
         : { data: [] as any[] };
 
       // 4. Five9 usernames — one row per agent, most recent agent_onboarding record wins
@@ -168,7 +209,11 @@ export default function SupervisorProductivity() {
 
         const breakMinutes = (breaks ?? [])
           .filter((b: any) => agentShiftIds.has(b.shift_id))
-          .reduce((sum: number, b: any) => sum + (new Date(b.ended_at).getTime() - new Date(b.started_at).getTime()) / 60_000, 0);
+          .reduce((sum: number, b: any) => {
+            // In-progress breaks (ended_at IS NULL) count elapsed time so far, not just completed ones.
+            const endTime = b.ended_at ? new Date(b.ended_at).getTime() : Date.now();
+            return sum + (endTime - new Date(b.started_at).getTime()) / 60_000;
+          }, 0);
 
         const five9Username = five9ByAgent.get(agentId);
         const agentCalls = (callLogs ?? []).filter((c: any) => c.agent_name === five9Username);
@@ -224,9 +269,12 @@ export default function SupervisorProductivity() {
           outboundCompleted,
           adherencePct,
           trainingPct,
+          currentStatus: statusByAgent.get(agentId) ?? null,
         };
       }).sort((a, b) => a.name.localeCompare(b.name));
     },
+    staleTime: 0,
+    refetchInterval: 30_000,
   });
 
   return (
@@ -278,6 +326,7 @@ export default function SupervisorProductivity() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Agent</TableHead>
+                      <TableHead>Current Status</TableHead>
                       <TableHead className="text-right">Shift Hours</TableHead>
                       <TableHead className="text-right">Break Time</TableHead>
                       <TableHead className="text-right">Calls Handled</TableHead>
@@ -291,6 +340,9 @@ export default function SupervisorProductivity() {
                     {rows.map((r) => (
                       <TableRow key={r.agentId}>
                         <TableCell className="font-medium whitespace-nowrap">{r.name}</TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <StatusBadge status={r.currentStatus} />
+                        </TableCell>
                         <TableCell className="text-right">{fmtHours(r.shiftHours)}</TableCell>
                         <TableCell className="text-right">{Math.round(r.breakMinutes)} min</TableCell>
                         <TableCell className="text-right">{r.callsHandled}</TableCell>

@@ -30,7 +30,7 @@ export function BreakButtons({ onStartBreak, isPending, bathroomAllowanceMinutes
         disabled={isPending}
       >
         <span>🚻 Bathroom Break</span>
-        <span className="text-xs text-muted-foreground">{bathroomAllowanceMinutes} min · paid</span>
+        <span className="text-xs text-muted-foreground">{bathroomAllowanceMinutes} min</span>
       </Button>
 
       <Popover>
@@ -42,7 +42,7 @@ export function BreakButtons({ onStartBreak, isPending, bathroomAllowanceMinutes
             disabled={isPending}
           >
             <span>🍽️ Lunch Break</span>
-            <span className="text-xs text-muted-foreground">30 or 60 min · unpaid</span>
+            <span className="text-xs text-muted-foreground">30 or 60 min</span>
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-48 p-2 space-y-2">

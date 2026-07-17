@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useRealtimeChats } from '@/hooks/useRealtimeChats';
 import { WorkspaceShell } from '@/components/workspace/WorkspaceShell';
+import { WorkspaceShiftBar } from '@/components/workspace/WorkspaceShiftBar';
 import { WorkspaceModeTabs } from '@/components/workspace/WorkspaceModeTabs';
 import { WorkspaceLeftRail, type ChatFolder, type OwnerFilter } from '@/components/workspace/WorkspaceLeftRail';
 import { ConversationList } from '@/components/workspace/ConversationList';
@@ -24,6 +25,7 @@ export default function AgentWorkspace() {
   return (
     <WorkspaceShell>
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <WorkspaceShiftBar />
         <WorkspaceModeTabs mode={mode} onChange={setMode} />
         <div className="flex-1 flex overflow-hidden min-h-0">
           {mode === 'chats' && (
