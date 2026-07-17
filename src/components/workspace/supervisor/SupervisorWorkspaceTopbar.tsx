@@ -5,10 +5,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { MockModeToggle } from '@/components/workspace/MockModeToggle';
 
 interface Props {
-  onOpenSlack: () => void;
+  messagesHref: string;
 }
 
-export function SupervisorWorkspaceTopbar({ onOpenSlack }: Props) {
+export function SupervisorWorkspaceTopbar({ messagesHref }: Props) {
   const { profile, user } = useAuth();
   const name = profile?.full_name || user?.email?.split('@')[0] || 'Supervisor';
 
@@ -33,8 +33,10 @@ export function SupervisorWorkspaceTopbar({ onOpenSlack }: Props) {
           On duty
         </span>
 
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onOpenSlack} title="Team messages">
-          <MessagesSquare className="h-4 w-4" />
+        <Button variant="ghost" size="icon" className="h-7 w-7" asChild title="Team messages">
+          <Link to={messagesHref}>
+            <MessagesSquare className="h-4 w-4" />
+          </Link>
         </Button>
 
         <Button variant="ghost" size="icon" className="h-7 w-7" title="Notifications">

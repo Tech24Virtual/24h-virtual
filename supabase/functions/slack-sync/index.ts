@@ -54,6 +54,9 @@ Deno.serve(async (req) => {
     }
 
     const results = { channels_synced: 0, users_fetched: 0 };
+    let channelsError: string | null = null;
+    let channelUpsertErrors = 0;
+    let mappingUpsertErrors = 0;
 
     // 1. Fetch all conversations (channels, groups, DMs)
     let cursor: string | undefined;
@@ -72,6 +75,7 @@ Deno.serve(async (req) => {
       const data = await resp.json();
       if (!data.ok) {
         console.error("conversations.list error:", data.error);
+        channelsError = data.error || "conversations.list failed";
         break;
       }
 
@@ -98,7 +102,7 @@ Deno.serve(async (req) => {
       const isDm = ch.is_im === true || ch.is_mpim === true;
       const channelName = ch.name || (isDm ? `DM-${ch.user || ch.id}` : ch.id);
 
-      await supabase.from("slack_channels").upsert(
+      const { error: channelError } = await supabase.from("slack_channels").upsert(
         {
           slack_channel_id: ch.id,
           name: channelName,
@@ -110,7 +114,12 @@ Deno.serve(async (req) => {
         },
         { onConflict: "slack_channel_id" }
       );
-      results.channels_synced++;
+      if (channelError) {
+        console.error(`slack_channels upsert error for ${ch.id}:`, channelError);
+        channelUpsertErrors++;
+      } else {
+        results.channels_synced++;
+      }
     }
 
     // 3. Fetch Slack users for display name mapping
@@ -143,34 +152,61 @@ Deno.serve(async (req) => {
         email: u.profile?.email || null,
       }));
 
-    // 4. Auto-match Slack users to CRM users by email
+    // 4. Auto-match Slack users to CRM users by email, and upsert a mapping
+    // row for every Slack member (user_id is null until matched/manually linked).
     let autoMapped = 0;
-    const slackUsersWithEmail = userList.filter((u: any) => u.email);
-    if (slackUsersWithEmail.length > 0) {
-      // Get all auth users via admin API
-      const { data: { users: authUsers } } = await supabase.auth.admin.listUsers({ perPage: 1000 });
-      if (authUsers && authUsers.length > 0) {
-        const emailToAuthUser = new Map(authUsers.map((u: any) => [u.email?.toLowerCase(), u.id]));
+    const slackEmails = userList
+      .map((u: any) => u.email)
+      .filter((e: unknown): e is string => !!e);
 
-        for (const su of slackUsersWithEmail) {
-          const crmUserId = emailToAuthUser.get(su.email.toLowerCase());
-          if (crmUserId) {
-            const { error: mapErr } = await supabase.from("slack_user_mappings").upsert(
-              {
-                user_id: crmUserId,
-                slack_user_id: su.slack_user_id,
-                slack_display_name: su.display_name,
-              },
-              { onConflict: "user_id" }
-            );
-            if (!mapErr) autoMapped++;
-          }
-        }
+    console.log("Slack emails sample:", slackEmails.slice(0, 5));
+
+    let emailToProfileId = new Map<string, string>();
+    if (slackEmails.length > 0) {
+      const { data: profileMatches, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, email")
+        .in("email", slackEmails);
+      console.log("Profile matches:", profileMatches?.length ?? 0);
+      if (profilesError) {
+        console.error("profiles lookup error:", profilesError);
+      } else {
+        emailToProfileId = new Map(
+          (profileMatches || [])
+            .filter((p: any) => p.email)
+            .map((p: any) => [p.email.toLowerCase(), p.id])
+        );
+      }
+    }
+
+    const mappingRows = userList.map((u: any) => ({
+      slack_user_id: u.slack_user_id,
+      slack_display_name: u.display_name,
+      user_id: u.email ? emailToProfileId.get(u.email.toLowerCase()) ?? null : null,
+    }));
+
+    if (mappingRows.length > 0) {
+      const { error: mapErr } = await supabase
+        .from("slack_user_mappings")
+        .upsert(mappingRows, { onConflict: "slack_user_id" });
+      if (mapErr) {
+        console.error("slack_user_mappings upsert error:", mapErr);
+        mappingUpsertErrors = mappingRows.length;
+      } else {
+        autoMapped = mappingRows.filter((r) => r.user_id !== null).length;
       }
     }
 
     return new Response(
-      JSON.stringify({ ok: true, ...results, auto_mapped: autoMapped, slack_users: userList }),
+      JSON.stringify({
+        ok: true,
+        ...results,
+        auto_mapped: autoMapped,
+        slack_users: userList,
+        channels_error: channelsError,
+        channel_upsert_errors: channelUpsertErrors,
+        mapping_upsert_errors: mappingUpsertErrors,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {

@@ -56,7 +56,27 @@ export function SlackUserMappings() {
           uniqueUsers.set(r.user_id, { user_id: r.user_id, roles: [r.role] });
         }
       });
-      return Array.from(uniqueUsers.values());
+      const users = Array.from(uniqueUsers.values());
+      if (!users.length) return [];
+
+      // No FK between user_roles and profiles, so PostgREST can't embed —
+      // fetch profiles separately and merge client-side.
+      // profiles.full_name/email predate types.ts; cast needed.
+      const { data: profiles, error: profilesError } = await (supabase as any)
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', users.map((u) => u.user_id));
+      if (profilesError) throw profilesError;
+
+      const profileById = new Map<string, { full_name: string | null; email: string | null }>(
+        (profiles || []).map((p: any) => [p.id, { full_name: p.full_name, email: p.email }])
+      );
+
+      return users.map((u) => ({
+        ...u,
+        full_name: profileById.get(u.user_id)?.full_name ?? null,
+        email: profileById.get(u.user_id)?.email ?? null,
+      }));
     },
   });
 
@@ -112,7 +132,7 @@ export function SlackUserMappings() {
         slack_user_id: slackUserId,
         slack_display_name: slackUser?.display_name || null,
       },
-      { onConflict: 'user_id' }
+      { onConflict: 'slack_user_id' }
     );
 
     if (error) {
@@ -169,7 +189,7 @@ export function SlackUserMappings() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>CRM User ID</TableHead>
+                <TableHead>User</TableHead>
                 <TableHead>Roles</TableHead>
                 <TableHead>Slack Mapping</TableHead>
                 <TableHead>Actions</TableHead>
@@ -180,7 +200,10 @@ export function SlackUserMappings() {
                 const mapping = getMappingForUser(u.user_id);
                 return (
                   <TableRow key={u.user_id}>
-                    <TableCell className="font-mono text-xs">{u.user_id.slice(0, 8)}...</TableCell>
+                    <TableCell>
+                      <div className="font-medium">{u.full_name ?? 'Unknown'}</div>
+                      <div className="text-xs text-muted-foreground">{u.email}</div>
+                    </TableCell>
                     <TableCell>
                       <div className="flex gap-1 flex-wrap">
                         {u.roles.map((r) => (

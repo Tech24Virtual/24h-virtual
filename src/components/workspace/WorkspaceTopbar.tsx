@@ -19,10 +19,10 @@ const statusColors: Record<AgentAvailability, string> = {
 };
 
 interface Props {
-  onOpenSlack: () => void;
+  messagesHref: string;
 }
 
-export function WorkspaceTopbar({ onOpenSlack }: Props) {
+export function WorkspaceTopbar({ messagesHref }: Props) {
   const { status, setStatus } = useAgentAvailability();
   const shiftTime = useActiveShiftTime();
 
@@ -60,9 +60,11 @@ export function WorkspaceTopbar({ onOpenSlack }: Props) {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Slack drawer toggle */}
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onOpenSlack} title="Team messages">
-          <MessagesSquare className="h-4 w-4" />
+        {/* Messages */}
+        <Button variant="ghost" size="icon" className="h-7 w-7" asChild title="Team messages">
+          <Link to={messagesHref}>
+            <MessagesSquare className="h-4 w-4" />
+          </Link>
         </Button>
 
         {/* Notifications */}

@@ -1,15 +1,12 @@
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { SupervisorWorkspaceIconRail } from './SupervisorWorkspaceIconRail';
 import { SupervisorWorkspaceTopbar } from './SupervisorWorkspaceTopbar';
-import { SlackDrawer } from '@/components/workspace/SlackDrawer';
 
 interface Props {
   children: ReactNode;
 }
 
 export function SupervisorWorkspaceShell({ children }: Props) {
-  const [slackOpen, setSlackOpen] = useState(false);
-
   useEffect(() => {
     const prevBody = document.body.style.overflow;
     const prevHtml = document.documentElement.style.overflow;
@@ -25,10 +22,9 @@ export function SupervisorWorkspaceShell({ children }: Props) {
     <div className="h-screen w-screen flex overflow-hidden bg-background text-foreground">
       <SupervisorWorkspaceIconRail />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <SupervisorWorkspaceTopbar onOpenSlack={() => setSlackOpen(true)} />
+        <SupervisorWorkspaceTopbar messagesHref="/staff/supervisor/messages" />
         <main className="flex-1 flex overflow-hidden min-h-0">{children}</main>
       </div>
-      <SlackDrawer open={slackOpen} onOpenChange={setSlackOpen} />
     </div>
   );
 }
