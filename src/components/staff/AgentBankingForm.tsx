@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -57,6 +58,9 @@ export function AgentBankingForm({ agentId, showHourlyRate = false }: AgentBanki
     hourly_rate: '',
     payment_method: 'bank_transfer',
     e_transfer_email: '',
+    home_address: '',
+    contact_phone: '',
+    contact_email: '',
   });
 
   const { data: banking, isLoading } = useQuery({
@@ -92,6 +96,9 @@ export function AgentBankingForm({ agentId, showHourlyRate = false }: AgentBanki
         hourly_rate: b.hourly_rate?.toString() || '',
         payment_method: b.payment_method || 'bank_transfer',
         e_transfer_email: b.e_transfer_email || '',
+        home_address: b.home_address || '',
+        contact_phone: b.contact_phone || '',
+        contact_email: b.contact_email || '',
       });
     }
   }, [banking]);
@@ -114,6 +121,9 @@ export function AgentBankingForm({ agentId, showHourlyRate = false }: AgentBanki
         country: formData.country,
         payment_method: formData.payment_method,
         e_transfer_email: formData.payment_method === 'e_transfer' ? (formData.e_transfer_email || null) : null,
+        home_address: formData.payment_method === 'bank_transfer' ? (formData.home_address || null) : null,
+        contact_phone: formData.payment_method === 'bank_transfer' ? (formData.contact_phone || null) : null,
+        contact_email: formData.payment_method === 'bank_transfer' ? (formData.contact_email || null) : null,
       };
       if (showHourlyRate && formData.hourly_rate) {
         payload.hourly_rate = parseFloat(formData.hourly_rate);
@@ -328,6 +338,37 @@ export function AgentBankingForm({ agentId, showHourlyRate = false }: AgentBanki
               placeholder="you@example.com"
             />
           </div>
+        )}
+
+        {formData.payment_method === 'bank_transfer' && (
+          <>
+            <div className="space-y-2">
+              <Label>Full Home Address</Label>
+              <Textarea
+                placeholder="Street address, city, province/state, postal code, country"
+                value={formData.home_address}
+                onChange={(e) => update('home_address', e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Phone Number</Label>
+              <Input
+                value={formData.contact_phone}
+                onChange={(e) => update('contact_phone', e.target.value)}
+                placeholder="+1 (555) 000-0000"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Email Address</Label>
+              <Input
+                type="email"
+                value={formData.contact_email}
+                onChange={(e) => update('contact_email', e.target.value)}
+                placeholder="agent@example.com"
+              />
+            </div>
+          </>
         )}
 
         {showHourlyRate && (
