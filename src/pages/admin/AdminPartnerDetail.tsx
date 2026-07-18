@@ -15,6 +15,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { PartnerFulfillmentMiniTable } from '@/components/admin/fulfillment/PartnerFulfillmentMiniTable';
@@ -153,6 +164,27 @@ export default function AdminPartnerDetail() {
       toast.success('Verification updated');
     },
     onError: (e: any) => toast.error(e?.message ?? 'Failed to update verification'),
+  });
+
+  // Save partner (Overview tab) mutation
+  const savePartnerMutation = useMutation({
+    mutationFn: async (updates: Record<string, any>) => {
+      const payload = {
+        ...updates,
+        contract_start_date: updates.contract_start_date || null,
+        contract_end_date: updates.contract_end_date || null,
+      };
+      const { error } = await supabase
+        .from('white_label_partners')
+        .update(payload)
+        .eq('id', id!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-partner', id] });
+      toast.success('Partner info saved');
+    },
+    onError: (e: any) => toast.error(e?.message ?? 'Failed to save partner info'),
   });
 
   // Save pricing mutation
@@ -329,13 +361,15 @@ export default function AdminPartnerDetail() {
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-4">
           <div className="grid md:grid-cols-2 gap-6">
+            <OverviewEditor
+              key={partner.id}
+              partner={partner}
+              onSave={(updates) => savePartnerMutation.mutate(updates)}
+              saving={savePartnerMutation.isPending}
+            />
             <Card>
-              <CardHeader><CardTitle className="text-lg">Company Info</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-lg">Other Details</CardTitle></CardHeader>
               <CardContent className="space-y-3">
-                <InfoRow label="Company" value={partner.company_name} />
-                <InfoRow label="Contact" value={partner.contact_name} />
-                <InfoRow label="Email" value={partner.email} />
-                <InfoRow label="Phone" value={partner.phone || '-'} />
                 <InfoRow label="Website" value={partner.website || '-'} />
                 <InfoRow label="Industry" value={partner.industry || '-'} />
                 <InfoRow label="Company Size" value={partner.company_size || '-'} />
@@ -382,34 +416,7 @@ export default function AdminPartnerDetail() {
 
         {/* Add-on Pricing Tab */}
         <TabsContent value="addons" className="space-y-4">
-          <Card>
-            <CardHeader><CardTitle className="text-lg">Add-on Product Pricing</CardTitle></CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Default Price</TableHead>
-                    <TableHead>Wholesale Price</TableHead>
-                    <TableHead>Available</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {addonProducts.map(product => {
-                    const ap = addonPricing.find(p => p.addon_product_id === product.id);
-                    return (
-                      <TableRow key={product.id}>
-                        <TableCell className="font-medium">{product.name}</TableCell>
-                        <TableCell>${product.default_price.toFixed(2)}</TableCell>
-                        <TableCell>{ap ? `$${ap.wholesale_price.toFixed(2)}` : '-'}</TableCell>
-                        <TableCell>{ap ? (ap.is_available ? <Check className="w-4 h-4 text-green-500" /> : <X className="w-4 h-4 text-destructive" />) : '-'}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <AddonPricingTab partnerId={id!} addonProducts={addonProducts} addonPricing={addonPricing} />
         </TabsContent>
 
         {/* Clients & Verification Tab */}
@@ -618,36 +625,7 @@ export default function AdminPartnerDetail() {
 
         {/* Agreements Tab */}
         <TabsContent value="agreements" className="space-y-4">
-          <Card>
-            <CardHeader><CardTitle className="text-lg">Terms & Agreements</CardTitle></CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Version</TableHead>
-                    <TableHead>Current</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Signed</TableHead>
-                    <TableHead>Signed By</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {agreements.map(a => (
-                    <TableRow key={a.id}>
-                      <TableCell className="font-medium">{a.agreement_version}</TableCell>
-                      <TableCell>{a.is_current ? <Check className="w-4 h-4 text-green-500" /> : '-'}</TableCell>
-                      <TableCell>{format(new Date(a.created_at), 'MMM d, yyyy')}</TableCell>
-                      <TableCell>{a.signed_at ? format(new Date(a.signed_at), 'MMM d, yyyy') : 'Unsigned'}</TableCell>
-                      <TableCell>{a.signed_by || '-'}</TableCell>
-                    </TableRow>
-                  ))}
-                  {agreements.length === 0 && (
-                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No agreements</TableCell></TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <AgreementsTab partnerId={id!} agreements={agreements} />
         </TabsContent>
 
         {/* Branding Tab */}
@@ -685,6 +663,7 @@ function PricingEditor({ pricing, onSave, saving }: { pricing: any; onSave: (u: 
     volume_discount_active: pricing.volume_discount_active,
     volume_discount_fixed_rate: pricing.volume_discount_fixed_rate || 0,
     volume_discount_min_minutes: pricing.volume_discount_min_minutes,
+    volume_discount_min_clients: pricing.volume_discount_min_clients,
   });
 
   const fields = [
@@ -737,6 +716,10 @@ function PricingEditor({ pricing, onSave, saving }: { pricing: any; onSave: (u: 
               <Label>Min Minutes Threshold</Label>
               <Input type="number" value={form.volume_discount_min_minutes} onChange={e => setForm(p => ({ ...p, volume_discount_min_minutes: parseInt(e.target.value) || 0 }))} />
             </div>
+            <div>
+              <Label>Min Clients Threshold</Label>
+              <Input type="number" value={form.volume_discount_min_clients} onChange={e => setForm(p => ({ ...p, volume_discount_min_clients: parseInt(e.target.value) || 0 }))} />
+            </div>
           </div>
         </div>
 
@@ -744,6 +727,479 @@ function PricingEditor({ pricing, onSave, saving }: { pricing: any; onSave: (u: 
           {saving ? 'Saving...' : 'Save Pricing'}
         </Button>
       </CardContent>
+    </Card>
+  );
+}
+
+// Overview Editor component
+function OverviewEditor({ partner, onSave, saving }: { partner: any; onSave: (u: any) => void; saving: boolean }) {
+  const [form, setForm] = useState({
+    company_name: partner.company_name || '',
+    contact_name: partner.contact_name || '',
+    email: partner.email || '',
+    phone: partner.phone || '',
+    partner_slug: partner.partner_slug || '',
+    status: partner.status || 'pending',
+    commission_rate: partner.commission_rate ?? 0,
+    revenue_share_pct: partner.revenue_share_pct ?? 0,
+    contract_start_date: partner.contract_start_date ? partner.contract_start_date.slice(0, 10) : '',
+    contract_end_date: partner.contract_end_date ? partner.contract_end_date.slice(0, 10) : '',
+    notes: partner.notes || '',
+  });
+
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-lg">Company Info</CardTitle></CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <Label>Company Name</Label>
+            <Input value={form.company_name} onChange={e => setForm(p => ({ ...p, company_name: e.target.value }))} />
+          </div>
+          <div>
+            <Label>Contact Name</Label>
+            <Input value={form.contact_name} onChange={e => setForm(p => ({ ...p, contact_name: e.target.value }))} />
+          </div>
+          <div>
+            <Label>Contact Email</Label>
+            <Input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
+          </div>
+          <div>
+            <Label>Contact Phone</Label>
+            <Input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} />
+          </div>
+          <div>
+            <Label>Partner Slug</Label>
+            <Input
+              value={form.partner_slug}
+              onChange={e => setForm(p => ({
+                ...p,
+                partner_slug: e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+              }))}
+            />
+          </div>
+          <div>
+            <Label>Status</Label>
+            <Select value={form.status} onValueChange={v => setForm(p => ({ ...p, status: v }))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="suspended">Suspended</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Commission Rate (%)</Label>
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              step="0.01"
+              value={form.commission_rate}
+              onChange={e => setForm(p => ({ ...p, commission_rate: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+          <div>
+            <Label>Revenue Share (%)</Label>
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              step="0.01"
+              value={form.revenue_share_pct}
+              onChange={e => setForm(p => ({ ...p, revenue_share_pct: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+          <div>
+            <Label>Contract Start</Label>
+            <Input type="date" value={form.contract_start_date} onChange={e => setForm(p => ({ ...p, contract_start_date: e.target.value }))} />
+          </div>
+          <div>
+            <Label>Contract End</Label>
+            <Input type="date" value={form.contract_end_date} onChange={e => setForm(p => ({ ...p, contract_end_date: e.target.value }))} />
+          </div>
+        </div>
+        <div>
+          <Label>Notes</Label>
+          <Textarea rows={4} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />
+        </div>
+        <Button onClick={() => onSave(form)} disabled={saving}>
+          {saving ? 'Saving...' : 'Save Company Info'}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Add-on Pricing Tab component
+function AddonPricingTab({ partnerId, addonProducts, addonPricing }: { partnerId: string; addonProducts: any[]; addonPricing: any[] }) {
+  const queryClient = useQueryClient();
+  const [addOpen, setAddOpen] = useState(false);
+  const [newAddon, setNewAddon] = useState({ addon_product_id: '', wholesale_price: '', billing_cycle: 'monthly', is_available: true });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ rowId, updates }: { rowId: string; updates: Record<string, any> }) => {
+      const { error } = await supabase.from('wl_addon_pricing').update(updates).eq('id', rowId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-partner-addon-pricing', partnerId] });
+      toast.success('Add-on pricing saved');
+    },
+    onError: (e: any) => toast.error(e?.message ?? 'Failed to save add-on pricing'),
+  });
+
+  const insertMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from('wl_addon_pricing').insert({
+        partner_id: partnerId,
+        addon_product_id: newAddon.addon_product_id,
+        wholesale_price: parseFloat(newAddon.wholesale_price) || 0,
+        billing_cycle: newAddon.billing_cycle,
+        is_available: newAddon.is_available,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-partner-addon-pricing', partnerId] });
+      toast.success('Add-on added');
+      setAddOpen(false);
+      setNewAddon({ addon_product_id: '', wholesale_price: '', billing_cycle: 'monthly', is_available: true });
+    },
+    onError: (e: any) => toast.error(e?.message ?? 'Failed to add add-on'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (rowId: string) => {
+      const { error } = await supabase.from('wl_addon_pricing').delete().eq('id', rowId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-partner-addon-pricing', partnerId] });
+      toast.success('Add-on removed');
+    },
+    onError: (e: any) => toast.error(e?.message ?? 'Failed to remove add-on'),
+  });
+
+  const unpricedProducts = addonProducts.filter(p => !addonPricing.some(ap => ap.addon_product_id === p.id));
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-lg">Add-on Product Pricing</CardTitle>
+        <Dialog open={addOpen} onOpenChange={setAddOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" disabled={unpricedProducts.length === 0}><Plus className="w-4 h-4 mr-1" /> Add Add-on</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Add Add-on Pricing</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Product</Label>
+                <Select value={newAddon.addon_product_id} onValueChange={v => setNewAddon(p => ({ ...p, addon_product_id: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select product" /></SelectTrigger>
+                  <SelectContent>
+                    {unpricedProducts.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Wholesale Price</Label>
+                <Input type="number" step="0.01" value={newAddon.wholesale_price} onChange={e => setNewAddon(p => ({ ...p, wholesale_price: e.target.value }))} />
+              </div>
+              <div>
+                <Label>Billing Cycle</Label>
+                <Select value={newAddon.billing_cycle} onValueChange={v => setNewAddon(p => ({ ...p, billing_cycle: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="one_time">One-time</SelectItem>
+                    <SelectItem value="per_use">Per use</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-3">
+                <Switch checked={newAddon.is_available} onCheckedChange={v => setNewAddon(p => ({ ...p, is_available: v }))} />
+                <Label>Available</Label>
+              </div>
+              <Button
+                onClick={() => insertMutation.mutate()}
+                disabled={!newAddon.addon_product_id || !newAddon.wholesale_price || insertMutation.isPending}
+              >
+                {insertMutation.isPending ? 'Adding...' : 'Add Add-on'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Product</TableHead>
+              <TableHead>Default Price</TableHead>
+              <TableHead>Wholesale Price</TableHead>
+              <TableHead>Billing Cycle</TableHead>
+              <TableHead>Available</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {addonPricing.map(ap => (
+              <AddonPricingRow
+                key={ap.id}
+                row={ap}
+                product={addonProducts.find(p => p.id === ap.addon_product_id)}
+                onSave={(updates) => updateMutation.mutate({ rowId: ap.id, updates })}
+                onDelete={() => deleteMutation.mutate(ap.id)}
+                saving={updateMutation.isPending}
+              />
+            ))}
+            {addonPricing.length === 0 && (
+              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No add-on pricing configured</TableCell></TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AddonPricingRow({ row, product, onSave, onDelete, saving }: { row: any; product: any; onSave: (u: any) => void; onDelete: () => void; saving: boolean }) {
+  const [form, setForm] = useState({
+    wholesale_price: row.wholesale_price,
+    billing_cycle: row.billing_cycle || 'monthly',
+    is_available: row.is_available,
+  });
+
+  return (
+    <TableRow>
+      <TableCell className="font-medium">{product?.name || 'Unknown product'}</TableCell>
+      <TableCell>{product ? `$${Number(product.default_price).toFixed(2)}` : '-'}</TableCell>
+      <TableCell>
+        <Input
+          type="number"
+          step="0.01"
+          className="w-28"
+          value={form.wholesale_price}
+          onChange={e => setForm(p => ({ ...p, wholesale_price: parseFloat(e.target.value) || 0 }))}
+        />
+      </TableCell>
+      <TableCell>
+        <Select value={form.billing_cycle} onValueChange={v => setForm(p => ({ ...p, billing_cycle: v }))}>
+          <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="monthly">Monthly</SelectItem>
+            <SelectItem value="one_time">One-time</SelectItem>
+            <SelectItem value="per_use">Per use</SelectItem>
+          </SelectContent>
+        </Select>
+      </TableCell>
+      <TableCell>
+        <Switch checked={form.is_available} onCheckedChange={v => setForm(p => ({ ...p, is_available: v }))} />
+      </TableCell>
+      <TableCell className="space-x-2 whitespace-nowrap">
+        <Button size="sm" onClick={() => onSave(form)} disabled={saving}>Save</Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button size="sm" variant="destructive">Delete</Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove add-on pricing?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This removes wholesale pricing for {product?.name || 'this add-on'} from this partner. This can't be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+// Agreements Tab component
+function AgreementsTab({ partnerId, agreements }: { partnerId: string; agreements: any[] }) {
+  const queryClient = useQueryClient();
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [newAgreement, setNewAgreement] = useState({ agreement_version: '', agreement_content: '', effective_date: '', status: 'draft' });
+  const [editingAgreement, setEditingAgreement] = useState<any>(null);
+  const [editForm, setEditForm] = useState({ agreement_content: '', effective_date: '', status: 'draft' });
+
+  const insertMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from('wl_terms_agreements').insert({
+        partner_id: partnerId,
+        agreement_version: newAgreement.agreement_version,
+        agreement_content: newAgreement.agreement_content,
+        effective_date: newAgreement.effective_date || null,
+        status: newAgreement.status,
+        is_current: false,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-partner-agreements', partnerId] });
+      toast.success('Agreement uploaded');
+      setUploadOpen(false);
+      setNewAgreement({ agreement_version: '', agreement_content: '', effective_date: '', status: 'draft' });
+    },
+    onError: (e: any) => toast.error(e?.message ?? 'Failed to upload agreement'),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingAgreement) return;
+      const { error } = await supabase.from('wl_terms_agreements').update({
+        agreement_content: editForm.agreement_content,
+        effective_date: editForm.effective_date || null,
+        status: editForm.status,
+      }).eq('id', editingAgreement.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-partner-agreements', partnerId] });
+      toast.success('Agreement updated');
+      setEditingAgreement(null);
+    },
+    onError: (e: any) => toast.error(e?.message ?? 'Failed to update agreement'),
+  });
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setNewAgreement(p => ({ ...p, agreement_content: String(reader.result || '') }));
+    reader.readAsText(file);
+  };
+
+  const openEdit = (a: any) => {
+    setEditingAgreement(a);
+    setEditForm({
+      agreement_content: a.agreement_content || '',
+      effective_date: a.effective_date ? a.effective_date.slice(0, 10) : '',
+      status: a.status || 'draft',
+    });
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-lg">Terms & Agreements</CardTitle>
+        <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm"><Plus className="w-4 h-4 mr-1" /> Upload Agreement</Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader><DialogTitle>Upload Agreement</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Version</Label>
+                <Input value={newAgreement.agreement_version} onChange={e => setNewAgreement(p => ({ ...p, agreement_version: e.target.value }))} placeholder="e.g. 2.1" />
+              </div>
+              <div>
+                <Label>Effective Date</Label>
+                <Input type="date" value={newAgreement.effective_date} onChange={e => setNewAgreement(p => ({ ...p, effective_date: e.target.value }))} />
+              </div>
+              <div>
+                <Label>Status</Label>
+                <Select value={newAgreement.status} onValueChange={v => setNewAgreement(p => ({ ...p, status: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="archived">Archived</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Upload file (.txt)</Label>
+                <Input type="file" accept=".txt,text/plain" onChange={handleFileUpload} />
+              </div>
+              <div>
+                <Label>Agreement Text</Label>
+                <Textarea rows={8} value={newAgreement.agreement_content} onChange={e => setNewAgreement(p => ({ ...p, agreement_content: e.target.value }))} placeholder="Paste agreement text here..." />
+              </div>
+              <Button
+                onClick={() => insertMutation.mutate()}
+                disabled={!newAgreement.agreement_version || !newAgreement.agreement_content || insertMutation.isPending}
+              >
+                {insertMutation.isPending ? 'Uploading...' : 'Upload Agreement'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Version</TableHead>
+              <TableHead>Current</TableHead>
+              <TableHead>Effective Date</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Created</TableHead>
+              <TableHead>Signed</TableHead>
+              <TableHead>Signed By</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {agreements.map(a => (
+              <TableRow key={a.id}>
+                <TableCell className="font-medium">{a.agreement_version}</TableCell>
+                <TableCell>{a.is_current ? <Check className="w-4 h-4 text-green-500" /> : '-'}</TableCell>
+                <TableCell>{a.effective_date ? format(new Date(a.effective_date), 'MMM d, yyyy') : '-'}</TableCell>
+                <TableCell><Badge variant="outline" className="capitalize">{a.status || 'draft'}</Badge></TableCell>
+                <TableCell>{format(new Date(a.created_at), 'MMM d, yyyy')}</TableCell>
+                <TableCell>{a.signed_at ? format(new Date(a.signed_at), 'MMM d, yyyy') : 'Unsigned'}</TableCell>
+                <TableCell>{a.signed_by || '-'}</TableCell>
+                <TableCell>
+                  <Button size="sm" variant="outline" onClick={() => openEdit(a)}>Edit</Button>
+                </TableCell>
+              </TableRow>
+            ))}
+            {agreements.length === 0 && (
+              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No agreements</TableCell></TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+
+      <Dialog open={!!editingAgreement} onOpenChange={(open) => !open && setEditingAgreement(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader><DialogTitle>Edit Agreement v{editingAgreement?.agreement_version}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Effective Date</Label>
+              <Input type="date" value={editForm.effective_date} onChange={e => setEditForm(p => ({ ...p, effective_date: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Status</Label>
+              <Select value={editForm.status} onValueChange={v => setEditForm(p => ({ ...p, status: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="archived">Archived</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Agreement Text</Label>
+              <Textarea rows={10} value={editForm.agreement_content} onChange={e => setEditForm(p => ({ ...p, agreement_content: e.target.value }))} />
+            </div>
+            <Button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? 'Saving...' : 'Save Agreement'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

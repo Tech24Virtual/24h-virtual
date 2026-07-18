@@ -20736,9 +20736,12 @@ export type Database = {
           agreed_to_terms: boolean | null
           brand_voice_notes: string | null
           call_volume: string | null
+          commission_rate: number | null
           company_name: string
           company_size: string | null
           contact_name: string
+          contract_end_date: string | null
+          contract_start_date: string | null
           created_at: string | null
           customization_needs: string | null
           default_enabled_modules: Json | null
@@ -20747,8 +20750,10 @@ export type Database = {
           id: string
           industry: string | null
           monthly_fee: number | null
+          notes: string | null
           partner_slug: string
           phone: string | null
+          revenue_share_pct: number | null
           services_interested: string[] | null
           services_offered: string | null
           status: string | null
@@ -20764,9 +20769,12 @@ export type Database = {
           agreed_to_terms?: boolean | null
           brand_voice_notes?: string | null
           call_volume?: string | null
+          commission_rate?: number | null
           company_name: string
           company_size?: string | null
           contact_name: string
+          contract_end_date?: string | null
+          contract_start_date?: string | null
           created_at?: string | null
           customization_needs?: string | null
           default_enabled_modules?: Json | null
@@ -20775,8 +20783,10 @@ export type Database = {
           id?: string
           industry?: string | null
           monthly_fee?: number | null
+          notes?: string | null
           partner_slug: string
           phone?: string | null
+          revenue_share_pct?: number | null
           services_interested?: string[] | null
           services_offered?: string | null
           status?: string | null
@@ -20792,9 +20802,12 @@ export type Database = {
           agreed_to_terms?: boolean | null
           brand_voice_notes?: string | null
           call_volume?: string | null
+          commission_rate?: number | null
           company_name?: string
           company_size?: string | null
           contact_name?: string
+          contract_end_date?: string | null
+          contract_start_date?: string | null
           created_at?: string | null
           customization_needs?: string | null
           default_enabled_modules?: Json | null
@@ -20803,8 +20816,10 @@ export type Database = {
           id?: string
           industry?: string | null
           monthly_fee?: number | null
+          notes?: string | null
           partner_slug?: string
           phone?: string | null
+          revenue_share_pct?: number | null
           services_interested?: string[] | null
           services_offered?: string | null
           status?: string | null
@@ -21027,6 +21042,7 @@ export type Database = {
       wl_addon_pricing: {
         Row: {
           addon_product_id: string
+          billing_cycle: string
           created_at: string
           id: string
           is_available: boolean
@@ -21035,6 +21051,7 @@ export type Database = {
         }
         Insert: {
           addon_product_id: string
+          billing_cycle?: string
           created_at?: string
           id?: string
           is_available?: boolean
@@ -21043,6 +21060,7 @@ export type Database = {
         }
         Update: {
           addon_product_id?: string
+          billing_cycle?: string
           created_at?: string
           id?: string
           is_available?: boolean
@@ -26449,36 +26467,42 @@ export type Database = {
           agreement_content: string
           agreement_version: string
           created_at: string
+          effective_date: string | null
           id: string
           ip_address: string | null
           is_current: boolean
           partner_id: string
           signed_at: string | null
           signed_by: string | null
+          status: string
           wholesale_pricing_snapshot: Json | null
         }
         Insert: {
           agreement_content: string
           agreement_version: string
           created_at?: string
+          effective_date?: string | null
           id?: string
           ip_address?: string | null
           is_current?: boolean
           partner_id: string
           signed_at?: string | null
           signed_by?: string | null
+          status?: string
           wholesale_pricing_snapshot?: Json | null
         }
         Update: {
           agreement_content?: string
           agreement_version?: string
           created_at?: string
+          effective_date?: string | null
           id?: string
           ip_address?: string | null
           is_current?: boolean
           partner_id?: string
           signed_at?: string | null
           signed_by?: string | null
+          status?: string
           wholesale_pricing_snapshot?: Json | null
         }
         Relationships: [
