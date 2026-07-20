@@ -1896,8 +1896,11 @@ export type Database = {
           included_minutes: number
           mission_id: string
           mode_used: string
+          nmi_transaction_id: string | null
           overage_amount: number
           overage_minutes: number
+          payment_processor: string | null
+          payment_status: string | null
           period_end: string
           period_start: string
           plan_name: string | null
@@ -1914,8 +1917,11 @@ export type Database = {
           included_minutes?: number
           mission_id: string
           mode_used?: string
+          nmi_transaction_id?: string | null
           overage_amount?: number
           overage_minutes?: number
+          payment_processor?: string | null
+          payment_status?: string | null
           period_end: string
           period_start: string
           plan_name?: string | null
@@ -1932,8 +1938,11 @@ export type Database = {
           included_minutes?: number
           mission_id?: string
           mode_used?: string
+          nmi_transaction_id?: string | null
           overage_amount?: number
           overage_minutes?: number
+          payment_processor?: string | null
+          payment_status?: string | null
           period_end?: string
           period_start?: string
           plan_name?: string | null
@@ -15033,12 +15042,18 @@ export type Database = {
           lost_reason: string | null
           name: string
           next_follow_up: string | null
+          nmi_card_expiry: string | null
+          nmi_card_last_four: string | null
+          nmi_card_type: string | null
+          nmi_customer_vault_id: string | null
+          nmi_subscription_id: string | null
           notes: string | null
           onboarding_checklist: Json | null
           payment_failure_count: number | null
           payment_link_sent_at: string | null
           payment_method_on_file: boolean | null
           payment_method_type: string | null
+          payment_processor: string | null
           phone: string | null
           pipeline_stage: string | null
           plan_last_auto_changed_at: string | null
@@ -15092,12 +15107,18 @@ export type Database = {
           lost_reason?: string | null
           name: string
           next_follow_up?: string | null
+          nmi_card_expiry?: string | null
+          nmi_card_last_four?: string | null
+          nmi_card_type?: string | null
+          nmi_customer_vault_id?: string | null
+          nmi_subscription_id?: string | null
           notes?: string | null
           onboarding_checklist?: Json | null
           payment_failure_count?: number | null
           payment_link_sent_at?: string | null
           payment_method_on_file?: boolean | null
           payment_method_type?: string | null
+          payment_processor?: string | null
           phone?: string | null
           pipeline_stage?: string | null
           plan_last_auto_changed_at?: string | null
@@ -15151,12 +15172,18 @@ export type Database = {
           lost_reason?: string | null
           name?: string
           next_follow_up?: string | null
+          nmi_card_expiry?: string | null
+          nmi_card_last_four?: string | null
+          nmi_card_type?: string | null
+          nmi_customer_vault_id?: string | null
+          nmi_subscription_id?: string | null
           notes?: string | null
           onboarding_checklist?: Json | null
           payment_failure_count?: number | null
           payment_link_sent_at?: string | null
           payment_method_on_file?: boolean | null
           payment_method_type?: string | null
+          payment_processor?: string | null
           phone?: string | null
           pipeline_stage?: string | null
           plan_last_auto_changed_at?: string | null
