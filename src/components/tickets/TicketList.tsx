@@ -31,8 +31,42 @@ interface TicketListProps {
   showSourceBadge?: boolean;
   limit?: number;
   showFilters?: boolean;
+  showGroupFilter?: boolean;
   linkPrefix?: string;
 }
+
+const TICKET_GROUPS = [
+  { value: 'all', label: 'All Groups' },
+  { value: 'client', label: 'Clients' },
+  { value: 'white_label', label: 'WL Partner' },
+  { value: 'wl_escalation', label: 'WL Escalation' },
+  { value: 'wl_forward', label: 'WL Forward' },
+  { value: 'supervisor', label: 'Supervisor' },
+  { value: 'agent', label: 'Team — Agent' },
+  { value: 'billing', label: 'Team — Billing' },
+  { value: 'tech', label: 'Team — IT/Tech' },
+  { value: 'hr', label: 'Team — HR' },
+  { value: 'sales', label: 'Team — Sales' },
+  { value: 'admin', label: 'Admin' },
+] as const;
+
+// Maps each group to the actual `source` / `work_queue` values found on
+// support_tickets (verified via SELECT DISTINCT — see AdminTickets.tsx audit).
+// agent/tech/hr/sales/admin have no tickets yet but are mapped to their real
+// column-naming convention so the filter works once those queues are used.
+const GROUP_SOURCE_MAP: Record<string, string[]> = {
+  client: ['client_portal'],
+  white_label: ['white_label_portal'],
+  wl_escalation: ['white_label_escalation'],
+  wl_forward: ['wl_forward'],
+  supervisor: ['supervisor'],
+  agent: ['agent'],
+  billing: ['billing'],
+  tech: ['tech'],
+  hr: ['hr'],
+  sales: ['sales'],
+  admin: ['admin'],
+};
 
 type Ticket = {
   id: string;
@@ -71,6 +105,7 @@ export function TicketList({
   showSourceBadge = true,
   limit = 20,
   showFilters = true,
+  showGroupFilter = false,
   linkPrefix = '/admin/tickets',
 }: TicketListProps) {
   const viewContext = workQueueFilter ? `dept:${workQueueFilter}` : sourceFilter ? `dept:${sourceFilter}` : 'default';
@@ -78,6 +113,7 @@ export function TicketList({
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
+  const [groupFilter, setGroupFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
@@ -107,6 +143,7 @@ export function TicketList({
     setStatusFilter('all');
     setPriorityFilter('all');
     setAssigneeFilter('all');
+    setGroupFilter('all');
     setDateFrom(undefined);
     setDateTo(undefined);
   }, []);
@@ -133,7 +170,7 @@ export function TicketList({
   });
 
   const { data: tickets = [], isLoading, error } = useQuery({
-    queryKey: ['tickets', sourceFilter, workQueueFilter, categoryFilter, statusFilter, priorityFilter, assigneeFilter, limit, dateFrom?.toISOString(), dateTo?.toISOString()],
+    queryKey: ['tickets', sourceFilter, workQueueFilter, categoryFilter, statusFilter, priorityFilter, assigneeFilter, groupFilter, limit, dateFrom?.toISOString(), dateTo?.toISOString()],
     queryFn: async () => {
       let query = supabase
         .from('support_tickets')
@@ -146,6 +183,12 @@ export function TicketList({
         query = query.eq('work_queue', workQueueFilter);
       } else if (sourceFilter) {
         query = query.eq('source', sourceFilter);
+      } else if (groupFilter !== 'all') {
+        const groupValues = GROUP_SOURCE_MAP[groupFilter] ?? [];
+        if (groupValues.length > 0) {
+          const inList = groupValues.join(',');
+          query = query.or(`source.in.(${inList}),work_queue.in.(${inList})`);
+        }
       }
       if (categoryFilter) {
         query = query.eq('category', categoryFilter);
@@ -226,10 +269,14 @@ export function TicketList({
     if (statusFilter !== 'all') chips.push({ label: `Status: ${statusFilter}`, onRemove: () => setStatusFilter('all') });
     if (priorityFilter !== 'all') chips.push({ label: `Priority: ${priorityFilter}`, onRemove: () => setPriorityFilter('all') });
     if (assigneeFilter !== 'all') chips.push({ label: `Assignee: ${assigneeFilter}`, onRemove: () => setAssigneeFilter('all') });
+    if (groupFilter !== 'all') {
+      const groupLabel = TICKET_GROUPS.find(g => g.value === groupFilter)?.label ?? groupFilter;
+      chips.push({ label: `Group: ${groupLabel}`, onRemove: () => setGroupFilter('all') });
+    }
     if (dateFrom) chips.push({ label: `From: ${format(dateFrom, 'MMM d')}`, onRemove: () => setDateFrom(undefined) });
     if (dateTo) chips.push({ label: `To: ${format(dateTo, 'MMM d')}`, onRemove: () => setDateTo(undefined) });
     return chips;
-  }, [statusFilter, priorityFilter, assigneeFilter, dateFrom, dateTo]);
+  }, [statusFilter, priorityFilter, assigneeFilter, groupFilter, dateFrom, dateTo]);
 
   const getInitials = (name: string | null) => {
     if (!name) return '?';
@@ -282,6 +329,18 @@ export function TicketList({
         </div>
         {showFilters && (
           <div className="flex gap-2 flex-wrap">
+            {showGroupFilter && (
+              <Select value={groupFilter} onValueChange={setGroupFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Filter by Group" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TICKET_GROUPS.map(g => (
+                    <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[130px]">
                 <SelectValue placeholder="Status" />

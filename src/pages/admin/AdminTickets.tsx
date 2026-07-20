@@ -119,6 +119,7 @@ export default function AdminTickets() {
         title="All Tickets"
         showSourceBadge={true}
         showFilters={true}
+        showGroupFilter={true}
         limit={50}
         linkPrefix="/admin/tickets"
       />
