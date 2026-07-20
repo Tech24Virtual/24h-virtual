@@ -18,6 +18,7 @@ import { ActivityTimeline, TaskList, EmailFollowupList } from '@/components/admi
 import { LeadIntelligencePanel } from '@/components/admin/LeadIntelligencePanel';
 import { LeadConversionDialog } from '@/components/admin/LeadConversionDialog';
 import { NmiPaymentSection } from '@/components/admin/NmiPaymentSection';
+import { BillingPlanCard } from '@/components/admin/BillingPlanCard';
 import { applyClientActivationEffects } from '@/lib/client-onboarding/applyClientActivationEffects';
 import { calculateLeadScore, getScoreLabel, getScoreBadgeClasses, type ScoringRules, DEFAULT_SCORING_RULES } from '@/lib/leadScoring';
 import {
@@ -61,6 +62,9 @@ interface Lead {
   nmi_card_last_four: string | null;
   nmi_card_type: string | null;
   nmi_card_expiry: string | null;
+  current_plan_id: string | null;
+  plan_override: boolean;
+  plan_last_auto_changed_at: string | null;
 }
 
 const serviceLabels: Record<string, string> = {
@@ -412,6 +416,15 @@ export default function AdminLeadDetail() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Billing Plan — catalog-driven, separate from the wizard preferences above */}
+            <BillingPlanCard
+              leadId={lead.id}
+              currentPlanId={lead.current_plan_id}
+              planOverride={lead.plan_override}
+              planLastAutoChangedAt={lead.plan_last_auto_changed_at}
+              onUpdate={fetchLead}
+            />
           </div>
 
           {/* Dynamic Billing Preview */}

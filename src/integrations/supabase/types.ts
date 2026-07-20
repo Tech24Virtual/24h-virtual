@@ -1822,6 +1822,72 @@ export type Database = {
           },
         ]
       }
+      billing_plans: {
+        Row: {
+          auto_downgrade_at_minutes: number | null
+          auto_upgrade_at_minutes: number | null
+          created_at: string
+          downgrade_to_plan_id: string | null
+          fixed_amount: number | null
+          id: string
+          included_minutes: number | null
+          is_active: boolean
+          minute_rate: number | null
+          name: string
+          plan_type: string
+          service_type: string | null
+          updated_at: string
+          upgrade_to_plan_id: string | null
+        }
+        Insert: {
+          auto_downgrade_at_minutes?: number | null
+          auto_upgrade_at_minutes?: number | null
+          created_at?: string
+          downgrade_to_plan_id?: string | null
+          fixed_amount?: number | null
+          id?: string
+          included_minutes?: number | null
+          is_active?: boolean
+          minute_rate?: number | null
+          name: string
+          plan_type?: string
+          service_type?: string | null
+          updated_at?: string
+          upgrade_to_plan_id?: string | null
+        }
+        Update: {
+          auto_downgrade_at_minutes?: number | null
+          auto_upgrade_at_minutes?: number | null
+          created_at?: string
+          downgrade_to_plan_id?: string | null
+          fixed_amount?: number | null
+          id?: string
+          included_minutes?: number | null
+          is_active?: boolean
+          minute_rate?: number | null
+          name?: string
+          plan_type?: string
+          service_type?: string | null
+          updated_at?: string
+          upgrade_to_plan_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_plans_downgrade_to_plan_id_fkey"
+            columns: ["downgrade_to_plan_id"]
+            isOneToOne: false
+            referencedRelation: "billing_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_plans_upgrade_to_plan_id_fkey"
+            columns: ["upgrade_to_plan_id"]
+            isOneToOne: false
+            referencedRelation: "billing_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       billing_summaries: {
         Row: {
           client_id: string
@@ -14950,6 +15016,7 @@ export type Database = {
           company: string | null
           country: string | null
           created_at: string | null
+          current_plan_id: string | null
           custom_minute_rate: number | null
           custom_plan_enabled: boolean | null
           custom_plan_name: string | null
@@ -14974,7 +15041,11 @@ export type Database = {
           payment_method_type: string | null
           phone: string | null
           pipeline_stage: string | null
+          plan_last_auto_changed_at: string | null
           plan_minutes: number | null
+          plan_override: boolean
+          plan_override_at: string | null
+          plan_override_by: string | null
           promo_code: string | null
           qualified_at: string | null
           score: number | null
@@ -15004,6 +15075,7 @@ export type Database = {
           company?: string | null
           country?: string | null
           created_at?: string | null
+          current_plan_id?: string | null
           custom_minute_rate?: number | null
           custom_plan_enabled?: boolean | null
           custom_plan_name?: string | null
@@ -15028,7 +15100,11 @@ export type Database = {
           payment_method_type?: string | null
           phone?: string | null
           pipeline_stage?: string | null
+          plan_last_auto_changed_at?: string | null
           plan_minutes?: number | null
+          plan_override?: boolean
+          plan_override_at?: string | null
+          plan_override_by?: string | null
           promo_code?: string | null
           qualified_at?: string | null
           score?: number | null
@@ -15058,6 +15134,7 @@ export type Database = {
           company?: string | null
           country?: string | null
           created_at?: string | null
+          current_plan_id?: string | null
           custom_minute_rate?: number | null
           custom_plan_enabled?: boolean | null
           custom_plan_name?: string | null
@@ -15082,7 +15159,11 @@ export type Database = {
           payment_method_type?: string | null
           phone?: string | null
           pipeline_stage?: string | null
+          plan_last_auto_changed_at?: string | null
           plan_minutes?: number | null
+          plan_override?: boolean
+          plan_override_at?: string | null
+          plan_override_by?: string | null
           promo_code?: string | null
           qualified_at?: string | null
           score?: number | null
@@ -15100,6 +15181,13 @@ export type Database = {
           won_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "leads_current_plan_id_fkey"
+            columns: ["current_plan_id"]
+            isOneToOne: false
+            referencedRelation: "billing_plans"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "leads_wl_partner_id_fkey"
             columns: ["wl_partner_id"]

@@ -1,27 +1,40 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Eye, AlertTriangle } from 'lucide-react';
+import { Search, Eye, AlertTriangle, Lock, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import { servicePricingMap } from '@/lib/pricingData';
+import { useAuth } from '@/contexts/AuthContext';
+import type { Tables } from '@/integrations/supabase/types';
+
+type BillingPlan = Tables<'billing_plans'>;
 
 interface ActiveSubscriptionsListProps {
   searchTerm: string;
   onSearchChange: (term: string) => void;
 }
 
+const NO_PLAN = '__none__';
+
 export function ActiveSubscriptionsList({ searchTerm, onSearchChange }: ActiveSubscriptionsListProps) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
   const { data: subscriptions, isLoading, error } = useQuery({
     queryKey: ['active-subscriptions', searchTerm],
     staleTime: 60_000,
     queryFn: async () => {
       let query = supabase
         .from('leads')
-        .select('id, name, email, company, service_type, plan_minutes, pipeline_stage, payment_processor, nmi_card_last_four, nmi_card_type')
+        .select('id, name, email, company, service_type, plan_minutes, pipeline_stage, payment_processor, nmi_card_last_four, nmi_card_type, current_plan_id, plan_override, billing_plans(id, name)')
         .eq('pipeline_stage', 'active')
         .order('created_at', { ascending: false });
 
@@ -32,6 +45,41 @@ export function ActiveSubscriptionsList({ searchTerm, onSearchChange }: ActiveSu
       const { data, error } = await query;
       if (error) throw error;
       return data;
+    },
+  });
+
+  const { data: plans = [] } = useQuery({
+    queryKey: ['billing-plans'],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('billing_plans')
+        .select('*')
+        .order('fixed_amount', { ascending: true, nullsFirst: true });
+      if (error) throw error;
+      return (data ?? []) as BillingPlan[];
+    },
+  });
+
+  const changePlan = useMutation({
+    mutationFn: async ({ leadId, planId }: { leadId: string; planId: string | null }) => {
+      const { error } = await supabase
+        .from('leads')
+        .update({
+          current_plan_id: planId,
+          plan_override: true,
+          plan_override_by: user?.id ?? null,
+          plan_override_at: new Date().toISOString(),
+        })
+        .eq('id', leadId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Plan updated', { description: 'Locked — the monthly auto-adjust cron will skip this client.' });
+      queryClient.invalidateQueries({ queryKey: ['active-subscriptions'] });
+    },
+    onError: (err: unknown) => {
+      toast.error(err instanceof Error ? err.message : 'Failed to change plan');
     },
   });
 
@@ -108,6 +156,29 @@ export function ActiveSubscriptionsList({ searchTerm, onSearchChange }: ActiveSu
                       {lead.plan_minutes ? `${lead.plan_minutes} min` : '-'} •{' '}
                       {getEstimatedPrice(lead.service_type, lead.plan_minutes)}
                     </div>
+                  </div>
+
+                  <div className="flex flex-col items-end gap-1">
+                    <Badge variant={lead.plan_override ? 'outline' : 'secondary'} className="gap-1">
+                      {lead.plan_override ? <Lock className="h-3 w-3" /> : <Zap className="h-3 w-3" />}
+                      {lead.plan_override ? 'Locked' : 'Auto'}
+                    </Badge>
+                    <Select
+                      value={lead.current_plan_id ?? NO_PLAN}
+                      onValueChange={(v) =>
+                        changePlan.mutate({ leadId: lead.id, planId: v === NO_PLAN ? null : v })
+                      }
+                    >
+                      <SelectTrigger className="h-7 w-40 text-xs" onClick={(e) => e.stopPropagation()}>
+                        <SelectValue placeholder="No plan" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NO_PLAN}>No plan</SelectItem>
+                        {plans.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="flex items-center gap-2">

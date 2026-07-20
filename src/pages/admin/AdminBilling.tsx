@@ -17,6 +17,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { CustomPlanBuilder } from '@/components/admin/CustomPlanBuilder';
+import { BillingPlanCatalog } from '@/components/admin/BillingPlanCatalog';
 import { ActiveSubscriptionsList } from '@/components/admin/ActiveSubscriptionsList';
 import { AddOnsSummary } from '@/components/admin/AddOnsSummary';
 import { PaymentFailures } from '@/components/admin/PaymentFailures';
@@ -227,6 +228,7 @@ export default function AdminBilling() {
             )}
           </TabsTrigger>
           <TabsTrigger value="addons">Add-Ons</TabsTrigger>
+          <TabsTrigger value="plan-catalog">Plan Catalog</TabsTrigger>
           <TabsTrigger value="custom-plans">Custom Plans</TabsTrigger>
           <TabsTrigger value="call-imports">Call Imports</TabsTrigger>
           <TabsTrigger value="nmi-payment">NMI Payment</TabsTrigger>
@@ -242,6 +244,10 @@ export default function AdminBilling() {
 
         <TabsContent value="addons" className="space-y-4">
           <AddOnsSummary data={addOnsSummary || []} isLoading={addOnsLoading} />
+        </TabsContent>
+
+        <TabsContent value="plan-catalog" className="space-y-4">
+          <BillingPlanCatalog />
         </TabsContent>
 
         <TabsContent value="custom-plans" className="space-y-4">
