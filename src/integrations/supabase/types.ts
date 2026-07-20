@@ -14945,6 +14945,8 @@ export type Database = {
           billing_anchor_day: number | null
           billing_currency: string | null
           billing_period: string | null
+          churn_reason: string | null
+          churned_at: string | null
           company: string | null
           country: string | null
           created_at: string | null
@@ -14985,6 +14987,8 @@ export type Database = {
           subscription_started_at: string | null
           updated_at: string | null
           user_id: string | null
+          wl_churn_contact_eligible_at: string | null
+          wl_partner_id: string | null
           won_at: string | null
         }
         Insert: {
@@ -14995,6 +14999,8 @@ export type Database = {
           billing_anchor_day?: number | null
           billing_currency?: string | null
           billing_period?: string | null
+          churn_reason?: string | null
+          churned_at?: string | null
           company?: string | null
           country?: string | null
           created_at?: string | null
@@ -15035,6 +15041,8 @@ export type Database = {
           subscription_started_at?: string | null
           updated_at?: string | null
           user_id?: string | null
+          wl_churn_contact_eligible_at?: string | null
+          wl_partner_id?: string | null
           won_at?: string | null
         }
         Update: {
@@ -15045,6 +15053,8 @@ export type Database = {
           billing_anchor_day?: number | null
           billing_currency?: string | null
           billing_period?: string | null
+          churn_reason?: string | null
+          churned_at?: string | null
           company?: string | null
           country?: string | null
           created_at?: string | null
@@ -15085,9 +15095,19 @@ export type Database = {
           subscription_started_at?: string | null
           updated_at?: string | null
           user_id?: string | null
+          wl_churn_contact_eligible_at?: string | null
+          wl_partner_id?: string | null
           won_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leads_wl_partner_id_fkey"
+            columns: ["wl_partner_id"]
+            isOneToOne: false
+            referencedRelation: "white_label_partners"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       meetings: {
         Row: {

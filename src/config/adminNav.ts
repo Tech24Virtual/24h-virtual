@@ -60,6 +60,7 @@ export const adminNavGroups: AdminNavGroup[] = [
     tabs: [
       { name: 'Active', href: '/admin/clients' },
       { name: 'Leads', href: '/admin/leads' },
+      { name: 'Re-Engage', href: '/admin/re-engage' },
       { name: 'CRM', href: '/admin/crm' },
       { name: 'Outbound', href: '/admin/outbound-calls' },
       { name: 'Billing', href: '/admin/billing' },

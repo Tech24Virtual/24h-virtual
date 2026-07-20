@@ -9,6 +9,7 @@ const AdminOverview = lazy(() => import("@/pages/admin/AdminOverview"));
 const AdminLeads = lazy(() => import("@/pages/admin/AdminLeads"));
 const AdminLeadDetail = lazy(() => import("@/pages/admin/AdminLeadDetail"));
 const AdminClients = lazy(() => import("@/pages/admin/AdminClients"));
+const AdminReEngage = lazy(() => import("@/pages/admin/AdminReEngage"));
 const AdminCRM = lazy(() => import("@/pages/admin/AdminCRM"));
 const AdminTickets = lazy(() => import("@/pages/admin/AdminTickets"));
 const AdminTicketDetail = lazy(() => import("@/pages/admin/AdminTicketDetail"));
@@ -91,6 +92,7 @@ export const AdminRoutes = (
       <Route path="leads" element={<LazyRoute><AdminLeads /></LazyRoute>} />
       <Route path="leads/:id" element={<LazyRoute><AdminLeadDetail /></LazyRoute>} />
       <Route path="clients" element={<LazyRoute><AdminClients /></LazyRoute>} />
+      <Route path="re-engage" element={<LazyRoute><AdminReEngage /></LazyRoute>} />
       <Route path="crm" element={<LazyRoute><AdminCRM /></LazyRoute>} />
       <Route path="outbound-calls" element={<LazyRoute><AdminOutboundCalls /></LazyRoute>} />
       <Route path="tickets" element={<LazyRoute><AdminTickets /></LazyRoute>} />

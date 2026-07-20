@@ -90,7 +90,9 @@ export default function AdminLeads() {
   const [convertLead, setConvertLead] = useState<ConvertLeadInput | null>(null);
   const [addLeadOpen, setAddLeadOpen] = useState(false);
 
-  // ── Leads query ────────────────────────────────────────────────────────
+  // ── Leads query — excludes active accounts (Active tab) and
+  // churned/re_engage clients (Re-Engage tab) so this view is the actual
+  // pre-activation pipeline, not everything in the leads table. ───────────
   const {
     data: leads = [],
     isLoading,
@@ -102,6 +104,7 @@ export default function AdminLeads() {
       const { data, error } = await supabase
         .from('leads')
         .select('id, name, email, phone, company, notes, source, status, score, created_at, pipeline_stage, service_type, plan_minutes')
+        .not('pipeline_stage', 'in', '(active,churned,re_engage)')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return (data ?? []) as Lead[];

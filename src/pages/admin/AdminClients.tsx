@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { Search, Users, Clock, AlertTriangle, UserPlus, MoreHorizontal } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Search, Users, Clock, AlertTriangle, UserPlus, MoreHorizontal, UserX } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -28,10 +28,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { MarkClientChurnedDialog, type ChurnTargetClient } from '@/components/admin/MarkClientChurnedDialog';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -45,6 +47,7 @@ interface LeadClient {
   plan_minutes: number | null;
   pipeline_stage: string | null;
   subscription_started_at: string | null;
+  wl_partner_id: string | null;
 }
 
 interface UsageMap {
@@ -87,14 +90,16 @@ function getBarColor(pct: number) {
 
 export default function AdminClients() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [serviceFilter, setServiceFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [churnTarget, setChurnTarget] = useState<ChurnTargetClient | null>(null);
 
   // Stable for the whole month — changes key at month rollover, invalidating the cache
   const monthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
 
-  // ── Clients query ──────────────────────────────────────────────────────
+  // ── Clients query — active accounts only. Churned/onboarding/etc. moved
+  // to the Leads and Re-Engage tabs so this view means what it says. ──────
   const {
     data: clients = [],
     isLoading: loadingClients,
@@ -105,13 +110,18 @@ export default function AdminClients() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('leads')
-        .select('id, name, email, company, phone, service_type, plan_minutes, pipeline_stage, subscription_started_at')
-        .in('pipeline_stage', ['active', 'ready_for_billing', 'onboarding', 'churned'])
+        .select('id, name, email, company, phone, service_type, plan_minutes, pipeline_stage, subscription_started_at, wl_partner_id')
+        .eq('pipeline_stage', 'active')
         .order('name', { ascending: true });
       if (error) throw error;
       return (data ?? []) as LeadClient[];
     },
   });
+
+  function handleChurned() {
+    queryClient.invalidateQueries({ queryKey: ['admin-clients'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-reengage-clients'] });
+  }
 
   // ── Usage query (independent — a 403 here doesn't blank the client list) ─
   const { data: usage = {} as UsageMap, isLoading: loadingUsage } = useQuery({
@@ -144,10 +154,9 @@ export default function AdminClients() {
         c.email.toLowerCase().includes(q) ||
         c.company?.toLowerCase().includes(q);
       const matchesService = serviceFilter === 'all' || c.service_type === serviceFilter;
-      const matchesStatus = statusFilter === 'all' || c.pipeline_stage === statusFilter;
-      return matchesSearch && matchesService && matchesStatus;
+      return matchesSearch && matchesService;
     });
-  }, [clients, searchQuery, serviceFilter, statusFilter]);
+  }, [clients, searchQuery, serviceFilter]);
 
   const activeCount = clients.filter((c) => c.pipeline_stage === 'active').length;
   const totalMinutes = Object.values(usage).reduce((s, v) => s + v, 0);
@@ -240,18 +249,6 @@ export default function AdminClients() {
                       {SERVICE_LABELS[st] || st}
                     </SelectItem>
                   ))}
-                </SelectContent>
-              </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-40">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="ready_for_billing">Ready for Billing</SelectItem>
-                  <SelectItem value="onboarding">Onboarding</SelectItem>
-                  <SelectItem value="churned">Churned</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -350,6 +347,20 @@ export default function AdminClients() {
                               <DropdownMenuItem onClick={() => navigate(`/admin/billing?client=${client.id}`)}>
                                 View Billing
                               </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() =>
+                                  setChurnTarget({
+                                    id: client.id,
+                                    name: client.name,
+                                    wl_partner_id: client.wl_partner_id,
+                                  })
+                                }
+                              >
+                                <UserX className="w-4 h-4 mr-2" />
+                                Mark as Churned
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -362,6 +373,13 @@ export default function AdminClients() {
           )}
         </CardContent>
       </Card>
+
+      <MarkClientChurnedDialog
+        client={churnTarget}
+        open={!!churnTarget}
+        onOpenChange={(v) => !v && setChurnTarget(null)}
+        onChurned={handleChurned}
+      />
     </div>
   );
 }
