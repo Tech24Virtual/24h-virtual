@@ -17044,8 +17044,44 @@ export type Database = {
           },
         ]
       }
+      payment_failure_attempts: {
+        Row: {
+          attempted_at: string
+          error_message: string | null
+          id: string
+          nmi_transaction_id: string | null
+          payment_failure_id: string
+          result: string
+        }
+        Insert: {
+          attempted_at?: string
+          error_message?: string | null
+          id?: string
+          nmi_transaction_id?: string | null
+          payment_failure_id: string
+          result: string
+        }
+        Update: {
+          attempted_at?: string
+          error_message?: string | null
+          id?: string
+          nmi_transaction_id?: string | null
+          payment_failure_id?: string
+          result?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_failure_attempts_payment_failure_id_fkey"
+            columns: ["payment_failure_id"]
+            isOneToOne: false
+            referencedRelation: "payment_failures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_failures: {
         Row: {
+          amount: number | null
           attempt_number: number | null
           created_at: string | null
           failed_at: string | null
@@ -17053,15 +17089,23 @@ export type Database = {
           failure_message: string | null
           id: string
           lead_id: string | null
+          next_retry_at: string | null
           nmi_transaction_id: string | null
           payment_processor: string | null
+          payment_update_sent_at: string | null
+          payment_update_sent_count: number | null
           resolution_type: string | null
           resolved_at: string | null
+          resolved_by: string | null
+          retry_cancelled: boolean | null
+          retry_count: number | null
           retry_scheduled_at: string | null
+          status: string | null
           stripe_invoice_id: string | null
           stripe_payment_intent_id: string | null
         }
         Insert: {
+          amount?: number | null
           attempt_number?: number | null
           created_at?: string | null
           failed_at?: string | null
@@ -17069,15 +17113,23 @@ export type Database = {
           failure_message?: string | null
           id?: string
           lead_id?: string | null
+          next_retry_at?: string | null
           nmi_transaction_id?: string | null
           payment_processor?: string | null
+          payment_update_sent_at?: string | null
+          payment_update_sent_count?: number | null
           resolution_type?: string | null
           resolved_at?: string | null
+          resolved_by?: string | null
+          retry_cancelled?: boolean | null
+          retry_count?: number | null
           retry_scheduled_at?: string | null
+          status?: string | null
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
         }
         Update: {
+          amount?: number | null
           attempt_number?: number | null
           created_at?: string | null
           failed_at?: string | null
@@ -17085,11 +17137,18 @@ export type Database = {
           failure_message?: string | null
           id?: string
           lead_id?: string | null
+          next_retry_at?: string | null
           nmi_transaction_id?: string | null
           payment_processor?: string | null
+          payment_update_sent_at?: string | null
+          payment_update_sent_count?: number | null
           resolution_type?: string | null
           resolved_at?: string | null
+          resolved_by?: string | null
+          retry_cancelled?: boolean | null
+          retry_count?: number | null
           retry_scheduled_at?: string | null
+          status?: string | null
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
         }

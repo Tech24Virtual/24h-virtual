@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
       if (transactionId) {
         await supabase
           .from("payment_failures")
-          .update({ resolved_at: new Date().toISOString(), resolution_type: "paid" })
+          .update({ resolved_at: new Date().toISOString(), resolution_type: "paid", status: "resolved" })
           .eq("lead_id", orderId)
           .is("resolved_at", null)
           .eq("nmi_transaction_id", transactionId);
@@ -151,6 +151,7 @@ Deno.serve(async (req) => {
             failure_code: responseCode || (isError ? "error" : "declined"),
             failure_message: responseText || (isError ? "Transaction error" : "Card declined"),
             attempt_number: 1,
+            amount: amount ? Number(amount) : null,
           });
 
         // code 23505 = unique_violation — already recorded, silently skip

@@ -66,6 +66,7 @@ Deno.serve(async (req) => {
         failure_message: result.message,
         payment_processor: "nmi",
         attempt_number: 1,
+        amount,
       });
 
       const { data: adminUsers } = await supabase

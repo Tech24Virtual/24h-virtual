@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,10 +10,10 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, Eye, AlertTriangle, Lock, Zap } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { servicePricingMap } from '@/lib/pricingData';
 import { useAuth } from '@/contexts/AuthContext';
+import { ClientBillingSheet } from '@/components/admin/ClientBillingSheet';
 import type { Tables } from '@/integrations/supabase/types';
 
 type BillingPlan = Tables<'billing_plans'>;
@@ -27,6 +28,7 @@ const NO_PLAN = '__none__';
 export function ActiveSubscriptionsList({ searchTerm, onSearchChange }: ActiveSubscriptionsListProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
 
   const { data: subscriptions, isLoading, error } = useQuery({
     queryKey: ['active-subscriptions', searchTerm],
@@ -190,10 +192,13 @@ export function ActiveSubscriptionsList({ searchTerm, onSearchChange }: ActiveSu
                         ···{lead.nmi_card_last_four}
                       </span>
                     )}
-                    <Button variant="ghost" size="icon" asChild>
-                      <Link to={`/admin/leads/${lead.id}`}>
-                        <Eye className="h-4 w-4" />
-                      </Link>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setSelectedClientId(lead.id)}
+                      title="View Client"
+                    >
+                      <Eye className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -202,6 +207,12 @@ export function ActiveSubscriptionsList({ searchTerm, onSearchChange }: ActiveSu
           </div>
         )}
       </CardContent>
+
+      <ClientBillingSheet
+        clientId={selectedClientId}
+        open={!!selectedClientId}
+        onOpenChange={(nextOpen) => !nextOpen && setSelectedClientId(null)}
+      />
     </Card>
   );
 }

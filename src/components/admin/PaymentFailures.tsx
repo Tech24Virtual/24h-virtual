@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, CreditCard, RefreshCw, Mail, CheckCircle, XCircle } from "lucide-react";
+import { AlertTriangle, RefreshCw, CheckCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,20 +14,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { format, formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
+import { PaymentIssueSheet } from "@/components/admin/PaymentIssueSheet";
 
 interface PaymentFailure {
   id: string;
   lead_id: string;
-  stripe_invoice_id: string | null;
+  amount: number | null;
   failure_code: string | null;
   failure_message: string | null;
   attempt_number: number;
+  retry_count: number | null;
+  status: string | null;
   failed_at: string;
-  retry_scheduled_at: string | null;
   resolved_at: string | null;
-  resolution_type: string | null;
   leads?: {
     name: string;
     email: string;
@@ -35,9 +35,25 @@ interface PaymentFailure {
   };
 }
 
+const STATUS_LABELS: Record<string, { label: string; className: string }> = {
+  failed: { label: "Failed", className: "bg-destructive/10 text-destructive" },
+  retrying: { label: "Retrying", className: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400" },
+  needs_attention: { label: "Needs Attention", className: "bg-destructive text-destructive-foreground" },
+  resolved: { label: "Resolved", className: "bg-cta/10 text-cta" },
+  cancelled: { label: "Retries Cancelled", className: "bg-muted text-muted-foreground" },
+};
+
+const FAILURE_CODE_LABELS: Record<string, string> = {
+  card_declined: "Card Declined",
+  insufficient_funds: "Insufficient Funds",
+  expired_card: "Expired Card",
+  processing_error: "Processing Error",
+  declined: "Declined",
+  error: "Gateway Error",
+};
+
 export function PaymentFailures() {
-  const { toast } = useToast();
-  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
 
   const { data: failures, isLoading, error, refetch } = useQuery({
     queryKey: ["payment-failures"],
@@ -57,77 +73,8 @@ export function PaymentFailures() {
     },
   });
 
-  const handleSendUpdateLink = async (failure: PaymentFailure) => {
-    setProcessingId(failure.id);
-    try {
-      const { data, error } = await supabase.functions.invoke("send-card-update-link", {
-        body: { leadId: failure.lead_id, paymentFailureId: failure.id },
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Card update link sent",
-        description: data.email_sent 
-          ? "Email sent to customer" 
-          : "Portal URL generated - share manually",
-      });
-
-      if (data.portal_url) {
-        window.open(data.portal_url, "_blank");
-      }
-
-      refetch();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to generate link",
-        variant: "destructive",
-      });
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
-  const handleMarkResolved = async (failureId: string, resolutionType: string) => {
-    setProcessingId(failureId);
-    try {
-      const { error } = await supabase
-        .from("payment_failures")
-        .update({
-          resolved_at: new Date().toISOString(),
-          resolution_type: resolutionType,
-        })
-        .eq("id", failureId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Marked as resolved",
-        description: `Payment issue marked as ${resolutionType}`,
-      });
-
-      refetch();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update status",
-        variant: "destructive",
-      });
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
-  const getFailureCodeLabel = (code: string | null) => {
-    const labels: Record<string, string> = {
-      card_declined: "Card Declined",
-      insufficient_funds: "Insufficient Funds",
-      expired_card: "Expired Card",
-      processing_error: "Processing Error",
-    };
-    return labels[code || ""] || code || "Unknown";
-  };
+  const getFailureCodeLabel = (code: string | null) =>
+    FAILURE_CODE_LABELS[code || ""] || code || "Unknown";
 
   if (isLoading) {
     return (
@@ -169,115 +116,105 @@ export function PaymentFailures() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-              Payment Issues
-              {failures && failures.length > 0 && (
-                <Badge variant="destructive">{failures.length}</Badge>
-              )}
-            </CardTitle>
-            <CardDescription>
-              Failed payments requiring attention
-            </CardDescription>
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+                Payment Issues
+                {failures && failures.length > 0 && (
+                  <Badge variant="destructive">{failures.length}</Badge>
+                )}
+              </CardTitle>
+              <CardDescription>
+                Failed payments requiring attention — click a row for details and retry actions
+              </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
           </div>
-          <Button variant="outline" size="sm" onClick={() => refetch()}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {!failures || failures.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50 text-cta" />
-            <p>No payment issues</p>
-            <p className="text-sm">All payments are up to date</p>
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Client</TableHead>
-                <TableHead>Issue</TableHead>
-                <TableHead>Attempts</TableHead>
-                <TableHead>Failed</TableHead>
-                <TableHead>Next Retry</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {failures.map((failure) => (
-                <TableRow key={failure.id}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">
-                        {failure.leads?.name || "Unknown"}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {failure.leads?.company || failure.leads?.email}
-                      </p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="destructive">
-                      {getFailureCodeLabel(failure.failure_code)}
-                    </Badge>
-                    {failure.failure_message && (
-                      <p className="text-xs text-muted-foreground mt-1 max-w-[200px] truncate">
-                        {failure.failure_message}
-                      </p>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-medium">{failure.attempt_number}</span>
-                    <span className="text-muted-foreground">/3</span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm">
-                      {formatDistanceToNow(new Date(failure.failed_at), { addSuffix: true })}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    {failure.retry_scheduled_at ? (
-                      <span className="text-sm">
-                        {format(new Date(failure.retry_scheduled_at), "MMM d")}
-                      </span>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleSendUpdateLink(failure)}
-                        disabled={processingId === failure.id}
-                      >
-                        <Mail className="h-4 w-4 mr-1" />
-                        Update Link
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleMarkResolved(failure.id, "paid")}
-                        disabled={processingId === failure.id}
-                      >
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Resolved
-                      </Button>
-                    </div>
-                  </TableCell>
+        </CardHeader>
+        <CardContent>
+          {!failures || failures.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50 text-cta" />
+              <p>No payment issues</p>
+              <p className="text-sm">All payments are up to date</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Issue</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Attempts</TableHead>
+                  <TableHead>Failed</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
+              </TableHeader>
+              <TableBody>
+                {failures.map((failure) => {
+                  const statusInfo = STATUS_LABELS[failure.status ?? "failed"] ?? STATUS_LABELS.failed;
+                  return (
+                    <TableRow
+                      key={failure.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => setSelectedIssueId(failure.id)}
+                    >
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">
+                            {failure.leads?.name || "Unknown"}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {failure.leads?.company || failure.leads?.email}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="destructive">
+                          {getFailureCodeLabel(failure.failure_code)}
+                        </Badge>
+                        {failure.failure_message && (
+                          <p className="text-xs text-muted-foreground mt-1 max-w-[200px] truncate">
+                            {failure.failure_message}
+                          </p>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {failure.amount != null ? `$${Number(failure.amount).toFixed(2)}` : "—"}
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-medium">{(failure.retry_count ?? 0) + 1}</span>
+                        <span className="text-muted-foreground">/3</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm">
+                          {formatDistanceToNow(new Date(failure.failed_at), { addSuffix: true })}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={statusInfo.className}>{statusInfo.label}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <PaymentIssueSheet
+        issueId={selectedIssueId}
+        open={!!selectedIssueId}
+        onOpenChange={(open) => !open && setSelectedIssueId(null)}
+      />
+    </>
   );
 }
