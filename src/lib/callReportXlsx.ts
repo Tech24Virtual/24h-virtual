@@ -81,7 +81,7 @@ export function downloadCallReportXlsx(
 }
 
 function setAutoWidth(ws: XLSX.WorkSheet, data: (string | number)[][]): void {
-  const widths = data.reduce((acc: number[], row) => {
+  const widths = data.reduce<number[]>((acc, row) => {
     row.forEach((cell, i) => {
       acc[i] = Math.max(acc[i] ?? 10, String(cell ?? '').length + 2);
     });

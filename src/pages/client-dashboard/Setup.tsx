@@ -56,7 +56,7 @@ const STEPS = [
 
 // ── Types ─────────────────────────────────────────────────────────
 
-interface FormData {
+interface SetupFormData {
   business_name: string;
   primary_contact_name: string;
   primary_contact_phone: string;
@@ -73,7 +73,7 @@ interface HandoffItem {
   status: string;
 }
 
-const EMPTY_FORM: FormData = {
+const EMPTY_FORM: SetupFormData = {
   business_name: '',
   primary_contact_name: '',
   primary_contact_phone: '',
@@ -85,7 +85,7 @@ const EMPTY_FORM: FormData = {
 
 // ── Step validation ───────────────────────────────────────────────
 
-function stepValid(step: number, data: FormData): boolean {
+function stepValid(step: number, data: SetupFormData): boolean {
   switch (step) {
     case 1:
       return (
@@ -178,7 +178,7 @@ function ReviewSection({
 export default function Setup() {
   const { user } = useAuth();
   const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState<FormData>(EMPTY_FORM);
+  const [formData, setFormData] = useState<SetupFormData>(EMPTY_FORM);
   const [handoffId, setHandoffId] = useState<string | null>(null);
   const [items, setItems] = useState<HandoffItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -230,12 +230,12 @@ export default function Setup() {
         setItems(loaded);
 
         // Pre-populate form from any previously saved values
-        const pre: FormData = { ...EMPTY_FORM };
+        const pre: SetupFormData = { ...EMPTY_FORM };
         for (const item of loaded) {
           if (item.status === 'provided' && item.value_json?.value != null) {
-            const key = item.item_key as keyof FormData;
+            const key = item.item_key as keyof SetupFormData;
             if (key in pre) {
-              (pre as Record<string, string>)[key] = String(item.value_json.value);
+              (pre as unknown as Record<string, string>)[key] = String(item.value_json.value);
             }
           }
         }
@@ -251,7 +251,7 @@ export default function Setup() {
     };
   }, [user]);
 
-  const update = (key: keyof FormData, value: string) => {
+  const update = (key: keyof SetupFormData, value: string) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
     if (validationError) setValidationError(null);
   };
@@ -277,7 +277,7 @@ export default function Setup() {
       // Update all client-fillable items in parallel
       await Promise.all(
         items.map((item) => {
-          const raw = (formData as Record<string, string>)[item.item_key] ?? '';
+          const raw = (formData as unknown as Record<string, string>)[item.item_key] ?? '';
           const hasValue = raw.trim().length > 0;
           return supabase
             .from('client_handoff_items')

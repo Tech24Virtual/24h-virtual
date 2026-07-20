@@ -85,10 +85,12 @@ export function ScriptChangeRequestDialog({ open, onClose, script }: ScriptChang
       onClose(true);
 
       // Fire-and-forget: notify all supervisors (non-blocking — dialog already closed)
-      supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'supervisor')
+      Promise.resolve(
+        supabase
+          .from('user_roles')
+          .select('user_id')
+          .eq('role', 'supervisor')
+      )
         .then(({ data: supervisors }) => {
           if (!supervisors?.length) return;
           return supabase.from('notifications').insert(

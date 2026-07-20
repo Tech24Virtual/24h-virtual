@@ -57,7 +57,8 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 function clientLabel(row: VarianceRow) {
-  return row.client?.name || row.client?.company || row.raw_details?.client_name || row.client_id.slice(0, 8);
+  const rawName = row.raw_details?.client_name;
+  return row.client?.name || row.client?.company || (typeof rawName === 'string' ? rawName : null) || row.client_id.slice(0, 8);
 }
 
 function fmtMinutes(n: number | null) {

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { StaffLayout } from '@/components/staff/StaffLayout';
 import { Card, CardContent } from '@/components/ui/card';
@@ -235,10 +236,12 @@ export default function SupervisorEscalations() {
       });
 
       // Fire-and-forget: notify all users in the target department
-      supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', formData.target_department)
+      Promise.resolve(
+        supabase
+          .from('user_roles')
+          .select('user_id')
+          .eq('role', formData.target_department as Database['public']['Enums']['app_role'])
+      )
         .then(({ data: deptUsers }) => {
           if (!deptUsers?.length) return;
           return supabase.from('notifications').insert(
@@ -272,13 +275,15 @@ export default function SupervisorEscalations() {
       // Fire-and-forget: notify the original escalation creator
       const esc = escalations.find(e => e.id === id);
       if (esc?.supervisor_id) {
-        supabase.from('notifications').insert({
-          user_id: esc.supervisor_id,
-          title: 'Escalation Resolved',
-          message: `The escalation "${esc.subject}" has been resolved.`,
-          category: 'escalation',
-          action_url: '/staff/supervisor/escalations',
-        }).catch(() => {});
+        Promise.resolve(
+          supabase.from('notifications').insert({
+            user_id: esc.supervisor_id,
+            title: 'Escalation Resolved',
+            message: `The escalation "${esc.subject}" has been resolved.`,
+            category: 'escalation',
+            action_url: '/staff/supervisor/escalations',
+          })
+        ).catch(() => {});
       }
 
       setResolveDialog(null);

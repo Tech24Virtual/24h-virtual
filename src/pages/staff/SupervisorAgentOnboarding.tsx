@@ -54,7 +54,7 @@ export default function SupervisorAgentOnboarding() {
 
       const userIds = [...new Set(data.flatMap((o: any) =>
         [o.applicant_user_id, o.supervisor_id].filter(Boolean)
-      ))];
+      ))] as string[];
 
       const { data: profilesData } = await supabase
         .from('profiles')

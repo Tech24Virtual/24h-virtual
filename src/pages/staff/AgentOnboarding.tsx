@@ -271,11 +271,7 @@ export default function AgentOnboarding() {
       // null when multiple rows match (PostgREST 406), hiding valid records.
       const { data } = await supabase
         .from('agent_onboarding')
-        .select([
-          'id', 'status', 'training_checklist', 'training_completed_at', 'supervisor_id',
-          'contract_signed_at', 'banking_submitted', 'google_email', 'five9_username',
-          'live_training_scheduled_at', 'live_training_completed_at', 'completed_at',
-        ].join(', '))
+        .select('id, status, training_checklist, training_completed_at, supervisor_id, contract_signed_at, banking_submitted, google_email, five9_username, live_training_scheduled_at, live_training_completed_at, completed_at')
         .eq('applicant_user_id', user.id)
         .neq('status', 'offer_pending')
         .order('created_at', { ascending: false })

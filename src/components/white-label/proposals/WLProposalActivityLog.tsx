@@ -54,6 +54,7 @@ const EVENT_META: Record<WLProposalActivityEvent, EventMeta> = {
   task_created:               { icon: ListChecks, label: 'Task created', tone: 'neutral' },
   client_portal_viewed:       { icon: Eye, label: 'Client viewed portal', tone: 'neutral' },
   client_portal_acknowledged: { icon: UserCheck, label: 'Client acknowledged next steps', tone: 'positive' },
+  submitted_to_fulfillment:   { icon: Check, label: 'Submitted to fulfillment', tone: 'positive' },
 };
 
 function fmtFull(ts: string): string {
