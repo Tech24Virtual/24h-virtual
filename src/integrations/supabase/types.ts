@@ -1903,6 +1903,7 @@ export type Database = {
           is_active: boolean
           minute_rate: number | null
           name: string
+          overage_rate: number | null
           plan_type: string
           service_type: string | null
           updated_at: string
@@ -1919,6 +1920,7 @@ export type Database = {
           is_active?: boolean
           minute_rate?: number | null
           name: string
+          overage_rate?: number | null
           plan_type?: string
           service_type?: string | null
           updated_at?: string
@@ -1935,6 +1937,7 @@ export type Database = {
           is_active?: boolean
           minute_rate?: number | null
           name?: string
+          overage_rate?: number | null
           plan_type?: string
           service_type?: string | null
           updated_at?: string

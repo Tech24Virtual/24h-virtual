@@ -82,3 +82,25 @@ VALUES
   ('6 Months 15% Off', 'SAVE15-6M', 'percentage_discount', 15, 6, 'monthly', '15% discount for first 6 months'),
   ('Free First Month', 'FIRST-MONTH-FREE', 'free_months', NULL, 1, 'monthly', 'First month free')
 ON CONFLICT (code) DO NOTHING;
+
+-- Add overage_rate column to billing_plans
+ALTER TABLE public.billing_plans
+  ADD COLUMN IF NOT EXISTS overage_rate numeric(10,4);
+
+-- billing_plans has no unique constraint on name yet — without one, ON CONFLICT
+-- below has no target to match and the seed would insert duplicate rows on
+-- every re-run (this migration is applied ad hoc via `db query`, not tracked
+-- as run-once). Add one so the seed is actually idempotent.
+CREATE UNIQUE INDEX IF NOT EXISTS billing_plans_name_unique_idx ON public.billing_plans (name);
+
+-- Seed real billing plans from 24hvirtual.com pricing. service_type uses the
+-- existing hyphenated vocabulary from BillingPlanEditorDialog's SERVICE_OPTIONS
+-- (ai-receptionist | message-assistant | virtual-receptionist | virtual-secretary),
+-- not the underscored form, so these plans show up correctly in the admin
+-- billing editor/catalog and in the Convert Lead dialog's per-service grouping.
+INSERT INTO public.billing_plans (name, plan_type, service_type, fixed_amount, minute_rate, included_minutes, overage_rate, is_active)
+VALUES
+  ('Starter', 'hybrid', 'virtual-receptionist', 149.00, 2.00, 50, 2.00, true),
+  ('Popular', 'hybrid', 'virtual-receptionist', 499.00, 2.00, 250, 2.00, true),
+  ('Business', 'hybrid', 'virtual-receptionist', 1499.00, 2.00, 1000, 2.00, true)
+ON CONFLICT (name) DO NOTHING;
