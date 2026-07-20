@@ -27,7 +27,7 @@ interface ClaimPayload {
 }
 
 const AGENT_STATUS_TABS = ['all', 'pending', 'scheduled', 'completed'] as const;
-const FULL_STATUS_TABS = ['all', 'pending', 'scheduled', 'retry_pending', 'in_progress', 'completed', 'failed'] as const;
+const FULL_STATUS_TABS = ['all', 'pending', 'scheduled', 'in_progress', 'completed', 'failed'] as const;
 
 export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
   const { user, profile } = useAuth();
