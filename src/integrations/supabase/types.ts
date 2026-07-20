@@ -15235,6 +15235,184 @@ export type Database = {
           },
         ]
       }
+      lead_promotions: {
+        Row: {
+          applied_at: string | null
+          applied_by: string | null
+          id: string
+          lead_id: string
+          notes: string | null
+          promotion_id: string
+          status: string | null
+        }
+        Insert: {
+          applied_at?: string | null
+          applied_by?: string | null
+          id?: string
+          lead_id: string
+          notes?: string | null
+          promotion_id: string
+          status?: string | null
+        }
+        Update: {
+          applied_at?: string | null
+          applied_by?: string | null
+          id?: string
+          lead_id?: string
+          notes?: string | null
+          promotion_id?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_promotions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_promotions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_delivery_360"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_promotions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_direct_success_summary"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_promotions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_subscription_churn_events"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_promotions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_subscription_snapshot"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_promotions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_success_account_status"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_promotions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_success_expansion_candidates"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_promotions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_delivery_status"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_promotions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_receptionist_summary"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_promotions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_direct_self_success"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_promotions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_direct_success_summary"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_promotions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_growth_attribution_lead"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_promotions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_lifecycle_overview"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_promotions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_success_accounts"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_promotions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_revenue_lead_360"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_promotions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_subscription_churn_events"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_promotions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_subscription_snapshot"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_promotions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_success_account_status"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_promotions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_success_expansion_candidates"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_promotions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_unit_econ_lead_cost"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_promotions_promotion_id_fkey"
+            columns: ["promotion_id"]
+            isOneToOne: false
+            referencedRelation: "promotions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           account_code: string | null
@@ -15273,6 +15451,7 @@ export type Database = {
           nmi_subscription_id: string | null
           notes: string | null
           onboarding_checklist: Json | null
+          overage_rate_override: number | null
           payment_failure_count: number | null
           payment_link_sent_at: string | null
           payment_method_on_file: boolean | null
@@ -15338,6 +15517,7 @@ export type Database = {
           nmi_subscription_id?: string | null
           notes?: string | null
           onboarding_checklist?: Json | null
+          overage_rate_override?: number | null
           payment_failure_count?: number | null
           payment_link_sent_at?: string | null
           payment_method_on_file?: boolean | null
@@ -15403,6 +15583,7 @@ export type Database = {
           nmi_subscription_id?: string | null
           notes?: string | null
           onboarding_checklist?: Json | null
+          overage_rate_override?: number | null
           payment_failure_count?: number | null
           payment_link_sent_at?: string | null
           payment_method_on_file?: boolean | null
@@ -17878,6 +18059,63 @@ export type Database = {
           reporting_to?: string | null
           trackabi_user_id?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      promotions: {
+        Row: {
+          applies_to: string | null
+          code: string | null
+          created_at: string | null
+          created_by: string | null
+          current_uses: number | null
+          discount_months: number | null
+          discount_percentage: number | null
+          free_feature_description: string | null
+          id: string
+          is_active: boolean | null
+          max_uses: number | null
+          name: string
+          notes: string | null
+          promo_type: string
+          valid_from: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          applies_to?: string | null
+          code?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          current_uses?: number | null
+          discount_months?: number | null
+          discount_percentage?: number | null
+          free_feature_description?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_uses?: number | null
+          name: string
+          notes?: string | null
+          promo_type: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          applies_to?: string | null
+          code?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          current_uses?: number | null
+          discount_months?: number | null
+          discount_percentage?: number | null
+          free_feature_description?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_uses?: number | null
+          name?: string
+          notes?: string | null
+          promo_type?: string
+          valid_from?: string | null
+          valid_until?: string | null
         }
         Relationships: []
       }
@@ -38038,6 +38276,10 @@ export type Database = {
       }
       increment_break_minutes: {
         Args: { minutes: number; shift_id: string }
+        Returns: undefined
+      }
+      increment_promo_usage: {
+        Args: { promo_ids: string[] }
         Returns: undefined
       }
       is_internal_staff: { Args: { _user_id: string }; Returns: boolean }

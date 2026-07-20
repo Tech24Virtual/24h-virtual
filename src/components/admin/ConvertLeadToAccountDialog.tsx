@@ -1,8 +1,11 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
-import { Loader2, ArrowLeft, ArrowRight, CheckCircle2, Building2, MapPin, ListChecks, Sparkles, AlertCircle } from 'lucide-react';
+import {
+  Loader2, ArrowLeft, ArrowRight, CheckCircle2, Building2, MapPin, ListChecks,
+  Sparkles, AlertCircle, CreditCard, Percent, Tag,
+} from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -15,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -24,10 +28,17 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import type { Tables } from '@/integrations/supabase/types';
 import { applyClientActivationEffects } from '@/lib/client-onboarding/applyClientActivationEffects';
 import { DIRECT_CLIENT_DEFAULT_TEMPLATE } from '@/lib/client-onboarding/directClientTemplate';
 import { track } from '@/lib/analytics';
+
+type BillingPlan = Tables<'billing_plans'>;
+type Promotion = Tables<'promotions'>;
+
+const OVERAGE_PRESETS = ['0.05', '0.07', '0.10', '0.12'] as const;
 
 /**
  * IANA tz validator. Uses Intl.supportedValuesOf when available (modern
@@ -117,6 +128,7 @@ export function ConvertLeadToAccountDialog({ lead, open, onOpenChange, onConvert
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const [step, setStep] = useState(1);
   const [busy, setBusy] = useState(false);
@@ -126,6 +138,10 @@ export function ConvertLeadToAccountDialog({ lead, open, onOpenChange, onConvert
   const [locationCity, setLocationCity] = useState('');
   const [locationTimezone, setLocationTimezone] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [overageOption, setOverageOption] = useState<string>('plan_default');
+  const [customOverage, setCustomOverage] = useState('');
+  const [selectedPromos, setSelectedPromos] = useState<string[]>([]);
 
   // Reset state every time we open with a new lead
   useMemo(() => {
@@ -138,8 +154,57 @@ export function ConvertLeadToAccountDialog({ lead, open, onOpenChange, onConvert
       setLocationCity('');
       setLocationTimezone('');
       setErrors({});
+      setSelectedPlanId(null);
+      setOverageOption('plan_default');
+      setCustomOverage('');
+      setSelectedPromos([]);
     }
   }, [open, lead]);
+
+  const { data: plans = [], isLoading: plansLoading } = useQuery({
+    queryKey: ['billing-plans-active'],
+    enabled: open,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('billing_plans')
+        .select('*')
+        .eq('is_active', true)
+        .order('service_type', { ascending: true, nullsFirst: true })
+        .order('fixed_amount', { ascending: true });
+      if (error) throw error;
+      return data as BillingPlan[];
+    },
+  });
+
+  const { data: promotions = [], isLoading: promosLoading } = useQuery({
+    queryKey: ['active-promotions'],
+    enabled: open,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('promotions')
+        .select('*')
+        .eq('is_active', true)
+        .order('name', { ascending: true });
+      if (error) throw error;
+      return data as Promotion[];
+    },
+  });
+
+  const plansByService = useMemo(() => {
+    return plans.reduce((acc, plan) => {
+      const key = plan.service_type || 'general';
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(plan);
+      return acc;
+    }, {} as Record<string, BillingPlan[]>);
+  }, [plans]);
+
+  const selectedPlan = useMemo(
+    () => plans.find((p) => p.id === selectedPlanId) ?? null,
+    [plans, selectedPlanId],
+  );
 
   const opsItems = DIRECT_CLIENT_DEFAULT_TEMPLATE.filter((t) => !t.is_client_fillable);
   const clientItems = DIRECT_CLIENT_DEFAULT_TEMPLATE.filter((t) => t.is_client_fillable);
@@ -210,6 +275,16 @@ export function ConvertLeadToAccountDialog({ lead, open, onOpenChange, onConvert
     }
     setBusy(true);
     try {
+      const effectiveOverageRate =
+        overageOption === 'plan_default'
+          ? null
+          : overageOption === 'custom'
+            ? (customOverage.trim() && !Number.isNaN(parseFloat(customOverage))
+                ? parseFloat(customOverage)
+                : null)
+            : parseFloat(overageOption);
+      const selectedPromoRecords = promotions.filter((p) => selectedPromos.includes(p.id));
+
       const result = await applyClientActivationEffects({
         leadId: lead.id,
         leadUserId: lead.user_id ?? null,
@@ -221,18 +296,73 @@ export function ConvertLeadToAccountDialog({ lead, open, onOpenChange, onConvert
             city: locationCity.trim() || null,
             time_zone: locationTimezone.trim() || null,
           },
+          plan_id: selectedPlanId,
+          plan_name: selectedPlan?.name ?? null,
+          overage_rate: effectiveOverageRate,
+          promotion_ids: selectedPromos,
+          promotion_names: selectedPromoRecords.map((p) => p.name),
           converted_via: 'admin_convert_dialog',
         },
       });
 
-      // Flip pipeline stage to active (the single activation moment).
+      // Flip pipeline stage to active (the single activation moment) and
+      // persist the chosen plan / overage override in the same round trip.
       const { error: stageErr } = await supabase
         .from('leads')
-        .update({ pipeline_stage: 'active' })
+        .update({
+          pipeline_stage: 'active',
+          ...(selectedPlanId ? { current_plan_id: selectedPlanId } : {}),
+          overage_rate_override: effectiveOverageRate,
+        })
         .eq('id', lead.id);
       if (stageErr) {
         // Non-fatal: handoff still seeded. Surface as warning toast below.
         console.warn('lead stage update failed', stageErr);
+      }
+
+      // Record applied promotions and bump their usage counters.
+      if (selectedPromos.length > 0) {
+        const { error: promoErr } = await supabase.from('lead_promotions').insert(
+          selectedPromos.map((promoId) => ({
+            lead_id: lead.id,
+            promotion_id: promoId,
+            applied_by: user?.id ?? null,
+          })),
+        );
+        if (promoErr) {
+          console.warn('lead_promotions insert failed', promoErr);
+        } else {
+          const { error: rpcErr } = await supabase.rpc('increment_promo_usage', {
+            promo_ids: selectedPromos,
+          });
+          if (rpcErr) console.warn('increment_promo_usage failed', rpcErr);
+        }
+      }
+
+      // Notify the billing and supervisor (onboarding) teams — best-effort,
+      // must not block or fail the activation itself.
+      try {
+        const { data: teamUsers } = await supabase
+          .from('user_roles')
+          .select('user_id')
+          .in('role', ['billing', 'supervisor']);
+        if (teamUsers?.length) {
+          const promoSummary = selectedPromoRecords.length
+            ? selectedPromoRecords.map((p) => p.name).join(', ')
+            : 'None';
+          const { error: notifErr } = await supabase.from('notifications').insert(
+            teamUsers.map((u) => ({
+              user_id: u.user_id,
+              title: 'New Client Converted',
+              message: `${accountName.trim()} has been converted. Plan: ${selectedPlan?.name ?? 'Not set'}. Promos: ${promoSummary}`,
+              category: 'billing',
+              action_url: `/admin/leads/${lead.id}`,
+            })),
+          );
+          if (notifErr) console.warn('conversion notification failed', notifErr);
+        }
+      } catch (notifyErr) {
+        console.warn('conversion notification failed', notifyErr);
       }
 
       // Analytics: measurable conversion event.
@@ -240,6 +370,8 @@ export function ConvertLeadToAccountDialog({ lead, open, onOpenChange, onConvert
         lead_id: lead.id,
         tenant_kind: tenantKind,
         already_existed: result.alreadyExisted,
+        plan_id: selectedPlanId,
+        promotion_count: selectedPromos.length,
       });
 
       // Make the new active account appear immediately.
@@ -278,21 +410,21 @@ export function ConvertLeadToAccountDialog({ lead, open, onOpenChange, onConvert
 
   return (
     <Dialog open={open} onOpenChange={(v) => !busy && onOpenChange(v)}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
             Convert to Active Account
           </DialogTitle>
           <DialogDescription>
-            Step {step} of 3, converting{' '}
+            Step {step} of 4, converting{' '}
             <span className="font-medium text-foreground">{lead.name}</span> into a live active account.
           </DialogDescription>
         </DialogHeader>
 
         {/* Step indicator */}
         <div className="flex items-center gap-2 pt-1 pb-2">
-          {[1, 2, 3].map((n) => (
+          {[1, 2, 3, 4].map((n) => (
             <div
               key={n}
               className={`h-1.5 flex-1 rounded-full transition-colors ${
@@ -430,7 +562,165 @@ export function ConvertLeadToAccountDialog({ lead, open, onOpenChange, onConvert
         )}
 
         {step === 3 && (
+          <div className="space-y-6 py-2">
+            {/* ── Plan selection ─────────────────────────────────────────── */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-muted-foreground" /> Plan
+              </Label>
+              {plansLoading ? (
+                <p className="text-xs text-muted-foreground">Loading plans…</p>
+              ) : plans.length === 0 ? (
+                <p className="text-xs text-muted-foreground rounded-lg border bg-muted/30 p-3">
+                  No billing plans configured yet. You can convert without one and assign a plan
+                  later from Admin → Billing.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {Object.entries(plansByService).map(([serviceType, servicePlans]) => (
+                    <div key={serviceType}>
+                      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                        {serviceType.replace(/_/g, ' ')}
+                      </h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {servicePlans.map((plan) => (
+                          <div
+                            key={plan.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => setSelectedPlanId((cur) => (cur === plan.id ? null : plan.id))}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                setSelectedPlanId((cur) => (cur === plan.id ? null : plan.id));
+                              }
+                            }}
+                            className={cn(
+                              'p-3 rounded-lg border cursor-pointer transition-colors',
+                              selectedPlanId === plan.id
+                                ? 'border-primary bg-primary/5'
+                                : 'border-border hover:border-primary/50',
+                            )}
+                          >
+                            <p className="font-medium text-sm">{plan.name}</p>
+                            <p className="text-lg font-bold">
+                              {plan.fixed_amount != null ? `$${plan.fixed_amount}/mo` : '—'}
+                            </p>
+                            {plan.included_minutes != null && (
+                              <p className="text-xs text-muted-foreground">
+                                {plan.included_minutes} min included
+                              </p>
+                            )}
+                            {plan.minute_rate != null && plan.minute_rate > 0 && (
+                              <p className="text-xs text-muted-foreground">${plan.minute_rate}/min</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ── Overage rate ────────────────────────────────────────────── */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Percent className="h-4 w-4 text-muted-foreground" /> Overage rate (per minute, above included minutes)
+              </Label>
+              <div className="flex gap-2 items-center">
+                <Select value={overageOption} onValueChange={setOverageOption}>
+                  <SelectTrigger className="w-56">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="plan_default">Use plan default</SelectItem>
+                    {OVERAGE_PRESETS.map((rate) => (
+                      <SelectItem key={rate} value={rate}>${rate}/min</SelectItem>
+                    ))}
+                    <SelectItem value="custom">Custom rate...</SelectItem>
+                  </SelectContent>
+                </Select>
+                {overageOption === 'custom' && (
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={customOverage}
+                    onChange={(e) => setCustomOverage(e.target.value)}
+                    className="w-32"
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* ── Promotions ──────────────────────────────────────────────── */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Tag className="h-4 w-4 text-muted-foreground" /> Apply promotions
+              </Label>
+              {promosLoading ? (
+                <p className="text-xs text-muted-foreground">Loading promotions…</p>
+              ) : promotions.length === 0 ? (
+                <p className="text-xs text-muted-foreground rounded-lg border bg-muted/30 p-3">
+                  No active promotions.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto border rounded-lg p-3">
+                  {promotions.map((promo) => (
+                    <label key={promo.id} className="flex items-start gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={selectedPromos.includes(promo.id)}
+                        onCheckedChange={(checked) => {
+                          setSelectedPromos((prev) =>
+                            checked ? [...prev, promo.id] : prev.filter((id) => id !== promo.id),
+                          );
+                        }}
+                      />
+                      <div>
+                        <p className="text-sm font-medium">{promo.name}</p>
+                        {promo.notes && (
+                          <p className="text-xs text-muted-foreground">{promo.notes}</p>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {step === 4 && (
           <div className="space-y-4 py-2">
+            <div className="rounded-lg border p-3 space-y-1">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                Plan &amp; pricing
+              </p>
+              <p className="text-sm">
+                Plan: <span className="font-medium">{selectedPlan?.name ?? 'Not set'}</span>
+              </p>
+              <p className="text-sm">
+                Overage rate:{' '}
+                <span className="font-medium">
+                  {overageOption === 'plan_default'
+                    ? 'Plan default'
+                    : overageOption === 'custom'
+                      ? (customOverage ? `$${customOverage}/min` : 'Not set')
+                      : `$${overageOption}/min`}
+                </span>
+              </p>
+              <p className="text-sm">
+                Promotions:{' '}
+                <span className="font-medium">
+                  {selectedPromos.length > 0
+                    ? promotions.filter((p) => selectedPromos.includes(p.id)).map((p) => p.name).join(', ')
+                    : 'None'}
+                </span>
+              </p>
+            </div>
+
             <div className="flex items-center gap-2 text-sm">
               <ListChecks className="h-4 w-4 text-primary" />
               <span className="font-medium">Starter template: Direct Client Default</span>
@@ -489,7 +779,7 @@ export function ConvertLeadToAccountDialog({ lead, open, onOpenChange, onConvert
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
               Cancel
             </Button>
-            {step < 3 ? (
+            {step < 4 ? (
               <Button onClick={handleNext}>
                 Next <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
