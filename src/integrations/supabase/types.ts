@@ -1903,6 +1903,8 @@ export type Database = {
           is_active: boolean
           minute_rate: number | null
           name: string
+          overage_cap_amount: number | null
+          overage_grace_minutes: number | null
           overage_rate: number | null
           plan_type: string
           service_type: string | null
@@ -1920,6 +1922,8 @@ export type Database = {
           is_active?: boolean
           minute_rate?: number | null
           name: string
+          overage_cap_amount?: number | null
+          overage_grace_minutes?: number | null
           overage_rate?: number | null
           plan_type?: string
           service_type?: string | null
@@ -1937,6 +1941,8 @@ export type Database = {
           is_active?: boolean
           minute_rate?: number | null
           name?: string
+          overage_cap_amount?: number | null
+          overage_grace_minutes?: number | null
           overage_rate?: number | null
           plan_type?: string
           service_type?: string | null
@@ -11001,6 +11007,9 @@ export type Database = {
           minimum_monthly: number | null
           minute_rate: number | null
           notes: string | null
+          overage_cap_amount: number | null
+          overage_grace_minutes: number | null
+          overage_rate: number | null
           plan_name: string
           plan_type: string
           stripe_price_id: string | null
@@ -11016,6 +11025,9 @@ export type Database = {
           minimum_monthly?: number | null
           minute_rate?: number | null
           notes?: string | null
+          overage_cap_amount?: number | null
+          overage_grace_minutes?: number | null
+          overage_rate?: number | null
           plan_name: string
           plan_type: string
           stripe_price_id?: string | null
@@ -11031,6 +11043,9 @@ export type Database = {
           minimum_monthly?: number | null
           minute_rate?: number | null
           notes?: string | null
+          overage_cap_amount?: number | null
+          overage_grace_minutes?: number | null
+          overage_rate?: number | null
           plan_name?: string
           plan_type?: string
           stripe_price_id?: string | null
@@ -17083,7 +17098,9 @@ export type Database = {
         Row: {
           amount: number | null
           attempt_number: number | null
+          card_last4: string | null
           created_at: string | null
+          error_message: string | null
           failed_at: string | null
           failure_code: string | null
           failure_message: string | null
@@ -17107,7 +17124,9 @@ export type Database = {
         Insert: {
           amount?: number | null
           attempt_number?: number | null
+          card_last4?: string | null
           created_at?: string | null
+          error_message?: string | null
           failed_at?: string | null
           failure_code?: string | null
           failure_message?: string | null
@@ -17131,7 +17150,9 @@ export type Database = {
         Update: {
           amount?: number | null
           attempt_number?: number | null
+          card_last4?: string | null
           created_at?: string | null
+          error_message?: string | null
           failed_at?: string | null
           failure_code?: string | null
           failure_message?: string | null

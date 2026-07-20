@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Settings2, Loader2 } from 'lucide-react';
@@ -33,6 +34,10 @@ export function CustomPlanBuilder({ open, onOpenChange, preselectedLeadId }: Cus
   const [fixedAmount, setFixedAmount] = useState('');
   const [minimumMonthly, setMinimumMonthly] = useState('');
   const [notes, setNotes] = useState('');
+  const [overageRate, setOverageRate] = useState('');
+  const [overageGrace, setOverageGrace] = useState('');
+  const [overageCap, setOverageCap] = useState(false);
+  const [overageCapAmount, setOverageCapAmount] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
   const queryClient = useQueryClient();
@@ -86,6 +91,11 @@ export function CustomPlanBuilder({ open, onOpenChange, preselectedLeadId }: Cus
           fixedAmount: fixedAmount ? Math.round(parseFloat(fixedAmount) * 100) / 100 : undefined,
           minimumMonthly: minimumMonthly ? Math.round(parseFloat(minimumMonthly) * 100) / 100 : undefined,
           notes: notes.trim() || undefined,
+          overageRate: Math.round(parseFloat(overageRate || '0') * 10000) / 10000,
+          overageGraceMinutes: parseInt(overageGrace || '0', 10),
+          overageCapAmount: overageCap && overageCapAmount
+            ? Math.round(parseFloat(overageCapAmount) * 100) / 100
+            : null,
         },
       });
 
@@ -120,11 +130,15 @@ export function CustomPlanBuilder({ open, onOpenChange, preselectedLeadId }: Cus
     setFixedAmount('');
     setMinimumMonthly('');
     setNotes('');
+    setOverageRate('');
+    setOverageGrace('');
+    setOverageCap(false);
+    setOverageCapAmount('');
   };
 
   return (
     <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) resetForm(); }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings2 className="h-5 w-5" />
@@ -229,6 +243,75 @@ export function CustomPlanBuilder({ open, onOpenChange, preselectedLeadId }: Cus
                   value={fixedAmount}
                   onChange={(e) => setFixedAmount(e.target.value)}
                 />
+              </div>
+            )}
+          </div>
+
+          {/* Overage Pricing Section */}
+          <div className="space-y-4 border-t pt-4">
+            <h3 className="font-medium">Overage Pricing</h3>
+            <p className="text-sm text-muted-foreground">
+              When client exceeds their included minutes, they are charged the overage rate per additional minute.
+            </p>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Overage Rate (per minute)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    className="pl-7"
+                    value={overageRate}
+                    onChange={(e) => setOverageRate(e.target.value)}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Leave at $0.00 to use the plan's minute rate for overage
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Overage Grace Minutes</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={overageGrace}
+                  onChange={(e) => setOverageGrace(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Free buffer minutes before overage kicks in (e.g. 10 = first 10 over are free)
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Switch checked={overageCap} onCheckedChange={setOverageCap} />
+              <div>
+                <Label>Overage Cap</Label>
+                <p className="text-xs text-muted-foreground">Limit maximum overage charge per month</p>
+              </div>
+            </div>
+
+            {overageCap && (
+              <div className="space-y-2">
+                <Label>Maximum Overage Charge per Month</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    className="pl-7"
+                    value={overageCapAmount}
+                    onChange={(e) => setOverageCapAmount(e.target.value)}
+                  />
+                </div>
               </div>
             )}
           </div>

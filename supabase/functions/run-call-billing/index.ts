@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
     // 3. Get active clients (Stripe or NMI)
     const { data: clients } = await supabase
       .from("leads")
-      .select("id, name, company, plan_minutes, custom_minute_rate, stripe_subscription_id, service_type, payment_processor, nmi_customer_vault_id, billing_currency")
+      .select("id, name, company, plan_minutes, custom_minute_rate, stripe_subscription_id, service_type, payment_processor, nmi_customer_vault_id, billing_currency, current_plan_id, custom_plan_enabled")
       .or("stripe_subscription_id.not.is.null,nmi_customer_vault_id.not.is.null")
       .eq("pipeline_stage", "active");
 
@@ -177,10 +177,49 @@ Deno.serve(async (req) => {
           totalMinutes = callLogs?.reduce((sum: number, cl: any) => sum + (cl.billable_minutes || 0), 0) || 0;
         }
 
+        // Resolve overage terms: a custom plan (if enabled) takes priority
+        // over a catalog plan (current_plan_id). Clients with neither fall
+        // back to the original plan_minutes / custom_minute_rate behavior
+        // (zero grace, no cap) — unchanged for clients not yet on a plan.
+        let overageTerms: { rate: number | null; graceMinutes: number; capAmount: number | null } | null = null;
+
+        if (client.custom_plan_enabled) {
+          const { data: customPlan } = await supabase
+            .from("custom_plans")
+            .select("minute_rate, overage_rate, overage_grace_minutes, overage_cap_amount")
+            .eq("lead_id", client.id)
+            .eq("is_active", true)
+            .maybeSingle();
+          if (customPlan) {
+            overageTerms = {
+              rate: customPlan.overage_rate || customPlan.minute_rate || null,
+              graceMinutes: customPlan.overage_grace_minutes ?? 0,
+              capAmount: customPlan.overage_cap_amount ?? null,
+            };
+          }
+        } else if (client.current_plan_id) {
+          const { data: catalogPlan } = await supabase
+            .from("billing_plans")
+            .select("minute_rate, overage_rate, overage_grace_minutes, overage_cap_amount")
+            .eq("id", client.current_plan_id)
+            .maybeSingle();
+          if (catalogPlan) {
+            overageTerms = {
+              rate: catalogPlan.overage_rate || catalogPlan.minute_rate || null,
+              graceMinutes: catalogPlan.overage_grace_minutes ?? 0,
+              capAmount: catalogPlan.overage_cap_amount ?? null,
+            };
+          }
+        }
+
         const includedMinutes = client.plan_minutes || 0;
-        const overageMinutes = Math.max(0, totalMinutes - includedMinutes);
-        const overageRate = client.custom_minute_rate || 1.39;
-        const overageAmount = overageMinutes * overageRate;
+        const graceMinutes = overageTerms?.graceMinutes ?? 0;
+        const overageMinutes = Math.max(0, totalMinutes - includedMinutes - graceMinutes);
+        const overageRate = overageTerms?.rate ?? client.custom_minute_rate ?? 1.39;
+        const uncappedOverageAmount = overageMinutes * overageRate;
+        const overageAmount = overageTerms?.capAmount != null
+          ? Math.min(uncappedOverageAmount, overageTerms.capAmount)
+          : uncappedOverageAmount;
 
         // Per-client threshold check
         const maxSingleClient = thresholds.max_single_client_billing;

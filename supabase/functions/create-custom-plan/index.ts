@@ -42,14 +42,17 @@ serve(async (req) => {
     logStep("User authenticated", { userId: userData.user?.id });
 
     // Parse request body
-    const { 
-      leadId, 
-      planType, 
-      planName, 
-      minuteRate, 
-      fixedAmount, 
+    const {
+      leadId,
+      planType,
+      planName,
+      minuteRate,
+      fixedAmount,
       minimumMonthly,
       notes,
+      overageRate,
+      overageGraceMinutes,
+      overageCapAmount,
       createInStripe = true,
     } = await req.json();
     
@@ -179,6 +182,9 @@ serve(async (req) => {
         stripe_price_id: stripePriceId,
         is_active: true,
         notes,
+        overage_rate: overageRate || 0,
+        overage_grace_minutes: overageGraceMinutes || 0,
+        overage_cap_amount: overageCapAmount ?? null,
       })
       .select()
       .single();
