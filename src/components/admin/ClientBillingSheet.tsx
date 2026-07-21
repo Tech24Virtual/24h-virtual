@@ -44,7 +44,8 @@ export function ClientBillingSheet({ clientId, open, onOpenChange }: ClientBilli
       const { data, error } = await supabase
         .from('leads')
         .select(`
-          id, name, email, company, pipeline_stage, service_type, plan_minutes,
+          id, name, email, phone, company, pipeline_stage, service_type, plan_minutes,
+          subscription_started_at,
           current_plan_id, payment_processor, nmi_card_last_four, nmi_card_type,
           payment_method_on_file, billing_plans(id, name, fixed_amount, included_minutes, minute_rate, overage_rate)
         `)
@@ -191,6 +192,35 @@ export function ClientBillingSheet({ clientId, open, onOpenChange }: ClientBilli
                 </p>
               </div>
               <Badge variant="secondary" className="capitalize">{client.pipeline_stage}</Badge>
+            </div>
+
+            {/* Account */}
+            <div className="rounded-lg border p-4 space-y-2 text-sm">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">Account</Label>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Email</span>
+                <span className="font-medium truncate max-w-[220px]">{client.email}</span>
+              </div>
+              {client.phone && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Phone</span>
+                  <span className="font-medium">{client.phone}</span>
+                </div>
+              )}
+              {client.service_type && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Service</span>
+                  <span className="font-medium capitalize">{client.service_type.replace(/_/g, ' ')}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Client since</span>
+                <span className="font-medium">
+                  {client.subscription_started_at
+                    ? format(new Date(client.subscription_started_at), 'MMM d, yyyy')
+                    : '—'}
+                </span>
+              </div>
             </div>
 
             {/* Plan */}

@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, Users, Clock, AlertTriangle, UserPlus, MoreHorizontal, UserX } from 'lucide-react';
+import { Search, Users, Clock, AlertTriangle, UserPlus, Eye, UserX } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -23,17 +22,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { MarkClientChurnedDialog, type ChurnTargetClient } from '@/components/admin/MarkClientChurnedDialog';
+import { ClientBillingSheet } from '@/components/admin/ClientBillingSheet';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -48,6 +41,8 @@ interface LeadClient {
   pipeline_stage: string | null;
   subscription_started_at: string | null;
   wl_partner_id: string | null;
+  current_plan_id: string | null;
+  billing_plans: { id: string; name: string } | null;
 }
 
 interface UsageMap {
@@ -89,11 +84,11 @@ function getBarColor(pct: number) {
 // ── Component ──────────────────────────────────────────────────────────────
 
 export default function AdminClients() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [serviceFilter, setServiceFilter] = useState('all');
   const [churnTarget, setChurnTarget] = useState<ChurnTargetClient | null>(null);
+  const [viewClientId, setViewClientId] = useState<string | null>(null);
 
   // Stable for the whole month — changes key at month rollover, invalidating the cache
   const monthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
@@ -110,11 +105,11 @@ export default function AdminClients() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('leads')
-        .select('id, name, email, company, phone, service_type, plan_minutes, pipeline_stage, subscription_started_at, wl_partner_id')
+        .select('id, name, email, company, phone, service_type, plan_minutes, pipeline_stage, subscription_started_at, wl_partner_id, current_plan_id, billing_plans(id, name)')
         .eq('pipeline_stage', 'active')
         .order('name', { ascending: true });
       if (error) throw error;
-      return (data ?? []) as LeadClient[];
+      return (data ?? []) as unknown as LeadClient[];
     },
   });
 
@@ -268,17 +263,15 @@ export default function AdminClients() {
               <p className="text-sm">Try adjusting your filters</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
+            <div className="w-full">
+              <Table className="w-full table-fixed">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Client</TableHead>
-                    <TableHead>Service</TableHead>
                     <TableHead>Plan</TableHead>
-                    <TableHead className="min-w-[180px]">Usage This Month</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Since</TableHead>
-                    <TableHead className="w-12" />
+                    <TableHead>Monthly Minutes</TableHead>
+                    <TableHead className="w-20 text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -296,22 +289,21 @@ export default function AdminClients() {
                       <TableRow
                         key={client.id}
                         className="cursor-pointer"
-                        onClick={() => navigate(`/admin/leads/${client.id}`)}
+                        onClick={() => setViewClientId(client.id)}
                       >
                         <TableCell>
-                          <div>
-                            <p className="font-medium">{client.name}</p>
-                            <p className="text-xs text-muted-foreground">{client.email}</p>
-                            {client.company && (
-                              <p className="text-xs text-muted-foreground">{client.company}</p>
-                            )}
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{client.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {client.company || client.email}
+                            </p>
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm">
-                          {SERVICE_LABELS[client.service_type || ''] || client.service_type || '—'}
+                        <TableCell className="text-sm truncate">
+                          {client.billing_plans?.name || (limit > 0 ? `${limit} min/mo` : 'No plan')}
                         </TableCell>
-                        <TableCell className="text-sm">
-                          {limit > 0 ? `${limit} min/mo` : '—'}
+                        <TableCell>
+                          <Badge variant={stage.variant}>{stage.label}</Badge>
                         </TableCell>
                         <TableCell>
                           {limit > 0 ? (
@@ -325,44 +317,31 @@ export default function AdminClients() {
                             <span className="text-xs text-muted-foreground">No plan</span>
                           )}
                         </TableCell>
-                        <TableCell>
-                          <Badge variant={stage.variant}>{stage.label}</Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {client.subscription_started_at
-                            ? format(new Date(client.subscription_started_at), 'MMM d, yyyy')
-                            : '—'}
-                        </TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => navigate(`/admin/leads/${client.id}`)}>
-                                View Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => navigate(`/admin/billing?client=${client.id}`)}>
-                                View Billing
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
-                                onClick={() =>
-                                  setChurnTarget({
-                                    id: client.id,
-                                    name: client.name,
-                                    wl_partner_id: client.wl_partner_id,
-                                  })
-                                }
-                              >
-                                <UserX className="w-4 h-4 mr-2" />
-                                Mark as Churned
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                        <TableCell onClick={(e) => e.stopPropagation()} className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="View client"
+                              onClick={() => setViewClientId(client.id)}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Mark as churned"
+                              onClick={() =>
+                                setChurnTarget({
+                                  id: client.id,
+                                  name: client.name,
+                                  wl_partner_id: client.wl_partner_id,
+                                })
+                              }
+                            >
+                              <UserX className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -379,6 +358,12 @@ export default function AdminClients() {
         open={!!churnTarget}
         onOpenChange={(v) => !v && setChurnTarget(null)}
         onChurned={handleChurned}
+      />
+
+      <ClientBillingSheet
+        clientId={viewClientId}
+        open={!!viewClientId}
+        onOpenChange={(v) => !v && setViewClientId(null)}
       />
     </div>
   );

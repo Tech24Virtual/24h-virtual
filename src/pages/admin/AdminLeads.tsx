@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, Plus, MoreHorizontal, Eye, Flame, Thermometer, Snowflake, Sparkles, AlertTriangle, Users } from 'lucide-react';
+import { Search, Plus, Eye, Flame, Thermometer, Snowflake, Sparkles, AlertTriangle, Users, ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -10,9 +10,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Label } from '@/components/ui/label';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -38,6 +37,7 @@ interface Lead {
   pipeline_stage: string | null;
   service_type: string | null;
   plan_minutes: number | null;
+  assigned_to: string | null;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -80,15 +80,106 @@ const SERVICE_LABELS: Record<string, string> = {
   'virtual-secretary': 'Virtual Secretary',
 };
 
+// ── Detail sheet ──────────────────────────────────────────────────────────
+
+interface LeadDetailSheetProps {
+  lead: Lead | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  ownerName: string;
+  onStageChange: (id: string, stage: string) => void;
+}
+
+function LeadDetailSheet({ lead, open, onOpenChange, ownerName, onStageChange }: LeadDetailSheetProps) {
+  if (!lead) return null;
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="sm:max-w-lg overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>{lead.name}</SheetTitle>
+          <SheetDescription>{lead.email}</SheetDescription>
+        </SheetHeader>
+
+        <div className="space-y-6 mt-6">
+          <div className="rounded-lg border p-4 space-y-2 text-sm">
+            <Label className="text-xs uppercase tracking-wide text-muted-foreground">Contact</Label>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Company</span>
+              <span className="font-medium">{lead.company || '—'}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Phone</span>
+              <span className="font-medium">{lead.phone || '—'}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Owner</span>
+              <span className="font-medium">{ownerName}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Source</span>
+              <span className="font-medium">{lead.source || 'Unknown'}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Added</span>
+              <span className="font-medium">{format(new Date(lead.created_at), 'MMM d, yyyy')}</span>
+            </div>
+          </div>
+
+          <div className="rounded-lg border p-4 space-y-2 text-sm">
+            <Label className="text-xs uppercase tracking-wide text-muted-foreground">Service Interest</Label>
+            {lead.service_type ? (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">
+                  {SERVICE_LABELS[lead.service_type] || lead.service_type}
+                </span>
+                {lead.plan_minutes && <span className="font-medium">{lead.plan_minutes} min</span>}
+              </div>
+            ) : (
+              <p className="text-muted-foreground">Not specified</p>
+            )}
+          </div>
+
+          {lead.notes && (
+            <div className="rounded-lg border p-4 space-y-2 text-sm">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">Notes</Label>
+              <p className="whitespace-pre-wrap">{lead.notes}</p>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label className="text-xs uppercase tracking-wide text-muted-foreground">Change Stage</Label>
+            <Select value={lead.pipeline_stage || 'new'} onValueChange={(v) => onStageChange(lead.id, v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {STAGE_ORDER.map((value) => (
+                  <SelectItem key={value} value={value}>{getStageLabel(value)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button variant="outline" className="w-full" asChild>
+            <Link to={`/admin/leads/${lead.id}`}>
+              <ExternalLink className="h-4 w-4 mr-2" />
+              View Full Profile
+            </Link>
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 // ── Component ──────────────────────────────────────────────────────────────
 
 export default function AdminLeads() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [convertLead, setConvertLead] = useState<ConvertLeadInput | null>(null);
   const [addLeadOpen, setAddLeadOpen] = useState(false);
+  const [viewLead, setViewLead] = useState<Lead | null>(null);
 
   // ── Leads query — excludes active accounts (Active tab) and
   // churned/re_engage clients (Re-Engage tab) so this view is the actual
@@ -103,11 +194,32 @@ export default function AdminLeads() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('leads')
-        .select('id, name, email, phone, company, notes, source, status, score, created_at, pipeline_stage, service_type, plan_minutes')
+        .select('id, name, email, phone, company, notes, source, status, score, created_at, pipeline_stage, service_type, plan_minutes, assigned_to')
         .not('pipeline_stage', 'in', '(active,churned,re_engage)')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return (data ?? []) as Lead[];
+    },
+  });
+
+  // ── Owner display names — leads.assigned_to stores a user_id ────────────
+  const { data: ownerNames = {} as Record<string, string> } = useQuery({
+    queryKey: ['admin-leads-owners', leads.map((l) => l.assigned_to).filter(Boolean).sort().join(',')],
+    enabled: leads.some((l) => !!l.assigned_to),
+    staleTime: 60_000,
+    queryFn: async () => {
+      const ids = [...new Set(leads.map((l) => l.assigned_to).filter(Boolean))] as string[];
+      if (!ids.length) return {};
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', ids);
+      if (error) throw error;
+      const map: Record<string, string> = {};
+      (data || []).forEach((p: { id: string; full_name: string | null }) => {
+        map[p.id] = p.full_name || 'Unknown';
+      });
+      return map;
     },
   });
 
@@ -286,18 +398,15 @@ export default function AdminLeads() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
+            <div className="w-full">
+              <Table className="w-full table-fixed">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Score</TableHead>
                     <TableHead>Stage</TableHead>
-                    <TableHead>Service</TableHead>
-                    <TableHead>Source</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="w-12" />
+                    <TableHead>Score</TableHead>
+                    <TableHead>Owner</TableHead>
+                    <TableHead className="w-20 text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -308,15 +417,22 @@ export default function AdminLeads() {
                       <TableRow
                         key={lead.id}
                         className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => navigate(`/admin/leads/${lead.id}`)}
+                        onClick={() => setViewLead(lead)}
                       >
                         <TableCell>
-                          <div>
-                            <p className="font-medium">{lead.name}</p>
-                            <p className="text-sm text-muted-foreground">{lead.email}</p>
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{lead.name}</p>
+                            <p className="text-sm text-muted-foreground truncate">{lead.email}</p>
                           </div>
                         </TableCell>
-                        <TableCell>{lead.company || '—'}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="secondary"
+                            className={PIPELINE_STAGE_COLORS[lead.pipeline_stage || 'new'] ?? 'bg-muted text-muted-foreground'}
+                          >
+                            {getStageLabel(lead.pipeline_stage || 'new')}
+                          </Badge>
+                        </TableCell>
                         <TableCell>
                           <Badge variant="secondary" className={getScoreBadgeClasses(label)}>
                             {label === 'hot' ? (
@@ -329,77 +445,39 @@ export default function AdminLeads() {
                             {score} · {label.charAt(0).toUpperCase() + label.slice(1)}
                           </Badge>
                         </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="secondary"
-                            className={PIPELINE_STAGE_COLORS[lead.pipeline_stage || 'new'] ?? 'bg-muted text-muted-foreground'}
-                          >
-                            {getStageLabel(lead.pipeline_stage || 'new')}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {lead.service_type ? (
-                            <div>
-                              <p className="text-sm">{SERVICE_LABELS[lead.service_type] || lead.service_type}</p>
-                              {lead.plan_minutes && (
-                                <p className="text-xs text-muted-foreground">{lead.plan_minutes} min</p>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
+                        <TableCell className="text-sm truncate">
+                          {lead.assigned_to ? (ownerNames[lead.assigned_to] || '—') : (
+                            <span className="text-muted-foreground">Unassigned</span>
                           )}
                         </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{lead.source || 'Unknown'}</Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {format(new Date(lead.created_at), 'MMM d, yyyy')}
-                        </TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="w-4 h-4" />
+                        <TableCell onClick={(e) => e.stopPropagation()} className="text-right">
+                          <div className="flex justify-end gap-1">
+                            {CONVERTIBLE_STAGES.has(lead.pipeline_stage || 'new') && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Convert to active account"
+                                onClick={() =>
+                                  setConvertLead({
+                                    id: lead.id,
+                                    name: lead.name,
+                                    email: lead.email,
+                                    company: lead.company,
+                                  })
+                                }
+                              >
+                                <Sparkles className="w-4 h-4 text-primary" />
                               </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => navigate(`/admin/leads/${lead.id}`)}>
-                                <Eye className="w-4 h-4 mr-2" />
-                                View Details
-                              </DropdownMenuItem>
-                              {CONVERTIBLE_STAGES.has(lead.pipeline_stage || 'new') && (
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    setConvertLead({
-                                      id: lead.id,
-                                      name: lead.name,
-                                      email: lead.email,
-                                      company: lead.company,
-                                    })
-                                  }
-                                >
-                                  <Sparkles className="w-4 h-4 mr-2 text-primary" />
-                                  Convert to Active Account
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => updateLeadStage(lead.id, 'sales')}>
-                                Move to Sales
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => updateLeadStage(lead.id, 'onboarding')}>
-                                Move to Onboarding
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => updateLeadStage(lead.id, 'ready_for_billing')}>
-                                Ready for Billing
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => updateLeadStage(lead.id, 'active')}>
-                                Mark as Active
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => updateLeadStage(lead.id, 'churned')}>
-                                Mark as Churned
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="View lead"
+                              onClick={() => setViewLead(lead)}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -421,6 +499,17 @@ export default function AdminLeads() {
         open={addLeadOpen}
         onOpenChange={setAddLeadOpen}
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ['admin-leads'] })}
+      />
+
+      <LeadDetailSheet
+        lead={viewLead}
+        open={!!viewLead}
+        onOpenChange={(v) => !v && setViewLead(null)}
+        ownerName={viewLead?.assigned_to ? (ownerNames[viewLead.assigned_to] || 'Unknown') : 'Unassigned'}
+        onStageChange={(id, stage) => {
+          updateLeadStage(id, stage);
+          setViewLead((prev) => (prev && prev.id === id ? { ...prev, pipeline_stage: stage } : prev));
+        }}
       />
     </div>
   );

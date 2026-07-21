@@ -14,9 +14,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         <title>Admin Dashboard — 24H Virtual</title>
       </Helmet>
       <AdminSidebar />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
         <AdminHeader />
-        <main className="flex-1 p-6 lg:p-8 overflow-auto">
+        <main className="flex-1 p-6 lg:p-8 overflow-x-hidden overflow-y-auto">
           {children}
         </main>
       </div>
