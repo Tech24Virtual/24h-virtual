@@ -70,6 +70,8 @@ const temperatureStyles: Record<string, string> = {
   cold: 'bg-muted text-muted-foreground',
 };
 
+const CONVERTIBLE_STAGES = new Set(['new', 'contacted', 'qualified']);
+
 export default function StaffLeadDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -148,12 +150,6 @@ export default function StaffLeadDetail() {
     updateLead({ next_follow_up: followUpDate ? new Date(followUpDate).toISOString() : null });
   };
 
-  const formatCurrency = (amount: number) => {
-    const currency = lead?.billing_currency || 'usd';
-    const symbol = currency === 'cad' ? 'C$' : '$';
-    return `${symbol}${amount.toFixed(2)}`;
-  };
-
   if (isLoading) {
     return (
       <StaffLayout role="sales">
@@ -197,7 +193,7 @@ export default function StaffLeadDetail() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {lead.pipeline_stage === 'qualified' && (
+            {CONVERTIBLE_STAGES.has(lead.pipeline_stage || '') && (
               <>
                 <Button onClick={() => setShowConversion(true)} variant="default">
                   <ArrowRightCircle className="h-4 w-4 mr-2" />Convert Lead
@@ -259,7 +255,7 @@ export default function StaffLeadDetail() {
                         <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Minutes/Month</span><span className="font-medium">{lead.plan_minutes?.toLocaleString() || 'N/A'}</span></div>
                         <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Billing Period</span><Badge variant="outline" className="capitalize">{lead.billing_period || 'monthly'}{lead.billing_period === 'annual' && ' (10% off)'}</Badge></div>
                         <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Currency</span><Badge variant="secondary">{lead.billing_currency?.toUpperCase() || 'USD'}</Badge></div>
-                        <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Overage Rate</span><span className="font-medium">{formatCurrency(overageRate)}/min</span></div>
+                        <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Overage Rate</span><span className="font-medium">${overageRate}/min (USD)</span></div>
                       </div>
                       {parsedNotes && (
                         <>

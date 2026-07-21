@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
-import { Search, Eye, Calendar, UserPlus, Users, User as UserIcon, Flame } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Calendar, UserPlus, Users, User as UserIcon, Flame } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -44,6 +44,7 @@ export default function SalesLeads() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
@@ -74,6 +75,7 @@ export default function SalesLeads() {
       queryClient.invalidateQueries({ queryKey: ['sales-leads'] });
       toast({ title: 'Assigned', description: 'Lead assigned to you.' });
     },
+    onError: () => toast({ title: 'Error', description: 'Failed to assign lead.', variant: 'destructive' }),
   });
 
   let filteredLeads = leads?.filter(
@@ -196,7 +198,11 @@ export default function SalesLeads() {
                   </TableHeader>
                   <TableBody>
                     {filteredLeads.map((lead) => (
-                      <TableRow key={lead.id}>
+                      <TableRow
+                        key={lead.id}
+                        onClick={() => navigate(`/staff/sales/pipeline/leads/${lead.id}`)}
+                        className="cursor-pointer"
+                      >
                         <TableCell>
                           <div>
                             <div className="font-medium">{lead.name}</div>
@@ -222,16 +228,13 @@ export default function SalesLeads() {
                           ) : '—'}
                         </TableCell>
                         <TableCell>{lead.created_at ? format(new Date(lead.created_at), 'MMM d, yyyy') : '-'}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-1">
                             {lead.assigned_sales_rep !== user?.id && (
                               <Button variant="ghost" size="sm" onClick={() => assignToMe.mutate(lead.id)} title="Assign to me">
                                 <UserPlus className="h-4 w-4" />
                               </Button>
                             )}
-                            <Button variant="ghost" size="sm" asChild>
-                              <Link to={`/staff/sales/pipeline/leads/${lead.id}`}><Eye className="h-4 w-4" /></Link>
-                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
