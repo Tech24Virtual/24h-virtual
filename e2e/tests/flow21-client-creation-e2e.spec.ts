@@ -118,28 +118,28 @@ test.describe.serial('Flow 21 — Full Client Creation E2E', () => {
       return;
     }
 
-    // Click the ⋯ actions button in the last cell of the row
-    await leadRow.locator('td').last().getByRole('button').click();
-    await page.waitForTimeout(500);
-
-    const convertItem = page.getByRole('menuitem', { name: /convert to active account/i });
-    const isConvertAvailable = await convertItem.isVisible({ timeout: 3000 }).catch(() => false);
+    // Click the "Convert to active account" icon button directly — the
+    // actions column is two direct icon buttons, not a dropdown menu.
+    const convertBtn = leadRow.getByRole('button', { name: /convert to active account/i });
+    const isConvertAvailable = await convertBtn.isVisible({ timeout: 3000 }).catch(() => false);
 
     if (!isConvertAvailable) {
-      console.log('Note: "Convert to Active Account" not in dropdown — lead stage may not be convertible');
-      await page.keyboard.press('Escape');
+      console.log('Note: "Convert to Active Account" button not shown — lead stage may not be convertible');
       // Surface this as a hard failure so the demo team knows
       throw new Error(
-        `"Convert to Active Account" option not available for lead "${LEAD_NAME}". ` +
+        `"Convert to Active Account" button not available for lead "${LEAD_NAME}". ` +
         'Check that the lead is in a convertible stage (new / sales / qualified).'
       );
     }
 
-    await convertItem.click();
+    await convertBtn.click();
     await page.waitForTimeout(600);
 
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByText('Convert to Active Account')).toBeVisible({ timeout: 8000 });
+
+    // Dialog is now a wide 4-step wizard (sm:max-w-4xl)
+    await expect(dialog.getByText('Step 1 of 4')).toBeVisible({ timeout: 5000 });
 
     // ── Step 1: Account Confirmation ──────────────────────────────────────
     // Field is pre-filled with LEAD_COMPANY — keep it
@@ -152,6 +152,7 @@ test.describe.serial('Flow 21 — Full Client Creation E2E', () => {
     await page.waitForTimeout(600);
 
     // ── Step 2: Default Location ───────────────────────────────────────────
+    await expect(dialog.getByText('Step 2 of 4')).toBeVisible({ timeout: 5000 });
     const locationInput = dialog.getByPlaceholder('Main Location');
     await expect(locationInput).toBeVisible({ timeout: 8000 });
     // Default "Main Location" is acceptable — keep it
@@ -159,7 +160,16 @@ test.describe.serial('Flow 21 — Full Client Creation E2E', () => {
     await dialog.getByRole('button', { name: /next/i }).click();
     await page.waitForTimeout(600);
 
-    // ── Step 3: Review → Activate Account ─────────────────────────────────
+    // ── Step 3: Plan / Overage / Promotions ────────────────────────────────
+    // Defaults (no plan, plan-default overage, no promotions) are acceptable
+    await expect(dialog.getByText('Step 3 of 4')).toBeVisible({ timeout: 8000 });
+    await expect(dialog.getByText(/overage rate/i)).toBeVisible({ timeout: 5000 });
+
+    await dialog.getByRole('button', { name: /next/i }).click();
+    await page.waitForTimeout(600);
+
+    // ── Step 4: Review → Activate Account ─────────────────────────────────
+    await expect(dialog.getByText('Step 4 of 4')).toBeVisible({ timeout: 5000 });
     const activateBtn = dialog.getByRole('button', { name: /activate account/i });
     await expect(activateBtn).toBeVisible({ timeout: 8000 });
 

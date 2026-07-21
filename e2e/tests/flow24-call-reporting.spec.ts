@@ -30,9 +30,14 @@ test.describe('Admin — Call Report page', () => {
     await page.goto('/admin/leads');
     await page.waitForLoadState('networkidle');
 
-    // Click the first lead row to open detail
-    const firstLeadLink = page.locator('table tbody tr a, table tbody tr [role="link"], table tbody tr').first();
-    await firstLeadLink.click();
+    // Click the first lead row — opens the LeadDetailSheet (quick view), not a navigation
+    const firstLeadRow = page.locator('table tbody tr').first();
+    await firstLeadRow.click();
+
+    // Follow the sheet's "View Full Profile" link to reach the full lead detail page
+    const viewFullProfileLink = page.getByRole('link', { name: /view full profile/i });
+    await expect(viewFullProfileLink).toBeVisible({ timeout: 10_000 });
+    await viewFullProfileLink.click();
     await page.waitForLoadState('networkidle');
 
     // The "View Call Report" button should be visible
@@ -66,13 +71,14 @@ test.describe('Admin — Call Report page', () => {
       return;
     }
 
-    // Click the first lead row
+    // Click the first lead row — opens the LeadDetailSheet (quick view), not a navigation
     await page.locator('table tbody tr').first().click();
-    await page.waitForLoadState('networkidle');
 
-    // Get current URL to extract lead ID
-    const url = page.url();
-    const match = url.match(/leads\/([0-9a-f-]+)/i);
+    // Extract the lead ID from the sheet's "View Full Profile" link href
+    const viewFullProfileLink = page.getByRole('link', { name: /view full profile/i });
+    await expect(viewFullProfileLink).toBeVisible({ timeout: 10_000 });
+    const href = await viewFullProfileLink.getAttribute('href');
+    const match = href?.match(/leads\/([0-9a-f-]+)/i);
     const leadId = match?.[1];
 
     if (leadId) {

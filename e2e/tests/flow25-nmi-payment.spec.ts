@@ -30,7 +30,13 @@ async function navigateToFirstLead(page: import('@playwright/test').Page) {
   const count = await rows.count();
   if (count === 0) return false;
 
+  // Row click opens the LeadDetailSheet (quick view) — follow its
+  // "View Full Profile" link to reach the full lead detail page, where
+  // the NMI payment section actually lives.
   await rows.first().click();
+  const viewFullProfileLink = page.getByRole('link', { name: /view full profile/i });
+  await viewFullProfileLink.waitFor({ state: 'visible', timeout: 10_000 });
+  await viewFullProfileLink.click();
   await page.waitForLoadState('networkidle');
   return true;
 }
@@ -133,7 +139,12 @@ test.describe('NMI Payment Integration', () => {
     for (let i = 0; i < Math.min(count, 10); i++) {
       await page.goto('/admin/leads');
       await page.waitForLoadState('networkidle');
+      // Row click opens the LeadDetailSheet — follow "View Full Profile" to
+      // reach the full lead detail page where the NMI section lives.
       await page.locator('table tbody tr').nth(i).click();
+      const viewFullProfileLink = page.getByRole('link', { name: /view full profile/i });
+      if (!(await viewFullProfileLink.isVisible({ timeout: 5_000 }).catch(() => false))) continue;
+      await viewFullProfileLink.click();
       await page.waitForLoadState('networkidle');
 
       const badge = page.getByTestId('payment-processor-badge');
@@ -170,7 +181,12 @@ test.describe('NMI Payment Integration', () => {
     for (let i = 0; i < Math.min(count, 10); i++) {
       await page.goto('/admin/leads');
       await page.waitForLoadState('networkidle');
+      // Row click opens the LeadDetailSheet — follow "View Full Profile" to
+      // reach the full lead detail page where the NMI section lives.
       await page.locator('table tbody tr').nth(i).click();
+      const viewFullProfileLink = page.getByRole('link', { name: /view full profile/i });
+      if (!(await viewFullProfileLink.isVisible({ timeout: 5_000 }).catch(() => false))) continue;
+      await viewFullProfileLink.click();
       await page.waitForLoadState('networkidle');
 
       const badge = page.getByTestId('payment-processor-badge');
