@@ -9,7 +9,7 @@ import { StaffLayout } from '@/components/staff/StaffLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useLocation } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 import type { Json } from '@/integrations/supabase/types';
 import { AgentBankingForm } from '@/components/staff/AgentBankingForm';
 
@@ -17,17 +17,14 @@ interface NotificationPreferences {
   email_notifications: boolean;
 }
 
-type StaffRole = 'sales' | 'agent' | 'supervisor' | 'billing';
+interface StaffSettingsProps {
+  role: 'sales' | 'agent' | 'supervisor' | 'billing' | 'tech';
+}
 
-export default function StaffSettings() {
-  const location = useLocation();
-  // Extract role from pathname: /staff/{role}/settings
-  const pathParts = location.pathname.split('/');
-  const roleFromPath = pathParts[2] as StaffRole;
-  const staffRole: StaffRole = ['sales', 'agent', 'supervisor', 'billing'].includes(roleFromPath) 
-    ? roleFromPath 
-    : 'agent';
-    
+export default function StaffSettings({ role }: StaffSettingsProps) {
+  // Named showToast to avoid colliding with the sonner `toast` import above,
+  // which the existing save-success/save-error calls in this file rely on.
+  const { toast: showToast } = useToast();
   const { user, profile, refreshProfile } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
@@ -92,7 +89,7 @@ export default function StaffSettings() {
   };
 
   return (
-    <StaffLayout role={staffRole}>
+    <StaffLayout role={role}>
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Settings</h1>
@@ -176,10 +173,18 @@ export default function StaffSettings() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Button variant="outline" className="w-full">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => showToast({ title: 'Coming soon', description: 'Password change will be available shortly.' })}
+                >
                   Change Password
                 </Button>
-                <Button variant="outline" className="w-full">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => showToast({ title: 'Coming soon', description: 'Two-factor authentication will be available shortly.' })}
+                >
                   Enable Two-Factor Authentication
                 </Button>
               </CardContent>
@@ -188,7 +193,7 @@ export default function StaffSettings() {
         </div>
 
         {/* Banking Details - only for agents */}
-        {staffRole === 'agent' && (
+        {role === 'agent' && (
           <AgentBankingForm />
         )}
       </div>

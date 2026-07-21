@@ -117,7 +117,7 @@ export const StaffRoutes = (
     {/* Support group */}
     <Route path="/staff/sales/support/help" element={guard("sales", <StaffSupport role="sales" />)} />
     <Route path="/staff/sales/support/feedback" element={guard("sales", <StaffFeedback role="sales" />)} />
-    <Route path="/staff/sales/support/settings" element={guard("sales", <StaffSettings />)} />
+    <Route path="/staff/sales/support/settings" element={guard("sales", <StaffSettings role="sales" />)} />
 
     {/* Legacy redirects — keep old URLs working */}
     <Route path="/staff/sales/leads" element={<Navigate to="/staff/sales/pipeline/leads" replace />} />
@@ -150,7 +150,7 @@ export const StaffRoutes = (
     <Route path="/staff/agent/calendar" element={guard("agent", <AgentCalendar />)} />
     <Route path="/staff/agent/appointments" element={guard("agent", <AgentAppointments />)} />
     <Route path="/staff/agent/notifications" element={guard("agent", <AgentNotifications />)} />
-    <Route path="/staff/agent/settings" element={guard("agent", <StaffSettings />)} />
+    <Route path="/staff/agent/settings" element={guard("agent", <StaffSettings role="agent" />)} />
     <Route path="/staff/agent/support" element={guard("agent", <StaffSupport role="agent" />)} />
     <Route path="/staff/agent/feedback" element={guard("agent", <StaffFeedback role="agent" />)} />
 
@@ -177,7 +177,7 @@ export const StaffRoutes = (
     <Route path="/staff/supervisor/call-logs" element={guard("supervisor", <SupervisorCallLogs />)} />
     <Route path="/staff/supervisor/training-signoffs" element={guard("supervisor", <SupervisorTrainingSignoffs />)} />
     <Route path="/staff/supervisor/go-live" element={guard("supervisor", <SupervisorGoLiveApprovals />)} />
-    <Route path="/staff/supervisor/settings" element={guard("supervisor", <StaffSettings />)} />
+    <Route path="/staff/supervisor/settings" element={guard("supervisor", <StaffSettings role="supervisor" />)} />
     <Route path="/staff/supervisor/support" element={guard("supervisor", <StaffSupport role="supervisor" />)} />
     <Route path="/staff/supervisor/feedback" element={guard("supervisor", <StaffFeedback role="supervisor" />)} />
 
@@ -192,7 +192,7 @@ export const StaffRoutes = (
     <Route path="/staff/billing/client-lookup" element={guard("billing", <BillingClientLookup />)} />
     <Route path="/staff/billing/wl-partners" element={guard("billing", <BillingWLPartners />)} />
     <Route path="/staff/billing/reconciliation" element={guard("billing", <BillingReconciliation />)} />
-    <Route path="/staff/billing/settings" element={guard("billing", <StaffSettings />)} />
+    <Route path="/staff/billing/settings" element={guard("billing", <StaffSettings role="billing" />)} />
     <Route path="/staff/billing/support" element={guard("billing", <StaffSupport role="billing" />)} />
     <Route path="/staff/billing/feedback" element={guard("billing", <StaffFeedback role="billing" />)} />
 
@@ -204,7 +204,7 @@ export const StaffRoutes = (
     <Route path="/staff/tech/knowledge-base" element={guard("tech", <TechKnowledgeBase />)} />
     <Route path="/staff/tech/chat-deployments" element={guard("tech", <TechChatDeployments />)} />
     <Route path="/staff/tech/chat-deployments/:id" element={guard("tech", <TechChatDeploymentDetail />)} />
-    <Route path="/staff/tech/settings" element={guard("tech", <StaffSettings />)} />
+    <Route path="/staff/tech/settings" element={guard("tech", <StaffSettings role="tech" />)} />
     <Route path="/staff/tech/support" element={guard("tech", <StaffSupport role="tech" />)} />
     <Route path="/staff/tech/feedback" element={guard("tech", <StaffFeedback role="tech" />)} />
   </>
