@@ -139,9 +139,9 @@ export function ActiveSubscriptionsList({ searchTerm, onSearchChange }: ActiveSu
             {subscriptions?.map((lead) => (
               <div
                 key={lead.id}
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                className="flex flex-wrap items-center justify-between gap-y-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
               >
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 max-w-[240px]">
                   <div className="font-medium truncate">{lead.name}</div>
                   <div className="text-sm text-muted-foreground truncate">
                     {lead.email}
@@ -149,7 +149,7 @@ export function ActiveSubscriptionsList({ searchTerm, onSearchChange }: ActiveSu
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 ml-4">
+                <div className="flex flex-wrap items-center gap-4 ml-4">
                   <div className="text-right hidden sm:block">
                     <div className="text-sm font-medium">
                       {getServiceName(lead.service_type)}

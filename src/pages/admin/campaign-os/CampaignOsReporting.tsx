@@ -130,7 +130,11 @@ export default function CampaignOsReporting() {
               <TableBody>
                 {rows.map((r) => (
                   <TableRow key={r.campaign_id}>
-                    <TableCell className="font-medium">{r.display_name ?? r.campaign_id}</TableCell>
+                    <TableCell className="font-medium max-w-[220px]">
+                      <span className="truncate block" title={r.display_name ?? r.campaign_id}>
+                        {r.display_name ?? r.campaign_id}
+                      </span>
+                    </TableCell>
                     <TableCell><Badge variant="outline">{r.tenant_kind}</Badge></TableCell>
                     <TableCell className="text-right">{r.calls_30d.toLocaleString()}</TableCell>
                     <TableCell className="text-right">{formatSeconds(Number(r.avg_handle_time_seconds))}</TableCell>

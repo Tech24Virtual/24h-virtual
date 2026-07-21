@@ -8,6 +8,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Search, UserPlus, Shield, Users, FlaskConical, ShieldOff, Mail, AlertTriangle } from 'lucide-react';
 import { ManageUserRolesDialog } from '@/components/admin/ManageUserRolesDialog';
 import { InviteUserDialog } from '@/components/admin/InviteUserDialog';
@@ -295,7 +301,45 @@ export default function AdminUsers() {
                     {format(new Date(user.created_at), 'MMM d, yyyy')}
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-1.5">
+                    {user.is_demo_account ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            Actions
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedUser(user);
+                              setManageOpen(true);
+                            }}
+                          >
+                            <Shield className="w-3.5 h-3.5 mr-1.5" />
+                            Manage Roles
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setResendUser(user);
+                              setResendOpen(true);
+                            }}
+                          >
+                            <Mail className="w-3.5 h-3.5 mr-1.5" />
+                            Resend
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => {
+                              setRevokeUser(user);
+                              setRevokeOpen(true);
+                            }}
+                          >
+                            <ShieldOff className="w-3.5 h-3.5 mr-1.5" />
+                            Revoke
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
                       <Button
                         variant="outline"
                         size="sm"
@@ -307,33 +351,7 @@ export default function AdminUsers() {
                         <Shield className="w-3.5 h-3.5 mr-1.5" />
                         Manage Roles
                       </Button>
-                      {user.is_demo_account && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setResendUser(user);
-                              setResendOpen(true);
-                            }}
-                          >
-                            <Mail className="w-3.5 h-3.5 mr-1.5" />
-                            Resend
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => {
-                              setRevokeUser(user);
-                              setRevokeOpen(true);
-                            }}
-                          >
-                            <ShieldOff className="w-3.5 h-3.5 mr-1.5" />
-                            Revoke
-                          </Button>
-                        </>
-                      )}
-                    </div>
+                    )}
                   </TableCell>
                 </TableRow>
               ))

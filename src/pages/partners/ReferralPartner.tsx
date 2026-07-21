@@ -142,6 +142,22 @@ export default function ReferralPartner() {
 
       if (error) throw error;
 
+      // Best-effort — mirrors the REFERRED prospect (not the referrer) into Admin
+      // Leads / Sales so it's visible in the pipeline. The referral submission
+      // itself already succeeded above; this must never block or fail the
+      // user-facing flow.
+      supabase.functions.invoke('lead-intake', {
+        body: {
+          type: 'referral',
+          name: formData.referred_contact_name,
+          email: formData.referred_email,
+          phone: formData.referred_phone,
+          company: formData.referred_company_name,
+          message: formData.expected_needs,
+          form_data: formData,
+        },
+      }).catch(() => {});
+
       toast({
         title: "Referral Submitted!",
         description: "Thank you! We'll reach out to your referral within 24 hours.",

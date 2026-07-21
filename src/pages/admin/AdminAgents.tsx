@@ -3,13 +3,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search,
   Headphones,
-  Save,
   Tags,
   UserMinus,
   UserPlus,
   AlertTriangle,
   Loader2,
   Link2,
+  Pencil,
 } from 'lucide-react';
 import { AgentSkillsManager } from '@/components/staff/AgentSkillsManager';
 import { TrackabiLinkDialog, trackabiMemberLabel, type TrackabiMember } from '@/components/admin/TrackabiLinkDialog';
@@ -45,6 +45,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -205,6 +206,147 @@ function StatusBadge({ status }: { status: string | null }) {
   }
 }
 
+// ── Edit sheet ────────────────────────────────────────────────────────────
+
+interface AgentEditSheetProps {
+  agent: AgentRow | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  getVal: (agent: AgentRow, field: keyof AgentRow) => unknown;
+  setVal: (agentId: string, field: string, value: unknown) => void;
+  onSave: (agentId: string) => void;
+  saving: boolean;
+  hasChanges: boolean;
+  onManageSkills: () => void;
+  onManageTrackabi: () => void;
+  trackabiLabel: string;
+}
+
+function AgentEditSheet({
+  agent,
+  open,
+  onOpenChange,
+  getVal,
+  setVal,
+  onSave,
+  saving,
+  hasChanges,
+  onManageSkills,
+  onManageTrackabi,
+  trackabiLabel,
+}: AgentEditSheetProps) {
+  if (!agent) return null;
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="sm:max-w-md overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>{agent.full_name || 'Agent'}</SheetTitle>
+          <SheetDescription>{agent.email || agent.id}</SheetDescription>
+        </SheetHeader>
+
+        <div className="space-y-5 py-4">
+          <div className="space-y-1.5">
+            <Label>Hourly Rate</Label>
+            <Input
+              type="number"
+              min={0}
+              step={0.5}
+              value={(getVal(agent, 'hourly_rate') as number | null) ?? ''}
+              onChange={e =>
+                setVal(agent.id, 'hourly_rate', e.target.value ? parseFloat(e.target.value) : null)
+              }
+              placeholder="0.00"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Employment Type</Label>
+            <Select
+              value={getVal(agent, 'employment_type') as string}
+              onValueChange={v => setVal(agent.id, 'employment_type', v)}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="contractor">Contractor</SelectItem>
+                <SelectItem value="employee">Employee</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Break Policy</Label>
+            <Select
+              value={getVal(agent, 'break_policy') as string}
+              onValueChange={v => setVal(agent.id, 'break_policy', v)}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="global">Global Default</SelectItem>
+                <SelectItem value="paid">Always Paid</SelectItem>
+                <SelectItem value="unpaid">Always Unpaid</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Refresher Training</Label>
+            <Select
+              value={String(getVal(agent, 'refresher_interval_months') as number)}
+              onValueChange={v => setVal(agent.id, 'refresher_interval_months', Number(v))}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">Monthly</SelectItem>
+                <SelectItem value="3">Quarterly</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Start Date</Label>
+            <Input
+              type="date"
+              value={(getVal(agent, 'agent_start_date') as string | null) ?? ''}
+              onChange={e => setVal(agent.id, 'agent_start_date', e.target.value || null)}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Skills</Label>
+            <Button variant="outline" className="w-full justify-start" onClick={onManageSkills}>
+              <Tags className="h-3.5 w-3.5 mr-2" />
+              Manage skills
+            </Button>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Trackabi Mapping</Label>
+            <Button variant="outline" className="w-full justify-start" onClick={onManageTrackabi}>
+              <Link2 className="h-3.5 w-3.5 mr-2" />
+              {trackabiLabel}
+            </Button>
+          </div>
+        </div>
+
+        <SheetFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button onClick={() => onSave(agent.id)} disabled={!hasChanges || saving}>
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Saving…
+              </>
+            ) : (
+              'Save Changes'
+            )}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────
 
 export default function AdminAgents() {
@@ -214,10 +356,10 @@ export default function AdminAgents() {
   const [edits, setEdits] = useState<Record<string, Partial<AgentRow>>>({});
   const [skillsAgent, setSkillsAgent] = useState<{ id: string; name: string } | null>(null);
   const [trackabiAgent, setTrackabiAgent] = useState<{ id: string; name: string; trackabiUserId: string | null } | null>(null);
+  const [editingAgent, setEditingAgent] = useState<AgentRow | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [offboardTarget, setOffboardTarget] = useState<AgentRow | null>(null);
   const [offboardingId, setOffboardingId] = useState<string | null>(null);
-  const [unlinkingTrackabiId, setUnlinkingTrackabiId] = useState<string | null>(null);
 
   const { data: agents = [], isLoading, error } = useQuery({
     queryKey: ['admin-agents'],
@@ -306,23 +448,6 @@ export default function AdminAgents() {
 
   const trackabiMemberById: Record<string, TrackabiMember> = {};
   trackabiMembers.forEach(m => { trackabiMemberById[String(m.id)] = m; });
-
-  async function handleUnlinkTrackabi(agent: AgentRow) {
-    setUnlinkingTrackabiId(agent.id);
-    try {
-      const { error } = await (supabase as any)
-        .from('profiles')
-        .update({ trackabi_user_id: null })
-        .eq('id', agent.id);
-      if (error) throw error;
-      queryClient.invalidateQueries({ queryKey: ['admin-agents'] });
-      toast({ title: 'Unlinked', description: `${agent.full_name || 'Agent'} is no longer mapped to Trackabi.` });
-    } catch (err: any) {
-      toast({ title: 'Error', description: err?.message ?? 'Failed to unlink.', variant: 'destructive' });
-    } finally {
-      setUnlinkingTrackabiId(null);
-    }
-  }
 
   const saveMutation = useMutation({
     mutationFn: async (agentId: string) => {
@@ -441,39 +566,23 @@ export default function AdminAgents() {
             </div>
           ) : isLoading ? (
             /* Skeleton rows */
-            <div className="overflow-x-auto">
-              <Table>
+            <div className="w-full">
+              <Table className="w-full table-fixed">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Hourly Rate</TableHead>
-                    <TableHead>Employment</TableHead>
-                    <TableHead>Break Policy</TableHead>
-                    <TableHead>Refresher</TableHead>
-                    <TableHead>Start Date</TableHead>
-                    <TableHead>Skills</TableHead>
-                    <TableHead>Trackabi</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Trackabi</TableHead>
                     <TableHead className="w-20" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {[1, 2, 3, 4, 5].map(i => (
                     <TableRow key={i}>
+                      <TableCell><Skeleton className="h-4 w-28 mb-1" /><Skeleton className="h-3 w-36" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-36" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-8 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-8 w-28" /></TableCell>
-                      <TableCell><Skeleton className="h-8 w-32" /></TableCell>
-                      <TableCell><Skeleton className="h-8 w-28" /></TableCell>
-                      <TableCell><Skeleton className="h-8 w-28" /></TableCell>
-                      <TableCell><Skeleton className="h-8 w-14" /></TableCell>
-                      <TableCell><Skeleton className="h-8 w-28" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-14" /></TableCell>
-                      <TableCell><Skeleton className="h-8 w-8 rounded" /></TableCell>
+                      <TableCell><Skeleton className="h-8 w-16 rounded" /></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -493,167 +602,46 @@ export default function AdminAgents() {
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
+            <div className="w-full">
+              <Table className="w-full table-fixed">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Hourly Rate</TableHead>
-                    <TableHead>Employment</TableHead>
-                    <TableHead>Break Policy</TableHead>
-                    <TableHead>Refresher</TableHead>
-                    <TableHead>Start Date</TableHead>
-                    <TableHead>Skills</TableHead>
-                    <TableHead>Trackabi</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Trackabi</TableHead>
                     <TableHead className="w-20" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredAgents.map(agent => (
                     <TableRow key={agent.id}>
-                      <TableCell className="font-medium whitespace-nowrap">
-                        {agent.full_name || 'Unknown'}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {agent.email || '-'}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {agent.phone || '-'}
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min={0}
-                          step={0.5}
-                          className="w-24"
-                          value={(getVal(agent, 'hourly_rate') as number | null) ?? ''}
-                          onChange={e =>
-                            setVal(agent.id, 'hourly_rate', e.target.value ? parseFloat(e.target.value) : null)
-                          }
-                          placeholder="0.00"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={getVal(agent, 'employment_type') as string}
-                          onValueChange={v => setVal(agent.id, 'employment_type', v)}
-                        >
-                          <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="contractor">Contractor</SelectItem>
-                            <SelectItem value="employee">Employee</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={getVal(agent, 'break_policy') as string}
-                          onValueChange={v => setVal(agent.id, 'break_policy', v)}
-                        >
-                          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="global">Global Default</SelectItem>
-                            <SelectItem value="paid">Always Paid</SelectItem>
-                            <SelectItem value="unpaid">Always Unpaid</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={String(getVal(agent, 'refresher_interval_months') as number)}
-                          onValueChange={v => setVal(agent.id, 'refresher_interval_months', Number(v))}
-                        >
-                          <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1">Monthly</SelectItem>
-                            <SelectItem value="3">Quarterly</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="date"
-                          className="w-36"
-                          value={(getVal(agent, 'agent_start_date') as string | null) ?? ''}
-                          onChange={e => setVal(agent.id, 'agent_start_date', e.target.value || null)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSkillsAgent({ id: agent.id, name: agent.full_name || 'Agent' })}
-                        >
-                          <Tags className="h-3.5 w-3.5 mr-1" />
-                          {agent.skill_count}
-                        </Button>
-                      </TableCell>
-                      <TableCell>
-                        {agent.trackabi_user_id ? (
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              className="text-sm hover:underline text-left"
-                              onClick={() =>
-                                setTrackabiAgent({
-                                  id: agent.id,
-                                  name: agent.full_name || 'Agent',
-                                  trackabiUserId: agent.trackabi_user_id,
-                                })
-                              }
-                            >
-                              {trackabiMemberById[agent.trackabi_user_id]
-                                ? trackabiMemberLabel(trackabiMemberById[agent.trackabi_user_id])
-                                : `Member #${agent.trackabi_user_id}`}
-                            </button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={unlinkingTrackabiId === agent.id}
-                              onClick={() => handleUnlinkTrackabi(agent)}
-                            >
-                              {unlinkingTrackabiId === agent.id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                'Unlink'
-                              )}
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-muted-foreground">Not mapped</span>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                setTrackabiAgent({ id: agent.id, name: agent.full_name || 'Agent', trackabiUserId: null })
-                              }
-                            >
-                              <Link2 className="h-3.5 w-3.5 mr-1" />
-                              Link
-                            </Button>
-                          </div>
-                        )}
+                      <TableCell className="font-medium">
+                        <div className="truncate">{agent.full_name || 'Unknown'}</div>
+                        <div className="text-xs text-muted-foreground truncate">{agent.email || '-'}</div>
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={agent.employment_status} />
+                        <div className="text-xs text-muted-foreground capitalize mt-0.5">
+                          {agent.employment_type}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm truncate">
+                        {agent.trackabi_user_id
+                          ? (trackabiMemberById[agent.trackabi_user_id]
+                              ? trackabiMemberLabel(trackabiMemberById[agent.trackabi_user_id])
+                              : `Member #${agent.trackabi_user_id}`)
+                          : <span className="text-muted-foreground">Not mapped</span>}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          {edits[agent.id] && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              title="Save changes"
-                              onClick={() => saveMutation.mutate(agent.id)}
-                              disabled={saveMutation.isPending}
-                            >
-                              <Save className="w-4 h-4" />
-                            </Button>
-                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Edit agent"
+                            onClick={() => setEditingAgent(agent)}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -698,6 +686,37 @@ export default function AdminAgents() {
           onOpenChange={open => { if (!open) setTrackabiAgent(null); }}
         />
       )}
+
+      {/* Edit sheet */}
+      <AgentEditSheet
+        agent={editingAgent}
+        open={!!editingAgent}
+        onOpenChange={open => { if (!open) setEditingAgent(null); }}
+        getVal={getVal}
+        setVal={setVal}
+        onSave={id => { saveMutation.mutate(id); setEditingAgent(null); }}
+        saving={saveMutation.isPending}
+        hasChanges={!!(editingAgent && edits[editingAgent.id])}
+        onManageSkills={() => {
+          if (!editingAgent) return;
+          setSkillsAgent({ id: editingAgent.id, name: editingAgent.full_name || 'Agent' });
+        }}
+        onManageTrackabi={() => {
+          if (!editingAgent) return;
+          setTrackabiAgent({
+            id: editingAgent.id,
+            name: editingAgent.full_name || 'Agent',
+            trackabiUserId: editingAgent.trackabi_user_id,
+          });
+        }}
+        trackabiLabel={
+          editingAgent?.trackabi_user_id
+            ? (trackabiMemberById[editingAgent.trackabi_user_id]
+                ? trackabiMemberLabel(trackabiMemberById[editingAgent.trackabi_user_id])
+                : `Member #${editingAgent.trackabi_user_id}`)
+            : 'Not mapped — click to link'
+        }
+      />
 
       {/* Invite dialog */}
       <InviteAgentDialog open={inviteOpen} onOpenChange={setInviteOpen} />

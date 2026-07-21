@@ -164,11 +164,24 @@ export default function AffiliatePartner() {
 
       if (error) throw error;
 
+      // Best-effort — mirrors this application into Admin Leads / Sales so it's
+      // visible in the pipeline. The application itself already succeeded above;
+      // this must never block or fail the user-facing flow.
+      supabase.functions.invoke('lead-intake', {
+        body: {
+          type: 'affiliate',
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          form_data: { ...formData, affiliate_code: affiliateCode },
+        },
+      }).catch(() => {});
+
       toast({
         title: "Application Submitted!",
         description: "We'll review your application and get back to you within 24-48 hours.",
       });
-      
+
       navigate("/partners");
     } catch (error) {
       console.error("Error submitting application:", error);

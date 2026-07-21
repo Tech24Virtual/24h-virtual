@@ -247,11 +247,25 @@ export default function WhiteLabelPartner() {
 
       if (error) throw error;
 
+      // Best-effort — mirrors this application into Admin Leads / Sales so it's
+      // visible in the pipeline. The application itself already succeeded above;
+      // this must never block or fail the user-facing flow.
+      supabase.functions.invoke('lead-intake', {
+        body: {
+          type: 'wl_partner',
+          name: formData.contact_name,
+          email: formData.email,
+          phone: formData.phone,
+          company: formData.company_name,
+          form_data: formData,
+        },
+      }).catch(() => {});
+
       toast({
         title: "Application Submitted!",
         description: "We'll review your application and get back to you within 24-48 hours.",
       });
-      
+
       navigate("/partners");
     } catch (error) {
       console.error("Error submitting application:", error);

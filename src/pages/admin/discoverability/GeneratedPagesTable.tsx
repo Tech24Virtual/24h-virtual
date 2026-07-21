@@ -192,13 +192,17 @@ export function GeneratedPagesTable({ initialFilter, emptyMessage, showBatchButt
                     return (
                       <tr key={r.id} className="border-t hover:bg-muted/20">
                         <td className="px-3 py-2 max-w-xs">
-                          <div className="font-medium truncate">{r.page_title || r.slug}</div>
+                          <div className="font-medium truncate" title={r.page_title || r.slug}>{r.page_title || r.slug}</div>
                           <div className="text-xs text-muted-foreground truncate">{r.slug}</div>
                         </td>
                         <td className="px-3 py-2 text-xs">{loc?.country ?? "—"}</td>
                         <td className="px-3 py-2 text-xs">{loc?.city ?? "—"}</td>
-                        <td className="px-3 py-2 text-xs">{kw?.keyword ?? "—"}</td>
-                        <td className="px-3 py-2 text-xs">{tpl?.name ?? r.page_type}</td>
+                        <td className="px-3 py-2 text-xs max-w-[160px]">
+                          <span className="truncate block" title={kw?.keyword ?? undefined}>{kw?.keyword ?? "—"}</span>
+                        </td>
+                        <td className="px-3 py-2 text-xs max-w-[140px]">
+                          <span className="truncate block" title={tpl?.name ?? r.page_type}>{tpl?.name ?? r.page_type}</span>
+                        </td>
                         <td className="px-3 py-2">
                           <Badge variant={qualityVariant(r.quality_score)}>{r.quality_score}</Badge>
                         </td>

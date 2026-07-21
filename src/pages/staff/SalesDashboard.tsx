@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, Users, MessageSquare, Calendar, ArrowRight, DollarSign, Clock, Trophy } from 'lucide-react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { TrendingUp, Users, MessageSquare, Calendar, ArrowRight, DollarSign, Clock, Trophy, UserPlus, Sparkles } from 'lucide-react';
 import { RunLeadsAgentButton } from '@/components/missions/RunLeadsAgentButton';
 import { MissionsList } from '@/components/missions/MissionsList';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,11 +15,97 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { useToast } from '@/hooks/use-toast';
+import { ConvertLeadToAccountDialog, type ConvertLeadInput } from '@/components/admin/ConvertLeadToAccountDialog';
 import { Link } from 'react-router-dom';
-import { format, startOfDay, endOfDay, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, differenceInCalendarDays } from 'date-fns';
+
+// ── My Leads section ─────────────────────────────────────────────────────
+
+const CONVERTIBLE_STAGES = new Set(['new', 'contacted', 'qualified']);
+
+const SOURCE_ICONS: Record<string, string> = {
+  wl_partner_request: '🏢',
+  affiliate_request: '🤝',
+  referral_request: '👥',
+  website: '🌐',
+};
+
+const STAGE_BADGE_COLORS: Record<string, string> = {
+  new: 'bg-blue-100 text-blue-800',
+  contacted: 'bg-yellow-100 text-yellow-800',
+  qualified: 'bg-purple-100 text-purple-800',
+  proposal: 'bg-orange-100 text-orange-800',
+  won: 'bg-green-100 text-green-800',
+};
+
+interface MyLeadRow {
+  id: string;
+  name: string;
+  email: string;
+  company: string | null;
+  source: string | null;
+  pipeline_stage: string | null;
+  assigned_to: string | null;
+  intake_submitted_at: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+function MyLeadCard({
+  lead,
+  onAssignToMe,
+  onConvert,
+  assigning,
+}: {
+  lead: MyLeadRow;
+  onAssignToMe: (id: string) => void;
+  onConvert: (lead: MyLeadRow) => void;
+  assigning: boolean;
+}) {
+  const days = differenceInCalendarDays(new Date(), new Date(lead.intake_submitted_at || lead.created_at));
+  return (
+    <div className="rounded-lg border p-3 space-y-2">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-sm font-medium truncate">
+            {lead.source && SOURCE_ICONS[lead.source] ? `${SOURCE_ICONS[lead.source]} ` : ''}
+            {lead.name}
+          </p>
+          <p className="text-xs text-muted-foreground truncate">{lead.company || lead.email}</p>
+        </div>
+        <Badge variant="secondary" className={STAGE_BADGE_COLORS[lead.pipeline_stage || 'new'] || 'bg-muted text-muted-foreground'}>
+          {lead.pipeline_stage || 'new'}
+        </Badge>
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-muted-foreground">
+          {days === 0 ? 'Today' : `${days} day${days === 1 ? '' : 's'} ago`}
+        </span>
+        <div className="flex items-center gap-1">
+          {!lead.assigned_to && (
+            <Button variant="outline" size="sm" disabled={assigning} onClick={() => onAssignToMe(lead.id)}>
+              <UserPlus className="h-3.5 w-3.5 mr-1" />
+              Assign to me
+            </Button>
+          )}
+          {CONVERTIBLE_STAGES.has(lead.pipeline_stage || 'new') && (
+            <Button variant="outline" size="sm" onClick={() => onConvert(lead)}>
+              <Sparkles className="h-3.5 w-3.5 mr-1 text-primary" />
+              Convert
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function SalesDashboard() {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [convertLead, setConvertLead] = useState<ConvertLeadInput | null>(null);
   const now = new Date();
   const monthStart = startOfMonth(now).toISOString();
 
@@ -109,6 +196,39 @@ export default function SalesDashboard() {
       return data || [];
     },
   });
+
+  // My Leads — assigned to me, or a fresh website/sales_team lead nobody owns yet
+  const { data: myLeads = [], isLoading: myLeadsLoading } = useQuery({
+    queryKey: ['sales-dashboard-my-leads', user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('id, name, email, company, source, pipeline_stage, assigned_to, intake_submitted_at, created_at, updated_at')
+        .or(`assigned_to.eq.${user!.id},source.in.(website,sales_team)`)
+        .not('pipeline_stage', 'in', '(active,churned,lost,re_engage)')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as MyLeadRow[];
+    },
+  });
+
+  const assignToMe = useMutation({
+    mutationFn: async (leadId: string) => {
+      const { error } = await supabase.from('leads').update({ assigned_to: user!.id }).eq('id', leadId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sales-dashboard-my-leads'] });
+      toast({ title: 'Assigned', description: 'Lead assigned to you.' });
+    },
+  });
+
+  const myLeadsNew = myLeads.filter((l) => (l.pipeline_stage || 'new') === 'new');
+  const myLeadsInProgress = myLeads.filter((l) => ['contacted', 'qualified', 'proposal'].includes(l.pipeline_stage || ''));
+  const myLeadsWon = myLeads.filter(
+    (l) => l.pipeline_stage === 'won' && l.updated_at && new Date(l.updated_at) >= new Date(monthStart),
+  );
 
   const todayMeetings = meetingsData || [];
   const nextMeeting = todayMeetings.find(m => new Date(m.scheduled_at) >= now && m.status === 'scheduled');
@@ -258,6 +378,85 @@ export default function SalesDashboard() {
           </Card>
         </div>
 
+        {/* My Leads — assigned to me, or unclaimed website/sales_team leads */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              My Leads
+            </CardTitle>
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/staff/sales/leads">View All <ArrowRight className="h-4 w-4 ml-1" /></Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {myLeadsLoading ? (
+              <div className="grid gap-4 md:grid-cols-3">
+                {[1, 2, 3].map((i) => <Skeleton key={i} className="h-32 w-full" />)}
+              </div>
+            ) : myLeads.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No leads assigned to you yet.</p>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    New — needs follow-up ({myLeadsNew.length})
+                  </p>
+                  {myLeadsNew.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Nothing new</p>
+                  ) : (
+                    myLeadsNew.map((lead) => (
+                      <MyLeadCard
+                        key={lead.id}
+                        lead={lead}
+                        assigning={assignToMe.isPending}
+                        onAssignToMe={(id) => assignToMe.mutate(id)}
+                        onConvert={(l) => setConvertLead({ id: l.id, name: l.name, email: l.email, company: l.company })}
+                      />
+                    ))
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    In Progress ({myLeadsInProgress.length})
+                  </p>
+                  {myLeadsInProgress.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Nothing in progress</p>
+                  ) : (
+                    myLeadsInProgress.map((lead) => (
+                      <MyLeadCard
+                        key={lead.id}
+                        lead={lead}
+                        assigning={assignToMe.isPending}
+                        onAssignToMe={(id) => assignToMe.mutate(id)}
+                        onConvert={(l) => setConvertLead({ id: l.id, name: l.name, email: l.email, company: l.company })}
+                      />
+                    ))
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Won this month ({myLeadsWon.length})
+                  </p>
+                  {myLeadsWon.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No wins yet this month</p>
+                  ) : (
+                    myLeadsWon.map((lead) => (
+                      <MyLeadCard
+                        key={lead.id}
+                        lead={lead}
+                        assigning={assignToMe.isPending}
+                        onAssignToMe={(id) => assignToMe.mutate(id)}
+                        onConvert={(l) => setConvertLead({ id: l.id, name: l.name, email: l.email, company: l.company })}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Analytics Row */}
         <div className="grid gap-4 md:grid-cols-2">
           <FunnelChart title="Lead Pipeline" leads={stats?.allLeads || []} />
@@ -275,6 +474,13 @@ export default function SalesDashboard() {
           linkPrefix="/staff/sales/tickets"
         />
       </div>
+
+      <ConvertLeadToAccountDialog
+        lead={convertLead}
+        open={!!convertLead}
+        onOpenChange={(v) => !v && setConvertLead(null)}
+        onConverted={() => queryClient.invalidateQueries({ queryKey: ['sales-dashboard-my-leads'] })}
+      />
     </StaffLayout>
   );
 }

@@ -35,6 +35,18 @@ export type LeadSource =
   | "coming_soon"
   | "contact_form"
   | "admin_manual"
+  // Lead intake pipeline (supabase/functions/lead-intake) — website contact
+  // forms and WL partner / affiliate / referral applications.
+  | "website"
+  | "wl_partner_request"
+  | "affiliate_request"
+  | "referral_request"
+  | "manual"
+  | "import"
+  | "five9"
+  | "zapier"
+  | "api"
+  | "sales_team"
   | "other";
 
 export interface CaptureLeadInput {

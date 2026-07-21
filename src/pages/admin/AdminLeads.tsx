@@ -80,6 +80,24 @@ const SERVICE_LABELS: Record<string, string> = {
   'virtual-secretary': 'Virtual Secretary',
 };
 
+const SOURCE_FILTERS = [
+  { value: 'all', label: 'All Sources' },
+  { value: 'website', label: 'Website' },
+  { value: 'wl_partner_request', label: 'WL Partner Request' },
+  { value: 'affiliate_request', label: 'Affiliate' },
+  { value: 'referral_request', label: 'Referral' },
+  { value: 'manual', label: 'Manual' },
+  { value: 'admin_manual', label: 'Admin Manual' },
+  { value: 'api', label: 'API / Zapier' },
+];
+
+const SOURCE_ICONS: Record<string, string> = {
+  wl_partner_request: '🏢',
+  affiliate_request: '🤝',
+  referral_request: '👥',
+  website: '🌐',
+};
+
 // ── Detail sheet ──────────────────────────────────────────────────────────
 
 interface LeadDetailSheetProps {
@@ -118,7 +136,10 @@ function LeadDetailSheet({ lead, open, onOpenChange, ownerName, onStageChange }:
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Source</span>
-              <span className="font-medium">{lead.source || 'Unknown'}</span>
+              <span className="font-medium">
+                {lead.source && SOURCE_ICONS[lead.source] ? `${SOURCE_ICONS[lead.source]} ` : ''}
+                {SOURCE_FILTERS.find((s) => s.value === lead.source)?.label || lead.source || 'Unknown'}
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Added</span>
@@ -177,6 +198,7 @@ export default function AdminLeads() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [stageFilter, setStageFilter] = useState<string>('all');
+  const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [convertLead, setConvertLead] = useState<ConvertLeadInput | null>(null);
   const [addLeadOpen, setAddLeadOpen] = useState(false);
   const [viewLead, setViewLead] = useState<Lead | null>(null);
@@ -256,7 +278,8 @@ export default function AdminLeads() {
       lead.email.toLowerCase().includes(q) ||
       lead.company?.toLowerCase().includes(q);
     const matchesStage = stageFilter === 'all' || lead.pipeline_stage === stageFilter;
-    return matchesSearch && matchesStage;
+    const matchesSource = sourceFilter === 'all' || lead.source === sourceFilter;
+    return matchesSearch && matchesStage && matchesSource;
   });
 
   const stageCounts = leads.reduce((acc, lead) => {
@@ -377,6 +400,18 @@ export default function AdminLeads() {
                   ))}
                 </SelectContent>
               </Select>
+              <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                <SelectTrigger className="w-44">
+                  <SelectValue placeholder="Filter by source" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SOURCE_FILTERS.map(({ value, label }) => (
+                    <SelectItem key={value} value={value}>
+                      {SOURCE_ICONS[value] ? `${SOURCE_ICONS[value]} ${label}` : label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardHeader>
@@ -421,7 +456,14 @@ export default function AdminLeads() {
                       >
                         <TableCell>
                           <div className="min-w-0">
-                            <p className="font-medium truncate">{lead.name}</p>
+                            <p className="font-medium truncate">
+                              {lead.source && SOURCE_ICONS[lead.source] && (
+                                <span className="mr-1" title={SOURCE_FILTERS.find((s) => s.value === lead.source)?.label}>
+                                  {SOURCE_ICONS[lead.source]}
+                                </span>
+                              )}
+                              {lead.name}
+                            </p>
                             <p className="text-sm text-muted-foreground truncate">{lead.email}</p>
                           </div>
                         </TableCell>

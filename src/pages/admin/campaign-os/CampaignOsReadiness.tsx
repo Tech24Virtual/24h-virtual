@@ -179,7 +179,7 @@ export default function CampaignOsReadiness() {
                     }
                   >
                     <TableCell>
-                      <div className="font-medium truncate max-w-[200px]">
+                      <div className="font-medium truncate max-w-[200px]" title={row.campaign_name}>
                         {row.campaign_name}
                       </div>
                       <div className="text-xs text-muted-foreground">{row.tenant_kind}</div>
