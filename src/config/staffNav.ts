@@ -42,19 +42,19 @@ export function getStaffNav(role: StaffRole): NavGroup[] {
         {
           name: 'Pipeline',
           icon: KanbanSquare,
-          basePath: `${root}/pipeline-group`,
+          basePath: `${root}/pipeline`,
           children: [
-            { name: 'Leads', href: `${root}/leads` },
-            { name: 'Pipeline', href: `${root}/pipeline` },
+            { name: 'Leads', href: `${root}/pipeline/leads` },
+            { name: 'Board', href: `${root}/pipeline/board` },
           ],
         },
         {
           name: 'Activity',
           icon: Calendar,
-          basePath: `${root}/activity-group`,
+          basePath: `${root}/activity`,
           children: [
-            { name: 'Meetings', href: `${root}/meetings` },
-            { name: 'Proposals', href: `${root}/proposals` },
+            { name: 'Meetings', href: `${root}/activity/meetings` },
+            { name: 'Proposals', href: `${root}/activity/proposals` },
           ],
         },
         { name: 'Performance', icon: TrendingUp, basePath: `${root}/performance`, children: [{ name: 'Performance', href: `${root}/performance` }] },
@@ -62,11 +62,11 @@ export function getStaffNav(role: StaffRole): NavGroup[] {
         {
           name: 'Support',
           icon: LifeBuoy,
-          basePath: `${root}/support-group`,
+          basePath: `${root}/support`,
           children: [
-            { name: 'Support',     href: `${root}/support` },
-            { name: 'My feedback', href: `${root}/feedback` },
-            { name: 'Settings',    href: `${root}/settings` },
+            { name: 'Help',      href: `${root}/support/help` },
+            { name: 'Feedback',  href: `${root}/support/feedback` },
+            { name: 'Settings',  href: `${root}/support/settings` },
           ],
         },
       ];

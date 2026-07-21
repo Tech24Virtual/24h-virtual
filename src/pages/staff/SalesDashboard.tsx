@@ -307,7 +307,7 @@ export default function SalesDashboard() {
                 Today's Meetings
               </CardTitle>
               <Button variant="ghost" size="sm" asChild>
-                <Link to="/staff/sales/meetings">View All <ArrowRight className="h-4 w-4 ml-1" /></Link>
+                <Link to="/staff/sales/activity/meetings">View All <ArrowRight className="h-4 w-4 ml-1" /></Link>
               </Button>
             </CardHeader>
             <CardContent>
@@ -341,7 +341,7 @@ export default function SalesDashboard() {
               ) : (
                 <div className="space-y-2">
                   {followUpsDue.slice(0, 4).map(lead => (
-                    <Link key={lead.id} to={`/staff/sales/leads/${lead.id}`} className="block p-2 rounded-lg hover:bg-accent/50 transition-colors">
+                    <Link key={lead.id} to={`/staff/sales/pipeline/leads/${lead.id}`} className="block p-2 rounded-lg hover:bg-accent/50 transition-colors">
                       <p className="text-sm font-medium">{lead.name}</p>
                       <p className="text-xs text-muted-foreground">{lead.email}</p>
                     </Link>
@@ -367,7 +367,7 @@ export default function SalesDashboard() {
               ) : (
                 <div className="space-y-2">
                   {recentWins.map(lead => (
-                    <Link key={lead.id} to={`/staff/sales/leads/${lead.id}`} className="block p-2 rounded-lg hover:bg-accent/50 transition-colors">
+                    <Link key={lead.id} to={`/staff/sales/pipeline/leads/${lead.id}`} className="block p-2 rounded-lg hover:bg-accent/50 transition-colors">
                       <p className="text-sm font-medium">{lead.name}</p>
                       <p className="text-xs text-muted-foreground">{lead.company || lead.service_type || '—'}</p>
                     </Link>
@@ -386,7 +386,7 @@ export default function SalesDashboard() {
               My Leads
             </CardTitle>
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/staff/sales/leads">View All <ArrowRight className="h-4 w-4 ml-1" /></Link>
+              <Link to="/staff/sales/pipeline/leads">View All <ArrowRight className="h-4 w-4 ml-1" /></Link>
             </Button>
           </CardHeader>
           <CardContent>

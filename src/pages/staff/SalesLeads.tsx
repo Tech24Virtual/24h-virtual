@@ -230,7 +230,7 @@ export default function SalesLeads() {
                               </Button>
                             )}
                             <Button variant="ghost" size="sm" asChild>
-                              <Link to={`/staff/sales/leads/${lead.id}`}><Eye className="h-4 w-4" /></Link>
+                              <Link to={`/staff/sales/pipeline/leads/${lead.id}`}><Eye className="h-4 w-4" /></Link>
                             </Button>
                           </div>
                         </TableCell>

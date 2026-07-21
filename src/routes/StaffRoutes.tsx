@@ -1,5 +1,5 @@
 import { lazy } from "react";
-import { Route } from "react-router-dom";
+import { Route, Navigate, useParams } from "react-router-dom";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { LazyRoute } from "./LazyRoute";
 
@@ -87,21 +87,47 @@ const guard = (role: Role, el: React.ReactNode) => (
   <ProtectedRoute requiredRole={role}><LazyRoute>{el}</LazyRoute></ProtectedRoute>
 );
 
+// Legacy redirect for /staff/sales/leads/:id — Navigate's `to` is a literal
+// string and won't interpolate route params, so the id must be read via
+// useParams and substituted before redirecting.
+function SalesLeadDetailRedirect() {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={`/staff/sales/pipeline/leads/${id}`} replace />;
+}
+
 export const StaffRoutes = (
   <>
     {/* Sales */}
     <Route path="/staff/sales" element={guard("sales", <SalesDashboard />)} />
-    <Route path="/staff/sales/leads" element={guard("sales", <SalesLeads />)} />
-    <Route path="/staff/sales/leads/:id" element={guard("sales", <StaffLeadDetail />)} />
-    <Route path="/staff/sales/pipeline" element={guard("sales", <SalesPipeline />)} />
-    <Route path="/staff/sales/proposals" element={guard("sales", <SalesProposals />)} />
+
+    {/* Pipeline group */}
+    <Route path="/staff/sales/pipeline/leads" element={guard("sales", <SalesLeads />)} />
+    <Route path="/staff/sales/pipeline/leads/:id" element={guard("sales", <StaffLeadDetail />)} />
+    <Route path="/staff/sales/pipeline/board" element={guard("sales", <SalesPipeline />)} />
+
+    {/* Activity group */}
+    <Route path="/staff/sales/activity/meetings" element={guard("sales", <SalesMeetings />)} />
+    <Route path="/staff/sales/activity/proposals" element={guard("sales", <SalesProposals />)} />
+
+    {/* Performance & Tickets */}
     <Route path="/staff/sales/performance" element={guard("sales", <SalesPerformance />)} />
     <Route path="/staff/sales/tickets" element={guard("sales", <SalesTickets />)} />
     <Route path="/staff/sales/tickets/:id" element={guard("sales", <StaffTicketDetail role="sales" />)} />
-    <Route path="/staff/sales/meetings" element={guard("sales", <SalesMeetings />)} />
-    <Route path="/staff/sales/settings" element={guard("sales", <StaffSettings />)} />
-    <Route path="/staff/sales/support" element={guard("sales", <StaffSupport role="sales" />)} />
-    <Route path="/staff/sales/feedback" element={guard("sales", <StaffFeedback role="sales" />)} />
+
+    {/* Support group */}
+    <Route path="/staff/sales/support/help" element={guard("sales", <StaffSupport role="sales" />)} />
+    <Route path="/staff/sales/support/feedback" element={guard("sales", <StaffFeedback role="sales" />)} />
+    <Route path="/staff/sales/support/settings" element={guard("sales", <StaffSettings />)} />
+
+    {/* Legacy redirects — keep old URLs working */}
+    <Route path="/staff/sales/leads" element={<Navigate to="/staff/sales/pipeline/leads" replace />} />
+    <Route path="/staff/sales/leads/:id" element={<SalesLeadDetailRedirect />} />
+    <Route path="/staff/sales/pipeline" element={<Navigate to="/staff/sales/pipeline/board" replace />} />
+    <Route path="/staff/sales/meetings" element={<Navigate to="/staff/sales/activity/meetings" replace />} />
+    <Route path="/staff/sales/proposals" element={<Navigate to="/staff/sales/activity/proposals" replace />} />
+    <Route path="/staff/sales/support" element={<Navigate to="/staff/sales/support/help" replace />} />
+    <Route path="/staff/sales/feedback" element={<Navigate to="/staff/sales/support/feedback" replace />} />
+    <Route path="/staff/sales/settings" element={<Navigate to="/staff/sales/support/settings" replace />} />
 
     {/* Agent */}
     <Route path="/staff/agent" element={guard("agent", <AgentDashboard />)} />

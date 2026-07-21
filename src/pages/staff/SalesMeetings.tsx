@@ -252,7 +252,7 @@ export default function SalesMeetings() {
                                   </div>
                                   {meeting.lead && (
                                     <Link
-                                      to={`/staff/sales/leads/${meeting.lead_id}`}
+                                      to={`/staff/sales/pipeline/leads/${meeting.lead_id}`}
                                       className="text-sm text-primary hover:underline"
                                     >
                                       {meeting.lead.name}

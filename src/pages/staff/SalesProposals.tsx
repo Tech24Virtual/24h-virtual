@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Plus, Send, Eye, FileText, Check, X } from 'lucide-react';
+import { Plus, Send, Eye, Check, X, Mail, Loader2, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { StaffLayout } from '@/components/staff/StaffLayout';
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
@@ -37,6 +38,8 @@ export default function SalesProposals() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [previewProposal, setPreviewProposal] = useState<any>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   // Form state
   const [form, setForm] = useState({
@@ -106,6 +109,21 @@ export default function SalesProposals() {
     },
   });
 
+  const sendEmail = useMutation({
+    mutationFn: async (proposalId: string) => {
+      const { error } = await supabase.functions.invoke('send-proposal-email', {
+        body: { proposal_id: proposalId },
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: 'Email queued', description: 'The client will receive this proposal shortly.' });
+    },
+    onError: () => {
+      toast({ title: 'Email failed to send', description: 'Proposal status was not affected.', variant: 'destructive' });
+    },
+  });
+
   const resetForm = () => setForm({
     title: '', service_type: '', plan_minutes: '', billing_period: 'monthly',
     billing_currency: 'USD', monthly_price: '', setup_fee: '0', custom_terms: '', lead_id: '',
@@ -125,6 +143,18 @@ export default function SalesProposals() {
       }));
     }
   };
+
+  const filteredProposals = useMemo(() => {
+    if (!proposals) return [];
+    const q = search.trim().toLowerCase();
+    return proposals.filter((p: any) => {
+      const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
+      const matchesSearch = !q
+        || p.title?.toLowerCase().includes(q)
+        || p.leads?.name?.toLowerCase().includes(q);
+      return matchesStatus && matchesSearch;
+    });
+  }, [proposals, search, statusFilter]);
 
   return (
     <StaffLayout role="sales">
@@ -224,6 +254,30 @@ export default function SalesProposals() {
           ))}
         </div>
 
+        {/* Search + Status Filter */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by title or lead name..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="sent">Sent</SelectItem>
+              <SelectItem value="accepted">Accepted</SelectItem>
+              <SelectItem value="declined">Declined</SelectItem>
+              <SelectItem value="expired">Expired</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Proposals Table */}
         <Card>
           <CardHeader>
@@ -234,6 +288,8 @@ export default function SalesProposals() {
               <div className="space-y-3">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
             ) : !proposals?.length ? (
               <div className="text-center py-12 text-muted-foreground">No proposals yet. Create your first one above.</div>
+            ) : !filteredProposals.length ? (
+              <div className="text-center py-12 text-muted-foreground">No proposals match your search or filter.</div>
             ) : (
               <Table>
                 <TableHeader>
@@ -248,7 +304,7 @@ export default function SalesProposals() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {proposals.map((p: any) => (
+                  {filteredProposals.map((p: any) => (
                     <TableRow key={p.id}>
                       <TableCell className="font-medium">{p.title}</TableCell>
                       <TableCell>{p.leads?.name || '—'}</TableCell>
@@ -263,6 +319,21 @@ export default function SalesProposals() {
                           <Button variant="ghost" size="sm" onClick={() => setPreviewProposal(p)}>
                             <Eye className="h-4 w-4" />
                           </Button>
+                          {(p.status === 'draft' || p.status === 'sent') && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              title="Send Email"
+                              onClick={() => sendEmail.mutate(p.id)}
+                              disabled={sendEmail.isPending && sendEmail.variables === p.id}
+                            >
+                              {sendEmail.isPending && sendEmail.variables === p.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Mail className="h-4 w-4" />
+                              )}
+                            </Button>
+                          )}
                           {p.status === 'draft' && (
                             <Button variant="ghost" size="sm" onClick={() => updateStatus.mutate({ id: p.id, status: 'sent', extra: { sent_at: new Date().toISOString() } })}>
                               <Send className="h-4 w-4" />
@@ -288,32 +359,84 @@ export default function SalesProposals() {
           </CardContent>
         </Card>
 
-        {/* Preview Dialog */}
+        {/* Preview Dialog — proposal document */}
         <Dialog open={!!previewProposal} onOpenChange={() => setPreviewProposal(null)}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2"><FileText className="h-5 w-5" />Proposal Preview</DialogTitle>
-            </DialogHeader>
+          <DialogContent className="max-w-2xl">
             {previewProposal && (
-              <div className="space-y-4">
-                <div>
-                  <h3 className="font-semibold text-lg">{previewProposal.title}</h3>
-                  <p className="text-sm text-muted-foreground">For: {previewProposal.leads?.name || 'N/A'} ({previewProposal.leads?.company || 'No company'})</p>
-                </div>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div><span className="text-muted-foreground">Service:</span> <span className="capitalize font-medium">{previewProposal.service_type?.replace('-', ' ') || '—'}</span></div>
-                  <div><span className="text-muted-foreground">Minutes:</span> <span className="font-medium">{previewProposal.plan_minutes || '—'}</span></div>
-                  <div><span className="text-muted-foreground">Monthly:</span> <span className="font-medium">{previewProposal.billing_currency} {Number(previewProposal.monthly_price).toFixed(2)}</span></div>
-                  <div><span className="text-muted-foreground">Setup Fee:</span> <span className="font-medium">{previewProposal.billing_currency} {Number(previewProposal.setup_fee).toFixed(2)}</span></div>
-                  <div><span className="text-muted-foreground">Period:</span> <span className="font-medium capitalize">{previewProposal.billing_period}</span></div>
-                  <div><span className="text-muted-foreground">Status:</span> <Badge className={statusStyles[previewProposal.status]}>{previewProposal.status}</Badge></div>
-                </div>
-                {previewProposal.custom_terms && (
+              <div className="space-y-6">
+                {/* Letterhead */}
+                <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-sm font-medium mb-1">Custom Terms</p>
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{previewProposal.custom_terms}</p>
+                    <h2 className="text-3xl font-bold tracking-wide">PROPOSAL</h2>
+                    <p className="text-lg text-muted-foreground mt-1">{previewProposal.title}</p>
                   </div>
+                  {['sent', 'accepted', 'declined'].includes(previewProposal.status) && (
+                    <div className="text-right space-y-1 shrink-0">
+                      <Badge className={statusStyles[previewProposal.status]}>{previewProposal.status}</Badge>
+                      {previewProposal.sent_at && (
+                        <p className="text-xs text-muted-foreground">
+                          Sent {format(new Date(previewProposal.sent_at), 'MMM d, yyyy')}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-sm">
+                  <p>
+                    <span className="text-muted-foreground">Prepared for:</span>{' '}
+                    <span className="font-medium">
+                      {previewProposal.leads?.name || 'N/A'} — {previewProposal.leads?.company || 'No company'}
+                    </span>
+                  </p>
+                  <p>
+                    <span className="text-muted-foreground">Date:</span>{' '}
+                    <span className="font-medium">{format(new Date(previewProposal.created_at), 'MMM d, yyyy')}</span>
+                  </p>
+                </div>
+
+                <Separator />
+
+                {/* Service Details */}
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Service Details</h3>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div><span className="text-muted-foreground">Service:</span> <span className="capitalize font-medium">{previewProposal.service_type?.replace('-', ' ') || '—'}</span></div>
+                    <div><span className="text-muted-foreground">Plan Minutes:</span> <span className="font-medium">{previewProposal.plan_minutes || '—'}</span></div>
+                    <div><span className="text-muted-foreground">Billing Period:</span> <span className="font-medium capitalize">{previewProposal.billing_period}</span></div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Pricing */}
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Pricing</h3>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div><span className="text-muted-foreground">Monthly Price:</span> <span className="font-medium">{previewProposal.billing_currency} {Number(previewProposal.monthly_price).toFixed(2)}</span></div>
+                    <div><span className="text-muted-foreground">Setup Fee:</span> <span className="font-medium">{previewProposal.billing_currency} {Number(previewProposal.setup_fee).toFixed(2)}</span></div>
+                    <div><span className="text-muted-foreground">Currency:</span> <span className="font-medium">{previewProposal.billing_currency}</span></div>
+                    <div>
+                      <span className="text-muted-foreground">Total first payment:</span>{' '}
+                      <span className="font-semibold">
+                        {previewProposal.billing_currency} {(Number(previewProposal.monthly_price) + Number(previewProposal.setup_fee)).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {previewProposal.custom_terms && (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Terms &amp; Conditions</h3>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{previewProposal.custom_terms}</p>
+                    </div>
+                  </>
                 )}
+
+                <Separator />
+                <p className="text-xs text-center text-muted-foreground">24H Virtual — Confidential</p>
               </div>
             )}
           </DialogContent>

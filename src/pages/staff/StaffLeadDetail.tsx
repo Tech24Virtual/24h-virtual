@@ -90,7 +90,7 @@ export default function StaffLeadDetail() {
     const { data, error } = await supabase.from('leads').select('*').eq('id', id).single();
     if (error) {
       toast({ title: 'Error loading lead', description: error.message, variant: 'destructive' });
-      navigate('/staff/sales/leads');
+      navigate('/staff/sales/pipeline/leads');
       return;
     }
     const parsedLead = {
@@ -183,7 +183,7 @@ export default function StaffLeadDetail() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/staff/sales/leads')}>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/staff/sales/pipeline/leads')}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
