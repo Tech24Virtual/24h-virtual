@@ -141,16 +141,16 @@ export function LeadPipelineBoard({ adminMode = false }: LeadPipelineBoardProps)
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-[500px] w-full" />)}
+        <div className="flex gap-3 overflow-x-auto pb-4 w-full">
+          {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-[500px] flex-shrink-0 w-[220px]" />)}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 overflow-x-auto pb-4">
+        <div className="flex gap-3 overflow-x-auto pb-4 w-full">
           {PIPELINE_STAGES.map((stage) => {
             const stageLeads = getLeadsByStage(stage.key);
             const value = stageValue(stage.key);
             return (
-              <div key={stage.key} className="min-w-[250px]" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, stage.key)}>
+              <div key={stage.key} className="flex-shrink-0 w-[220px]" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, stage.key)}>
                 <Card className="h-full">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
@@ -164,25 +164,25 @@ export function LeadPipelineBoard({ adminMode = false }: LeadPipelineBoardProps)
                       <p className="text-xs text-muted-foreground mt-1">${value.toLocaleString()} est. value</p>
                     )}
                   </CardHeader>
-                  <CardContent className="space-y-3 max-h-[500px] overflow-y-auto">
+                  <CardContent className="space-y-3 max-h-[500px] overflow-y-auto overflow-x-hidden">
                     {stageLeads.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground text-sm border-2 border-dashed rounded-lg">No leads</div>
                     ) : (
                       stageLeads.map((lead) => (
                         <Link key={lead.id} to={adminMode ? `/admin/leads/${lead.id}` : `/staff/sales/pipeline/leads/${lead.id}`} className="block" draggable onDragStart={(e) => handleDragStart(e, lead)} onDragEnd={handleDragEnd}>
-                          <div className={`p-3 rounded-lg border bg-card hover:bg-accent/50 cursor-grab active:cursor-grabbing transition-all ${
+                          <div className={`p-3 rounded-lg border bg-card hover:bg-accent/50 cursor-grab active:cursor-grabbing transition-all overflow-hidden w-full ${
                             draggedLead?.id === lead.id ? 'opacity-50 scale-95' : ''
                           } ${temperatureBorder[lead.lead_temperature || ''] || ''}`}>
                             <div className="flex items-start gap-2">
                               <GripVertical className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                               <div className="flex-1 min-w-0">
                                 <div className="font-medium text-sm truncate">{lead.name}</div>
-                                <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                                  <Mail className="h-3 w-3" /><span className="truncate">{lead.email}</span>
+                                <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1 overflow-hidden">
+                                  <Mail className="h-3 w-3" /><span className="truncate min-w-0">{lead.email}</span>
                                 </div>
                                 {lead.company && (
-                                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                                    <Building2 className="h-3 w-3" /><span className="truncate">{lead.company}</span>
+                                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1 overflow-hidden">
+                                    <Building2 className="h-3 w-3" /><span className="truncate min-w-0">{lead.company}</span>
                                   </div>
                                 )}
                                 {lead.created_at && (
@@ -190,7 +190,7 @@ export function LeadPipelineBoard({ adminMode = false }: LeadPipelineBoardProps)
                                     <Calendar className="h-3 w-3" /><span>{format(new Date(lead.created_at), 'MMM d')}</span>
                                   </div>
                                 )}
-                                <div className="flex items-center gap-1 mt-2">
+                                <div className="flex items-center gap-1 mt-2 flex-wrap">
                                   {lead.source && <Badge variant="outline" className="text-xs">{lead.source}</Badge>}
                                   {lead.lead_temperature && (
                                     <Badge variant="secondary" className="text-xs capitalize">{lead.lead_temperature}</Badge>

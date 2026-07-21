@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Calendar, Video, ExternalLink, Clock, User, Search, CheckCircle, XCircle, LayoutGrid, List } from 'lucide-react';
+import { Calendar, Video, ExternalLink, Clock, User, Search, CheckCircle, XCircle, X, LayoutGrid, List } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, isToday, isTomorrow, isPast, startOfDay, endOfDay, endOfWeek } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -186,7 +186,7 @@ export default function SalesMeetings() {
 
             {viewMode === 'calendar' ? (
               <MeetingsCalendarView
-                meetings={filtered.length > 0 ? filtered : meetings}
+                meetings={filteredByTab}
                 onMarkCompleted={(id) => updateStatus.mutate({ id, status: 'completed' })}
                 onMarkNoShow={(id) => updateStatus.mutate({ id, status: 'no_show' })}
               />
@@ -298,6 +298,20 @@ export default function SalesMeetings() {
                                       <XCircle className="h-4 w-4 text-orange-600" />
                                     </Button>
                                   </>
+                                )}
+                                {meeting.status === 'scheduled' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      if (window.confirm('Cancel this meeting?')) {
+                                        updateStatus.mutate({ id: meeting.id, status: 'cancelled' });
+                                      }
+                                    }}
+                                    title="Cancel meeting"
+                                  >
+                                    <X className="h-4 w-4 text-muted-foreground" />
+                                  </Button>
                                 )}
                               </div>
                             </div>
