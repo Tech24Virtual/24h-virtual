@@ -784,6 +784,39 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_google_tokens: {
+        Row: {
+          access_token: string
+          agent_id: string
+          created_at: string | null
+          google_email: string | null
+          id: string
+          refresh_token: string
+          token_expiry: string
+          updated_at: string | null
+        }
+        Insert: {
+          access_token: string
+          agent_id: string
+          created_at?: string | null
+          google_email?: string | null
+          id?: string
+          refresh_token: string
+          token_expiry: string
+          updated_at?: string | null
+        }
+        Update: {
+          access_token?: string
+          agent_id?: string
+          created_at?: string | null
+          google_email?: string | null
+          id?: string
+          refresh_token?: string
+          token_expiry?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       agent_onboarding: {
         Row: {
           applicant_user_id: string
@@ -28649,6 +28682,27 @@ export type Database = {
       }
     }
     Views: {
+      agent_google_connection_status: {
+        Row: {
+          agent_id: string | null
+          google_email: string | null
+          is_connected: boolean | null
+          token_expiry: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          google_email?: string | null
+          is_connected?: never
+          token_expiry?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          google_email?: string | null
+          is_connected?: never
+          token_expiry?: string | null
+        }
+        Relationships: []
+      }
       campaign_go_live_checks: {
         Row: {
           all_ok: boolean | null

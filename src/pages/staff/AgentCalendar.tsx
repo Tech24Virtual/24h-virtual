@@ -1,15 +1,17 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format, addDays, isToday } from 'date-fns';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays, CheckCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { StaffLayout } from '@/components/staff/StaffLayout';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { getPayCycleBounds, getNextPayCycle, getPrevPayCycle } from '@/lib/payCycle';
 
-type EventType = 'scheduled' | 'actual' | 'time_off' | 'claimed';
+type EventType = 'scheduled' | 'actual' | 'time_off' | 'claimed' | 'google';
 
 interface CalEvent {
   id: string;
@@ -37,6 +39,10 @@ const TYPE_CONFIG: Record<EventType, { classes: string; legendLabel: string }> =
   claimed: {
     classes: 'bg-purple-100 border-purple-300 text-purple-800 dark:bg-purple-900/40 dark:border-purple-700 dark:text-purple-300',
     legendLabel: 'Claimed Shift',
+  },
+  google: {
+    classes: 'bg-indigo-100 border-indigo-300 text-indigo-800 dark:bg-indigo-900/40 dark:border-indigo-700 dark:text-indigo-300',
+    legendLabel: 'Google Calendar',
   },
 };
 
@@ -127,6 +133,54 @@ export default function AgentCalendar() {
     },
   });
 
+  const { data: connectionStatus } = useQuery({
+    queryKey: ['google-cal-connection', user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('agent_google_connection_status')
+        .select('is_connected, google_email')
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  const isConnected = connectionStatus?.is_connected ?? false;
+  const googleEmail = connectionStatus?.google_email ?? null;
+
+  const { data: googleEventsData } = useQuery({
+    queryKey: ['google-cal-events', user?.id, rangeStart],
+    enabled: isConnected === true,
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke('google-calendar-events', {
+        body: { date_start: rangeStart, date_end: rangeEnd },
+      });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  useEffect(() => {
+    if (googleEventsData?.needs_reconnect) {
+      toast.warning('Your Google Calendar connection expired. Please reconnect.');
+    }
+  }, [googleEventsData?.needs_reconnect]);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const googleEvents: any[] = googleEventsData?.events ?? [];
+
+  const handleConnectGoogle = async () => {
+    const { data, error } = await supabase.functions.invoke('google-calendar-auth', {
+      body: { action: 'get-url' },
+    });
+    if (error || !data?.url) {
+      toast.error('Failed to start Google Calendar connection.');
+      return;
+    }
+    window.open(data.url, '_blank');
+    toast('Complete the Google sign-in in the new tab. Come back here when done and refresh the page.');
+  };
+
   const eventsByDay = useMemo(() => {
     const map = new Map<string, CalEvent[]>();
     days.forEach(d => map.set(format(d, 'yyyy-MM-dd'), []));
@@ -195,8 +249,27 @@ export default function AgentCalendar() {
       });
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    googleEvents.forEach((ev: any) => {
+      const dateStr = ev.start?.dateTime || ev.start?.date;
+      if (!dateStr) return;
+      const date = (dateStr as string).slice(0, 10);
+      const list = map.get(date);
+      if (!list) return;
+      const allDay = !ev.start?.dateTime;
+      list.push({
+        id: ev.id,
+        date,
+        startTime: ev.start?.dateTime ? (ev.start.dateTime as string).slice(11, 16) : '',
+        endTime: ev.end?.dateTime ? (ev.end.dateTime as string).slice(11, 16) : '',
+        type: 'google',
+        label: ev.summary,
+        allDay,
+      });
+    });
+
     return map;
-  }, [schedules, agentShifts, timeOff, claimedShifts, days]);
+  }, [schedules, agentShifts, timeOff, claimedShifts, googleEvents, days]);
 
   return (
     <StaffLayout role="agent">
@@ -210,7 +283,7 @@ export default function AgentCalendar() {
               {cycle.isFirstHalf ? 'First half' : 'Second half'} pay cycle · {days.length} days
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={() => setCycleAnchor(getPrevPayCycle(cycle).start)}>
               <ChevronLeft className="h-4 w-4" />
               Prev Cycle
@@ -226,6 +299,17 @@ export default function AgentCalendar() {
               Next Cycle
               <ChevronRight className="h-4 w-4" />
             </Button>
+            {isConnected ? (
+              <Badge className="bg-green-100 text-green-800 border border-green-300 dark:bg-green-900/40 dark:text-green-300 dark:border-green-700 gap-1.5 py-1.5 px-3">
+                <CheckCircle className="h-3.5 w-3.5" />
+                Google Calendar connected{googleEmail ? ` — ${googleEmail}` : ''}
+              </Badge>
+            ) : (
+              <Button variant="outline" size="sm" onClick={handleConnectGoogle}>
+                <CalendarDays className="h-4 w-4 mr-1" />
+                Connect Google Calendar
+              </Button>
+            )}
           </div>
         </div>
 
