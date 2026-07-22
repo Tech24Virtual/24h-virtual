@@ -67,7 +67,7 @@ export default function HRCommunications() {
         to_user_id: e.id,
         subject: form.subject,
         message: form.message,
-        category: 'announcement' as const,
+        category: form.category,
       }));
       if (inserts.length > 0) {
         const { error } = await supabase.from('hr_communications').insert(inserts);
@@ -162,7 +162,7 @@ export default function HRCommunications() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>To</Label>
-              <Select value={form.to_user_id} onValueChange={v => setForm(p => ({ ...p, to_user_id: v }))}>
+              <Select value={form.to_user_id || 'broadcast'} onValueChange={v => setForm(p => ({ ...p, to_user_id: v === 'broadcast' ? '' : v }))}>
                 <SelectTrigger><SelectValue placeholder="All Staff (Broadcast)" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="broadcast">All Staff (Broadcast)</SelectItem>

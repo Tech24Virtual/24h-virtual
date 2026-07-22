@@ -9,10 +9,13 @@ import { HRLayout } from '@/components/hr/HRLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 import type { Json } from '@/integrations/supabase/types';
 
 export default function HRSettings() {
   const { user, profile, refreshProfile } = useAuth();
+  // Named showToast to avoid colliding with the sonner `toast` import above,
+  const { toast: showToast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({ full_name: '', company_name: '', phone: '' });
   const [emailNotif, setEmailNotif] = useState(true);
@@ -73,8 +76,20 @@ export default function HRSettings() {
             <Card>
               <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Shield className="w-5 h-5 text-primary" />Security</CardTitle></CardHeader>
               <CardContent className="space-y-4">
-                <Button variant="outline" className="w-full">Change Password</Button>
-                <Button variant="outline" className="w-full">Enable Two-Factor Authentication</Button>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => showToast({ title: 'Coming soon', description: 'Password change will be available shortly.' })}
+                >
+                  Change Password
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => showToast({ title: 'Coming soon', description: 'Two-factor authentication will be available shortly.' })}
+                >
+                  Enable Two-Factor Authentication
+                </Button>
               </CardContent>
             </Card>
           </div>

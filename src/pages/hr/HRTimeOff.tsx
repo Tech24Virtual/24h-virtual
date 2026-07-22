@@ -34,7 +34,7 @@ export default function HRTimeOff() {
 
   const handleAction = async (id: string, action: 'approved' | 'denied') => {
     const { error } = await supabase.from('time_off_requests')
-      .update({ status: action, reviewed_by: user!.id, reviewed_at: new Date().toISOString() })
+      .update({ status: action, reviewed_by: user!.id, reviewed_at: new Date().toISOString(), review_notes: reviewNotes[id] || null })
       .eq('id', id);
     if (error) { toast.error('Failed to update request'); return; }
     toast.success(`Request ${action}`);

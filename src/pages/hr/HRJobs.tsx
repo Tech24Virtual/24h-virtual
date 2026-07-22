@@ -73,6 +73,7 @@ export default function HRJobs() {
   };
 
   const jobApplicants = selectedJobId ? applicants.filter(a => a.job_posting_id === selectedJobId) : [];
+  const selectedJob = jobs.find(j => j.id === selectedJobId);
 
   const statusColors: Record<string, string> = {
     new: 'bg-blue-100 text-blue-800', reviewing: 'bg-amber-100 text-amber-800', interviewing: 'bg-purple-100 text-purple-800',
@@ -193,6 +194,30 @@ export default function HRJobs() {
             </div>
             <Button className="w-full" onClick={handleSave}>{editingJob ? 'Update' : 'Create'}</Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!selectedJobId} onOpenChange={open => !open && setSelectedJobId(null)}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Applicants for {selectedJob?.title || 'Job'}</DialogTitle>
+          </DialogHeader>
+          {jobApplicants.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">No applicants for this job yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {jobApplicants.map(app => (
+                <div key={app.id} className="flex items-center justify-between gap-3 border rounded-md p-3">
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{app.name}</p>
+                    <p className="text-sm text-muted-foreground truncate">{app.email}</p>
+                  </div>
+                  <Badge className={`capitalize shrink-0 ${statusColors[app.status] || statusColors.new}`}>{app.status || 'new'}</Badge>
+                </div>
+              ))}
+            </div>
+          )}
+          <Button variant="outline" className="w-full" onClick={() => setSelectedJobId(null)}>Close</Button>
         </DialogContent>
       </Dialog>
     </HRLayout>

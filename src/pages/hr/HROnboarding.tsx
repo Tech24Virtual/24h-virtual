@@ -20,7 +20,7 @@ import { Plus, CheckCircle, Trash2, GripVertical } from 'lucide-react';
 
 const statusToStep: Record<string, number> = {
   offer_pending: 0, offer_accepted: 1, contract_signed: 2, banking_pending: 3,
-  provisioning: 4, training: 5, live_training: 6, completed: 7,
+  provisioning: 4, training: 5, live_training: 6, activation_in_progress: 7, completed: 8,
 };
 
 export default function HROnboarding() {
@@ -120,9 +120,11 @@ export default function HROnboarding() {
                 <SelectItem value="offer_pending">Offer Pending</SelectItem>
                 <SelectItem value="offer_accepted">Offer Accepted</SelectItem>
                 <SelectItem value="contract_signed">Contract Signed</SelectItem>
+                <SelectItem value="banking_pending">Banking Pending</SelectItem>
                 <SelectItem value="provisioning">Provisioning</SelectItem>
                 <SelectItem value="training">Training</SelectItem>
                 <SelectItem value="live_training">Live Training</SelectItem>
+                <SelectItem value="activation_in_progress">Activation In Progress</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
               </SelectContent>
             </Select>
@@ -135,7 +137,7 @@ export default function HROnboarding() {
               <div className="space-y-4">
                 {filtered.map(ob => {
                   const step = statusToStep[ob.status] ?? 0;
-                  const steps = ['Offer Sent', 'Accepted', 'Contract Signed', 'Banking', 'Provisioning', 'Training', 'Live Training', 'Complete'];
+                  const steps = ['Offer Sent', 'Accepted', 'Contract Signed', 'Banking', 'Provisioning', 'Training', 'Live Training', 'Activation', 'Complete'];
                   const progress = ((step + 1) / steps.length) * 100;
                   return (
                     <Card key={ob.id}>
