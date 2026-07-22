@@ -167,7 +167,7 @@ export default function HRJobs() {
           </TabsContent>
         </Tabs>
 
-        <MissionsList title="Recent Hiring Missions" missionTypeFilter="hiring_agent" limit={5} />
+        <MissionsList title="Recent Hiring Missions" missionTypeFilter="hiring_agent" limit={5} emptyMessage="No hiring missions yet. Run your first hiring job to get started." />
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

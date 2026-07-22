@@ -19,9 +19,10 @@ interface MissionsListProps {
   title?: string;
   missionTypeFilter?: string;
   limit?: number;
+  emptyMessage?: string;
 }
 
-export function MissionsList({ title = 'Recent Missions', missionTypeFilter, limit = 20 }: MissionsListProps) {
+export function MissionsList({ title = 'Recent Missions', missionTypeFilter, limit = 20, emptyMessage = 'No missions yet. Run your first billing or payroll job to get started.' }: MissionsListProps) {
   const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
 
   const { data: missions, isLoading } = useQuery({
@@ -53,7 +54,7 @@ export function MissionsList({ title = 'Recent Missions', missionTypeFilter, lim
           {isLoading ? (
             <p className="text-muted-foreground">Loading missions...</p>
           ) : !missions?.length ? (
-            <p className="text-muted-foreground text-center py-8">No missions yet. Run your first billing or payroll job to get started.</p>
+            <p className="text-muted-foreground text-center py-8">{emptyMessage}</p>
           ) : (
             <div className="space-y-2">
               {missions.map((m: any) => (
