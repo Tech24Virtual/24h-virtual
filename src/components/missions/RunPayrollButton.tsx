@@ -9,7 +9,11 @@ import { toast } from '@/hooks/use-toast';
 import { Loader2, DollarSign } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 
-export function RunPayrollButton() {
+interface RunPayrollButtonProps {
+  onSuccess?: () => void;
+}
+
+export function RunPayrollButton({ onSuccess }: RunPayrollButtonProps = {}) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -37,6 +41,7 @@ export function RunPayrollButton() {
           title: 'Payroll Run Complete',
           description: `${data?.agents_processed || 0} agents processed. Total: $${data?.total_payroll?.toFixed(2) || '0.00'} (${data?.mode} mode).`,
         });
+        onSuccess?.();
       }
       setOpen(false);
     } catch (err) {

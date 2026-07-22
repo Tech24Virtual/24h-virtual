@@ -27,12 +27,15 @@ export default function HRDirectory() {
   const [bankingOpen, setBankingOpen] = useState(false);
   const [bankingAgentId, setBankingAgentId] = useState<string | null>(null);
   const [editField, setEditField] = useState<{ id: string; field: string; value: string } | null>(null);
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_SIZE = 25;
 
   const fetchData = async () => {
     if (!user) return;
     setIsLoading(true);
     const [empRes, rolesRes] = await Promise.all([
-      supabase.from('profiles').select('*').order('full_name'),
+      supabase.from('profiles').select('*', { count: 'exact' }).order('full_name').range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1),
       supabase.from('user_roles').select('user_id, role'),
     ]);
     const roleMap: Record<string, string[]> = {};
@@ -41,10 +44,11 @@ export default function HRDirectory() {
       roleMap[r.user_id].push(r.role);
     });
     setEmployees((empRes.data || []).map((p: any) => ({ ...p, roles: roleMap[p.id] || [] })));
+    setTotalCount(empRes.count || 0);
     setIsLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, [user]);
+  useEffect(() => { fetchData(); }, [user, page]);
 
   const handleUpdateField = async (id: string, field: string, value: string) => {
     const { error } = await supabase.from('profiles').update({ [field]: value || null }).eq('id', id);
@@ -156,6 +160,18 @@ export default function HRDirectory() {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        )}
+
+        {!isLoading && totalCount > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              Showing {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, totalCount)} of {totalCount} staff members
+            </p>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))}>Prev</Button>
+              <Button size="sm" variant="outline" disabled={(page + 1) * PAGE_SIZE >= totalCount} onClick={() => setPage(p => p + 1)}>Next</Button>
+            </div>
           </div>
         )}
       </div>

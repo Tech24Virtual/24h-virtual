@@ -20,18 +20,19 @@ export default function HRPayroll() {
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [bankingDialogOpen, setBankingDialogOpen] = useState(false);
 
-  useEffect(() => {
+  const refetchStats = async () => {
     if (!user) return;
-    const fetch = async () => {
-      const [pendingRes, paidRes, bankRes] = await Promise.all([
-        (supabase as any).from('shift_invoices').select('id', { count: 'exact', head: true }).eq('status', 'supervisor_approved'),
-        (supabase as any).from('shift_invoices').select('id', { count: 'exact', head: true }).eq('status', 'paid'),
-        (supabase as any).from('agent_banking').select('*, profiles:agent_id(full_name)').order('created_at', { ascending: false }),
-      ]);
-      setStats({ pending: pendingRes.count || 0, processed: paidRes.count || 0, totalBanking: bankRes.data?.length || 0 });
-      setBankingRecords(bankRes.data || []);
-    };
-    fetch();
+    const [pendingRes, paidRes, bankRes] = await Promise.all([
+      (supabase as any).from('shift_invoices').select('id', { count: 'exact', head: true }).eq('status', 'supervisor_approved'),
+      (supabase as any).from('shift_invoices').select('id', { count: 'exact', head: true }).eq('status', 'paid'),
+      (supabase as any).from('agent_banking').select('*, profiles:agent_id(full_name)').order('created_at', { ascending: false }),
+    ]);
+    setStats({ pending: pendingRes.count || 0, processed: paidRes.count || 0, totalBanking: bankRes.data?.length || 0 });
+    setBankingRecords(bankRes.data || []);
+  };
+
+  useEffect(() => {
+    refetchStats();
   }, [user]);
 
   return (
@@ -42,7 +43,7 @@ export default function HRPayroll() {
             <h1 className="text-2xl lg:text-3xl font-bold">Payroll & Banking</h1>
             <p className="text-muted-foreground mt-1">Process approved payouts and manage banking details</p>
           </div>
-          <RunPayrollButton />
+          <RunPayrollButton onSuccess={refetchStats} />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
