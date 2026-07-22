@@ -144,8 +144,19 @@ export function DrilldownSidebar({
   const inSection =
     !!activeGroup && hasChildren(activeGroup) && collapsedFor !== activeGroup.name;
 
-  const isTabActive = (href: string) =>
-    location.pathname === href || location.pathname.startsWith(href + '/');
+  const isTabActive = (href: string, allSiblingHrefs: string[]) => {
+    const exact = location.pathname === href;
+    const prefixMatch = location.pathname.startsWith(href + '/');
+    const siblingMoreSpecific = allSiblingHrefs.some(
+      sibling => sibling !== href && (
+        location.pathname === sibling ||
+        location.pathname.startsWith(sibling + '/')
+      )
+    );
+    if (exact) return true;
+    if (!prefixMatch) return false;
+    return !siblingMoreSpecific;
+  };
 
   const handleRailClick = (group: NavGroup) => {
     if (hasChildren(group)) {
@@ -200,7 +211,7 @@ export function DrilldownSidebar({
               to={child.href}
               className={cn(
                 'flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors',
-                isTabActive(child.href)
+                isTabActive(child.href, activeGroup?.children.map(c => c.href) ?? [])
                   ? 'bg-primary/10 text-primary font-medium'
                   : 'text-muted-foreground hover:bg-accent hover:text-foreground'
               )}
