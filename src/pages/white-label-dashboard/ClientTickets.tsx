@@ -95,18 +95,32 @@ export default function WLClientTickets() {
     setEscalationStatus(null);
 
     if (ticket.is_escalated_to_24h && ticket.linked_support_ticket_id) {
-      const { data: escTicket } = await supabase.from("support_tickets")
-        .select("id, status, priority, work_queue, created_at")
-        .eq("id", ticket.linked_support_ticket_id)
-        .single();
-      setEscalationStatus(escTicket);
+      try {
+        const { data: escTicket, error } = await supabase.from("support_tickets")
+          .select("id, status, priority, work_queue, created_at")
+          .eq("id", ticket.linked_support_ticket_id)
+          .single();
+        if (error) throw error;
+        setEscalationStatus(escTicket);
+      } catch (err) {
+        console.error("Error fetching escalation status:", err);
+        setEscalationStatus(null);
+      }
     }
   };
 
   const updateStatus = async (ticketId: string, status: string) => {
-    await supabase.from("wl_client_tickets").update({ status, ...(status === "resolved" ? { resolved_at: new Date().toISOString() } : {}) }).eq("id", ticketId);
-    fetchData();
-    if (selectedTicket?.id === ticketId) setSelectedTicket((prev: any) => ({ ...prev, status }));
+    try {
+      const { error } = await supabase.from("wl_client_tickets")
+        .update({ status, ...(status === "resolved" ? { resolved_at: new Date().toISOString() } : {}) })
+        .eq("id", ticketId);
+      if (error) throw error;
+      fetchData();
+      if (selectedTicket?.id === ticketId) setSelectedTicket((prev: any) => ({ ...prev, status }));
+    } catch (err) {
+      console.error("Error updating ticket status:", err);
+      toast({ title: "Error", description: "Failed to update ticket status.", variant: "destructive" });
+    }
   };
 
   const handleEscalate = async () => {

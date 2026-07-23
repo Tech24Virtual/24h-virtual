@@ -53,14 +53,15 @@ export default function WLWholesalePricing() {
   };
 
   const baseRate = getBaseRate();
-  const secretarySurcharge = calcServiceType === "virtual_secretary" ? Number(pricing?.secretary_surcharge || 0.05) : 0;
-  const langSurcharge = calcLanguage === "spanish" ? Number(pricing?.spanish_surcharge || 0.05)
-    : calcLanguage === "french" ? Number(pricing?.french_surcharge || 0.05)
-    : calcLanguage === "both" ? Number(pricing?.both_languages_surcharge || 0.07) : 0;
+  const secretarySurcharge = pricing && calcServiceType === "virtual_secretary" ? Number(pricing.secretary_surcharge) : 0;
+  const langSurcharge = !pricing ? 0
+    : calcLanguage === "spanish" ? Number(pricing.spanish_surcharge)
+    : calcLanguage === "french" ? Number(pricing.french_surcharge)
+    : calcLanguage === "both" ? Number(pricing.both_languages_surcharge) : 0;
   const effectiveRate = baseRate + secretarySurcharge + langSurcharge;
   const minuteCost = calcMinutes * effectiveRate;
-  const setupFee = Number(pricing?.campaign_setup_fee || 100);
-  const additionalFee = Number(pricing?.additional_campaign_fee || 25);
+  const setupFee = pricing ? Number(pricing.campaign_setup_fee) : 0;
+  const additionalFee = pricing ? Number(pricing.additional_campaign_fee) : 0;
   const campaignFees = setupFee + Math.max(0, calcCampaigns - 1) * additionalFee;
   const totalProjected = minuteCost + campaignFees;
 
@@ -178,75 +179,92 @@ export default function WLWholesalePricing() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Est. Minutes</Label>
-                    <Input type="number" value={calcMinutes} onChange={e => setCalcMinutes(Number(e.target.value))} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Campaigns</Label>
-                    <Input type="number" value={calcCampaigns} onChange={e => setCalcCampaigns(Number(e.target.value))} min={1} />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Service Type</Label>
-                  <Select value={calcServiceType} onValueChange={setCalcServiceType}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="virtual_receptionist">Virtual Receptionist</SelectItem>
-                      <SelectItem value="virtual_secretary">Virtual Secretary (+${Number(pricing.secretary_surcharge).toFixed(2)})</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Language</Label>
-                  <Select value={calcLanguage} onValueChange={setCalcLanguage}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="english_only">English Only</SelectItem>
-                      <SelectItem value="spanish">+ Spanish (+${Number(pricing.spanish_surcharge).toFixed(2)})</SelectItem>
-                      <SelectItem value="french">+ French (+${Number(pricing.french_surcharge).toFixed(2)})</SelectItem>
-                      <SelectItem value="both">+ Both (+${Number(pricing.both_languages_surcharge).toFixed(2)})</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Separator />
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Base rate</span>
-                    <span>${baseRate.toFixed(2)}/min</span>
-                  </div>
-                  {secretarySurcharge > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Secretary surcharge</span>
-                      <span>+${secretarySurcharge.toFixed(2)}/min</span>
+                {!pricing ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    Pricing not configured yet. Contact your account manager to set up your wholesale rates before using the calculator.
+                  </p>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Est. Minutes</Label>
+                        <Input
+                          type="number"
+                          value={calcMinutes}
+                          onChange={e => setCalcMinutes(Math.max(0, Number(e.target.value) || 0))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Campaigns</Label>
+                        <Input
+                          type="number"
+                          value={calcCampaigns}
+                          onChange={e => setCalcCampaigns(Math.max(0, Number(e.target.value) || 0))}
+                          min={1}
+                        />
+                      </div>
                     </div>
-                  )}
-                  {langSurcharge > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Language surcharge</span>
-                      <span>+${langSurcharge.toFixed(2)}/min</span>
+                    <div className="space-y-2">
+                      <Label>Service Type</Label>
+                      <Select value={calcServiceType} onValueChange={setCalcServiceType}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="virtual_receptionist">Virtual Receptionist</SelectItem>
+                          <SelectItem value="virtual_secretary">Virtual Secretary (+${Number(pricing.secretary_surcharge).toFixed(2)})</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                  )}
-                  <div className="flex justify-between font-medium">
-                    <span>Effective rate</span>
-                    <span>${effectiveRate.toFixed(2)}/min</span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Minute cost ({calcMinutes} × ${effectiveRate.toFixed(2)})</span>
-                    <span>${minuteCost.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Campaign fees</span>
-                    <span>${campaignFees.toFixed(2)}</span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between text-lg font-bold">
-                    <span>Projected Monthly</span>
-                    <span className="text-primary">${totalProjected.toFixed(2)}</span>
-                  </div>
-                </div>
+                    <div className="space-y-2">
+                      <Label>Language</Label>
+                      <Select value={calcLanguage} onValueChange={setCalcLanguage}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="english_only">English Only</SelectItem>
+                          <SelectItem value="spanish">+ Spanish (+${Number(pricing.spanish_surcharge).toFixed(2)})</SelectItem>
+                          <SelectItem value="french">+ French (+${Number(pricing.french_surcharge).toFixed(2)})</SelectItem>
+                          <SelectItem value="both">+ Both (+${Number(pricing.both_languages_surcharge).toFixed(2)})</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Separator />
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Base rate</span>
+                        <span>${baseRate.toFixed(2)}/min</span>
+                      </div>
+                      {secretarySurcharge > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Secretary surcharge</span>
+                          <span>+${secretarySurcharge.toFixed(2)}/min</span>
+                        </div>
+                      )}
+                      {langSurcharge > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Language surcharge</span>
+                          <span>+${langSurcharge.toFixed(2)}/min</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between font-medium">
+                        <span>Effective rate</span>
+                        <span>${effectiveRate.toFixed(2)}/min</span>
+                      </div>
+                      <Separator />
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Minute cost ({calcMinutes} × ${effectiveRate.toFixed(2)})</span>
+                        <span>${minuteCost.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Campaign fees</span>
+                        <span>${campaignFees.toFixed(2)}</span>
+                      </div>
+                      <Separator />
+                      <div className="flex justify-between text-lg font-bold">
+                        <span>Projected Monthly</span>
+                        <span className="text-primary">${totalProjected.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
 
