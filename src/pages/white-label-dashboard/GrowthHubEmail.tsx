@@ -21,6 +21,7 @@ export default function GrowthHubEmail() {
   const [fromEmail, setFromEmail] = useState("");
   const [newContactEmail, setNewContactEmail] = useState("");
   const [newContactName, setNewContactName] = useState("");
+  const [hasExistingKey, setHasExistingKey] = useState(false);
 
   const { data: partner } = useQuery({
     queryKey: ["wl-partner", user?.id],
@@ -35,7 +36,11 @@ export default function GrowthHubEmail() {
     queryKey: ["wl-email-connection", partner?.id],
     queryFn: async () => {
       const { data } = await supabase.from("wl_email_connections").select("*").eq("partner_id", partner!.id).limit(1).maybeSingle();
-      if (data) { setFromName(data.from_name); setFromEmail(data.from_email); }
+      if (data) {
+        setFromName(data.from_name);
+        setFromEmail(data.from_email);
+        setHasExistingKey(!!data.api_key_encrypted);
+      }
       return data;
     },
     enabled: !!partner?.id,
@@ -75,8 +80,16 @@ export default function GrowthHubEmail() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!apiKey || !fromEmail || !fromName) throw new Error("All fields required");
-      const payload = { partner_id: partner!.id, provider: "resend" as const, api_key_encrypted: apiKey, from_name: fromName, from_email: fromEmail, status: "connected", last_tested_at: new Date().toISOString() };
+      if ((!apiKey && !hasExistingKey) || !fromEmail || !fromName) throw new Error("All fields required");
+      const payload: Record<string, unknown> = {
+        partner_id: partner!.id,
+        provider: "resend" as const,
+        from_name: fromName,
+        from_email: fromEmail,
+        status: "connected",
+        last_tested_at: new Date().toISOString(),
+      };
+      if (apiKey) payload.api_key_encrypted = apiKey;
       if (connection) {
         const { error } = await supabase.from("wl_email_connections").update(payload).eq("id", connection.id);
         if (error) throw error;
@@ -158,7 +171,13 @@ export default function GrowthHubEmail() {
                 <CardDescription>Enter your Resend API key and sender details.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2"><Label>Resend API Key</Label><Input type="password" placeholder="re_..." value={apiKey} onChange={(e) => setApiKey(e.target.value)} /></div>
+                <div className="space-y-2">
+                  <Label>Resend API Key</Label>
+                  <Input type="password" placeholder="re_..." value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
+                  {hasExistingKey && (
+                    <p className="text-xs text-muted-foreground">API key already saved. Leave blank to keep existing key.</p>
+                  )}
+                </div>
                 <div className="space-y-2"><Label>From Name</Label><Input placeholder="Your Company" value={fromName} onChange={(e) => setFromName(e.target.value)} /></div>
                 <div className="space-y-2"><Label>From Email</Label><Input placeholder="newsletter@yourdomain.com" value={fromEmail} onChange={(e) => setFromEmail(e.target.value)} /></div>
                 <div className="flex gap-3">

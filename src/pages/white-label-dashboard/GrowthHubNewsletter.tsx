@@ -10,6 +10,11 @@ import { toast } from "@/hooks/use-toast";
 import { Mail, Copy, Check, Loader2, ArrowLeft, Eye, Code, Send } from "lucide-react";
 import { Link } from "react-router-dom";
 
+const sanitizeHtml = (html: string) =>
+  html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/on\w+="[^"]*"/g, '');
+
 function getMonthOptions() {
   const options = [];
   const now = new Date();
@@ -210,7 +215,7 @@ export default function GrowthHubNewsletter() {
                 {viewMode === "preview" ? (
                   <div
                     className="border rounded-lg p-4 bg-background"
-                    dangerouslySetInnerHTML={{ __html: latestDraft.html_content || "" }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(latestDraft.html_content || "") }}
                   />
                 ) : (
                   <pre className="text-xs bg-muted p-4 rounded-lg overflow-auto max-h-96">

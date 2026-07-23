@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { BarChart3, FileText, Search, TrendingUp, Download, Printer, Loader2, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -72,6 +72,22 @@ export default function GrowthHubReports() {
 
   const stats = report?.stats_json as any;
   const monthLabel = monthOptions.find(m => m.value === selectedMonth)?.label || selectedMonth;
+
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.id = "growth-report-print-style";
+    style.textContent = `
+      @media print {
+        body * { visibility: hidden; }
+        .print-report-content, .print-report-content * { visibility: visible; }
+        .print-report-content { position: absolute; top: 0; left: 0; width: 100%; }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.getElementById("growth-report-print-style")?.remove();
+    };
+  }, []);
 
   const downloadPDF = () => {
     if (!report || !stats) return;
@@ -153,33 +169,35 @@ export default function GrowthHubReports() {
 
         {report && stats && (
           <>
-            <div className="grid sm:grid-cols-4 gap-4">
-              {statCards.map(s => (
-                <Card key={s.label}>
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <s.icon className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{s.value}</p>
-                      <p className="text-xs text-muted-foreground">{s.label}</p>
-                    </div>
+            <div className="print-report-content space-y-6">
+              <div className="grid sm:grid-cols-4 gap-4">
+                {statCards.map(s => (
+                  <Card key={s.label}>
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <s.icon className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold">{s.value}</p>
+                        <p className="text-xs text-muted-foreground">{s.label}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {report.narrative && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Executive Summary</CardTitle>
+                    <CardDescription>{monthLabel}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{report.narrative}</p>
                   </CardContent>
                 </Card>
-              ))}
+              )}
             </div>
-
-            {report.narrative && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Executive Summary</CardTitle>
-                  <CardDescription>{monthLabel}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{report.narrative}</p>
-                </CardContent>
-              </Card>
-            )}
 
             <div className="flex gap-3">
               <Button onClick={downloadPDF} variant="outline">
