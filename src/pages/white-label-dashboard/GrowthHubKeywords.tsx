@@ -39,7 +39,7 @@ export default function GrowthHubKeywords() {
   const { data: partner } = useQuery({
     queryKey: ["wl-partner", user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("white_label_partners").select("id").eq("user_id", user!.id).single();
+      const { data } = await supabase.from("white_label_partners").select("id").eq("user_id", user!.id).maybeSingle();
       return data;
     },
     enabled: !!user,

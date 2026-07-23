@@ -43,7 +43,7 @@ export default function WLClientDetail() {
         .from('white_label_partners')
         .select('id')
         .eq('user_id', user!.id)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -60,7 +60,7 @@ export default function WLClientDetail() {
         .from('white_label_clients')
         .select('id, client_name, contact_name, email, phone, status, partner_id, client_portal_slug, user_id, billing_verified')
         .eq('id', id!)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data;
     },

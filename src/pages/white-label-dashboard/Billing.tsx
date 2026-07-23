@@ -69,7 +69,7 @@ export default function WhiteLabelBilling() {
         .from("white_label_partners")
         .select("id, tier, monthly_fee, status, created_at")
         .eq("user_id", user!.id)
-        .single();
+        .maybeSingle();
       return data as PartnerData | null;
     },
     enabled: !!user,

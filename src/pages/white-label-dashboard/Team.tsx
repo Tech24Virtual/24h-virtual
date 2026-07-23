@@ -58,7 +58,7 @@ export default function WLTeam() {
         .from('white_label_partners')
         .select('id')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (partner) {
         setPartnerId(partner.id);

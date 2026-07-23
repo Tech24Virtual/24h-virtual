@@ -29,7 +29,7 @@ export default function GrowthHub() {
         .from("white_label_partners")
         .select("id")
         .eq("user_id", user!.id)
-        .single();
+        .maybeSingle();
       return data;
     },
     enabled: !!user,

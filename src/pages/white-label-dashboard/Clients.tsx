@@ -69,7 +69,7 @@ export default function WhiteLabelClients() {
   const fetchPartnerAndClients = async () => {
     if (!user) return;
     try {
-      const { data: partner } = await supabase.from('white_label_partners').select('id').eq('user_id', user.id).single();
+      const { data: partner } = await supabase.from('white_label_partners').select('id').eq('user_id', user.id).maybeSingle();
       if (partner) {
         setPartnerId(partner.id);
         const { data: clientsData } = await supabase.from('white_label_clients').select('*')

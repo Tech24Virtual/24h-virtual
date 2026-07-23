@@ -45,7 +45,7 @@ export default function WhiteLabelSettings() {
         .from('white_label_partners')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (data) {
         setPartnerId(data.id);

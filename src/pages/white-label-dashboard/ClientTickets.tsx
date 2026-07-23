@@ -50,7 +50,7 @@ export default function WLClientTickets() {
   const fetchData = async () => {
     if (!user) return;
     try {
-      const { data: partner } = await supabase.from("white_label_partners").select("id").eq("user_id", user.id).single();
+      const { data: partner } = await supabase.from("white_label_partners").select("id").eq("user_id", user.id).maybeSingle();
       if (!partner) return;
       setPartnerId(partner.id);
 

@@ -62,7 +62,7 @@ export default function WhiteLabelDashboard() {
         .from('white_label_partners')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (partner) {
         setPartnerData(partner);
