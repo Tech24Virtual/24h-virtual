@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { WhiteLabelLayout } from '@/components/white-label/WhiteLabelLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,7 @@ const LEAD_FILTERS = ['all', 'linked', 'unlinked'] as const;
 type LeadFilter = (typeof LEAD_FILTERS)[number];
 
 export default function WLProposals() {
+  const navigate = useNavigate();
   const { data: proposals, isLoading } = useWLPartnerProposals();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<WLProposalStatus | 'all'>('all');
@@ -156,7 +157,7 @@ export default function WLProposals() {
                     key={p.id}
                     className="cursor-pointer hover:bg-muted/50"
                     onClick={() => {
-                      window.location.assign(`/white-label-dashboard/clients/proposals/${p.id}`);
+                      navigate(`/white-label-dashboard/clients/proposals/${p.id}`);
                     }}
                   >
                     <TableCell>

@@ -93,7 +93,18 @@ export default function WLTeam() {
 
       if (error) throw error;
 
-      toast({ title: "Invite Sent", description: `${inviteEmail} has been invited as ${inviteRole}.` });
+      toast({ title: "Invite recorded", description: "Team member added as pending. They will be notified by the admin team." });
+
+      try {
+        const { error: inviteError } = await supabase.functions.invoke('invite-user', {
+          body: { email: inviteEmail, role: inviteRole, partner_id: partnerId },
+        });
+        if (inviteError) throw inviteError;
+        toast({ title: "Invite sent", description: "An invitation email has been sent to " + inviteEmail });
+      } catch (inviteError) {
+        console.error("Error sending invite email:", inviteError);
+      }
+
       setInviteEmail("");
       setInviteRole("agent");
       setShowInviteForm(false);

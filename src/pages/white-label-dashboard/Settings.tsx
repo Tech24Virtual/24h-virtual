@@ -218,21 +218,36 @@ export default function WhiteLabelSettings() {
                     <p className="font-medium">Password</p>
                     <p className="text-sm text-muted-foreground">Change your account password</p>
                   </div>
-                  <Button variant="outline">Change Password</Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => toast({ title: 'Coming soon', description: 'Password changes will be available shortly.' })}
+                  >
+                    Change Password
+                  </Button>
                 </div>
                 <div className="flex items-center justify-between py-3 border-b">
                   <div>
                     <p className="font-medium">Two-Factor Authentication</p>
                     <p className="text-sm text-muted-foreground">Add an extra layer of security</p>
                   </div>
-                  <Button variant="outline">Enable 2FA</Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => toast({ title: 'Coming soon', description: 'Two-factor authentication will be available shortly.' })}
+                  >
+                    Enable 2FA
+                  </Button>
                 </div>
                 <div className="flex items-center justify-between py-3">
                   <div>
                     <p className="font-medium">API Keys</p>
                     <p className="text-sm text-muted-foreground">Manage your API access keys</p>
                   </div>
-                  <Button variant="outline">Manage Keys</Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => toast({ title: 'Coming soon', description: 'API key management will be available shortly.' })}
+                  >
+                    Manage Keys
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -253,7 +268,12 @@ export default function WhiteLabelSettings() {
                       End your white label partnership. This cannot be undone.
                     </p>
                   </div>
-                  <Button variant="destructive">Cancel Partnership</Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => toast({ title: 'Contact support', description: 'To cancel your partnership, please email support@24hvirtual.com.', variant: 'destructive' })}
+                  >
+                    Cancel Partnership
+                  </Button>
                 </div>
               </CardContent>
             </Card>

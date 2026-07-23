@@ -8,9 +8,13 @@ import { MyTicketsList, SubmitTicketDialog } from '@/components/tickets';
 import { PiPAssistant } from '@/components/pip/PiPAssistant';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
 
 export default function WhiteLabelSupport() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [partnerId, setPartnerId] = useState<string | undefined>();
   const [brandName, setBrandName] = useState<string | undefined>();
@@ -89,7 +93,10 @@ export default function WhiteLabelSupport() {
           onOpenChange={setShowSubmitDialog}
           source="white_label_portal"
           partnerId={partnerId}
-          onSuccess={() => {}}
+          onSuccess={() => {
+            toast({ title: 'Ticket submitted', description: 'Our team will get back to you shortly.' });
+            queryClient.invalidateQueries({ queryKey: ['my-tickets'] });
+          }}
         />
       </div>
     </WhiteLabelLayout>
