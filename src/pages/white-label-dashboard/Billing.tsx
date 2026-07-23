@@ -15,6 +15,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 interface PartnerData {
   id: string;
@@ -59,6 +60,7 @@ const tierDetails: Record<string, { name: string; price: number; features: strin
 
 export default function WhiteLabelBilling() {
   const { user } = useAuth();
+  const { toast } = useToast();
 
   const { data: partnerData, isLoading: partnerLoading } = useQuery({
     queryKey: ["wl-partner-billing", user?.id],
@@ -137,8 +139,18 @@ export default function WhiteLabelBilling() {
                     </ul>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <Button variant="outline">Change Plan</Button>
-                    <Button variant="outline">Update Payment Method</Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => toast({ title: 'Coming soon', description: 'Contact support@24hvirtual.com to make changes to your plan or payment method.' })}
+                    >
+                      Change Plan
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => toast({ title: 'Coming soon', description: 'Contact support@24hvirtual.com to make changes to your plan or payment method.' })}
+                    >
+                      Update Payment Method
+                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -153,11 +165,12 @@ export default function WhiteLabelBilling() {
                   <p className="text-xs text-muted-foreground">Due {nextPaymentStr}</p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="bg-muted/30">
                 <CardContent className="pt-6">
                   <p className="text-sm text-muted-foreground mb-1">Payment Method</p>
-                  <p className="text-lg font-medium text-heading">•••• 4242</p>
-                  <p className="text-xs text-muted-foreground">Visa ending in 4242</p>
+                  <p className="text-sm text-muted-foreground">
+                    No payment method on file. Contact support to update your billing details.
+                  </p>
                 </CardContent>
               </Card>
               <Card>
@@ -210,7 +223,11 @@ export default function WhiteLabelBilling() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="sm">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toast({ title: 'Coming soon', description: 'Invoice PDF downloads will be available shortly.' })}
+                            >
                               <Download className="w-4 h-4 mr-1" />
                               PDF
                             </Button>

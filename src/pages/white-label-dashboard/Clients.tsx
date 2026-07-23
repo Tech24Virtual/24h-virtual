@@ -96,14 +96,19 @@ export default function WhiteLabelClients() {
       if (error || !inserted) throw error ?? new Error('Failed to create client');
 
       // Create service config using the ID returned directly from the insert
-      await supabase.from('wl_client_service_config').insert({
+      const { error: configError } = await supabase.from('wl_client_service_config').insert({
         partner_id: partnerId,
         wl_client_id: inserted.id,
         service_type: newClient.service_type,
         language_support: newClient.language_support,
       });
 
-      toast({ title: "Client Added", description: "New client has been successfully added." });
+      if (configError) {
+        console.error("Error creating service config:", configError);
+        toast({ title: "Client added", description: "Client created but service config setup failed. Contact support.", variant: "destructive" });
+      } else {
+        toast({ title: "Client Added", description: "New client has been successfully added." });
+      }
       setIsAddDialogOpen(false);
       setNewClient({ client_name: "", contact_name: "", email: "", phone: "", service_type: "virtual_receptionist", language_support: "english_only", monthly_value: "" });
       fetchPartnerAndClients();
@@ -115,10 +120,14 @@ export default function WhiteLabelClients() {
 
   const updateClientStatus = async (id: string, status: string) => {
     try {
-      await supabase.from('white_label_clients').update({ status }).eq('id', id);
+      const { error } = await supabase.from('white_label_clients').update({ status }).eq('id', id);
+      if (error) throw error;
       setClients(prev => prev.map(c => (c.id === id ? { ...c, status } : c)));
       toast({ title: "Status Updated" });
-    } catch (error) { console.error(error); }
+    } catch (error) {
+      console.error(error);
+      toast({ title: "Error", description: "Failed to update client status.", variant: "destructive" });
+    }
   };
 
   const filtered = clients.filter(c =>

@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import { PartnerWelcomeModal } from '@/components/white-label/PartnerWelcomeModal';
 import { motion } from "framer-motion";
-import { 
-  Users, 
-  DollarSign, 
-  TrendingUp, 
+import {
+  Users,
+  DollarSign,
+  TrendingUp,
   Headphones,
   ArrowUpRight,
-  Plus
+  Plus,
+  CheckCircle2,
+  Circle
 } from "lucide-react";
 import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,12 +26,14 @@ import { WLPartnerNudgesCard } from "@/components/white-label/WLPartnerNudgesCar
 import { WLPartnerActivationCard } from "@/components/white-label/WLPartnerActivationCard";
 import { WLPartnerEconomicsCard } from "@/components/white-label/WLPartnerEconomicsCard";
 import { WLPartnerExpansionCard } from "@/components/white-label/WLPartnerExpansionCard";
+import { cn } from "@/lib/utils";
 
 interface StatsData {
   totalClients: number;
   activeClients: number;
   monthlyRevenue: number;
   revenueGrowth: number;
+  newClientsThisMonth: number;
 }
 
 export default function WhiteLabelDashboard() {
@@ -38,10 +42,12 @@ export default function WhiteLabelDashboard() {
     totalClients: 0,
     activeClients: 0,
     monthlyRevenue: 0,
-    revenueGrowth: 0
+    revenueGrowth: 0,
+    newClientsThisMonth: 0
   });
   const [isLoading, setIsLoading] = useState(true);
   const [partnerData, setPartnerData] = useState<any>(null);
+  const [brandingData, setBrandingData] = useState<{ primary_color: string | null; logo_url: string | null } | null>(null);
 
   useEffect(() => {
     fetchPartnerData();
@@ -60,6 +66,14 @@ export default function WhiteLabelDashboard() {
 
       if (partner) {
         setPartnerData(partner);
+
+        // Fetch branding profile
+        const { data: branding } = await supabase
+          .from('tenant_brand_profiles')
+          .select('primary_color, logo_url')
+          .eq('wl_partner_id', partner.id)
+          .maybeSingle();
+        setBrandingData(branding);
 
         // Fetch clients count
         const { data: clients } = await supabase
@@ -93,6 +107,7 @@ export default function WhiteLabelDashboard() {
             activeClients: activeCount,
             monthlyRevenue: totalRevenue,
             revenueGrowth: growth,
+            newClientsThisMonth: thisMonthClients.length,
           });
         }
       }
@@ -107,7 +122,10 @@ export default function WhiteLabelDashboard() {
     {
       title: "Total Clients",
       value: stats.totalClients,
-      change: "+2 this month",
+      change: stats.newClientsThisMonth > 0
+        ? `+${stats.newClientsThisMonth} this month`
+        : "No new clients this month",
+      changeColor: stats.newClientsThisMonth > 0 ? "text-green-600 dark:text-green-400" : undefined,
       icon: Users,
       color: "primary"
     },
@@ -171,7 +189,7 @@ export default function WhiteLabelDashboard() {
                     <div>
                       <p className="text-sm text-muted-foreground mb-1">{stat.title}</p>
                       <p className="text-2xl font-bold text-heading">{stat.value}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{stat.change}</p>
+                      <p className={cn("text-xs mt-1", stat.changeColor ?? "text-muted-foreground")}>{stat.change}</p>
                     </div>
                     <div className={`w-10 h-10 rounded-lg bg-${stat.color}/10 flex items-center justify-center`}>
                       <stat.icon className={`w-5 h-5 text-${stat.color}`} />
@@ -276,30 +294,24 @@ export default function WhiteLabelDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full bg-cta flex items-center justify-center">
-                    <span className="text-white text-xs">✓</span>
+                {[
+                  { label: "Submit application", complete: true },
+                  { label: "Set up your branding", complete: !!(brandingData?.primary_color || brandingData?.logo_url) },
+                  { label: "Add your first client", complete: stats.totalClients > 0 },
+                  { label: "Configure payment method", complete: false, note: " (contact support)" },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center gap-3">
+                    {item.complete ? (
+                      <CheckCircle2 className="w-5 h-5 text-cta shrink-0" />
+                    ) : (
+                      <Circle className="w-5 h-5 text-muted-foreground shrink-0" />
+                    )}
+                    <span className={item.complete ? "text-muted-foreground line-through" : ""}>
+                      {item.label}
+                      {item.note}
+                    </span>
                   </div>
-                  <span className="text-muted-foreground line-through">Submit application</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
-                    <span className="text-muted-foreground text-xs">2</span>
-                  </div>
-                  <span>Set up your branding</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
-                    <span className="text-muted-foreground text-xs">3</span>
-                  </div>
-                  <span>Add your first client</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
-                    <span className="text-muted-foreground text-xs">4</span>
-                  </div>
-                  <span>Configure payment method</span>
-                </div>
+                ))}
               </div>
             </CardContent>
           </Card>
