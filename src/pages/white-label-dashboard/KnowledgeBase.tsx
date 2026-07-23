@@ -91,28 +91,44 @@ export default function WLKnowledgeBase() {
     };
     try {
       if (editingArticle) {
-        await supabase.from("wl_knowledge_base").update(payload).eq("id", editingArticle.id);
+        const { error } = await supabase.from("wl_knowledge_base").update(payload).eq("id", editingArticle.id);
+        if (error) {
+          toast({ title: "Save failed", description: "Could not save the article. Please try again.", variant: "destructive" });
+          return;
+        }
       } else {
-        await supabase.from("wl_knowledge_base").insert({ partner_id: partnerId, ...payload });
+        const { error } = await supabase.from("wl_knowledge_base").insert({ partner_id: partnerId, ...payload });
+        if (error) {
+          toast({ title: "Save failed", description: "Could not save the article. Please try again.", variant: "destructive" });
+          return;
+        }
       }
       toast({ title: editingArticle ? "Article Updated" : "Article Created" });
       setIsEditorOpen(false);
       fetchData();
     } catch (err) {
-      toast({ title: "Error", variant: "destructive" });
+      console.error("Error saving article:", err);
+      toast({ title: "Save failed", description: "Could not save the article. Please try again.", variant: "destructive" });
     }
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from("wl_knowledge_base").delete().eq("id", id);
-    toast({ title: "Article Deleted" });
-    fetchData();
+    try {
+      const { error } = await supabase.from("wl_knowledge_base").delete().eq("id", id);
+      if (error) throw error;
+      toast({ title: "Article Deleted" });
+      fetchData();
+    } catch (err) {
+      console.error("Error deleting article:", err);
+      toast({ title: "Delete failed", description: "Could not delete the article. Please try again.", variant: "destructive" });
+    }
   };
 
   const filtered = articles.filter(a => {
     const matchesText =
       a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.content.toLowerCase().includes(searchQuery.toLowerCase());
+      a.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (a.category && a.category.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesAudience =
       audienceFilter === "all" ||
       (a.audience || "internal") === audienceFilter;

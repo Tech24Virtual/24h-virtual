@@ -78,7 +78,10 @@ export default function WLCampaigns() {
   };
 
   const toggleActive = async (id: string, currentActive: boolean) => {
-    await supabase.from("wl_client_campaigns").update({ is_active: !currentActive }).eq("id", id);
+    const { error } = await supabase.from("wl_client_campaigns").update({ is_active: !currentActive }).eq("id", id);
+    if (error) {
+      toast({ title: "Error", description: "Failed to update campaign status.", variant: "destructive" });
+    }
     fetchData();
   };
 

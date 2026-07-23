@@ -39,14 +39,16 @@ export default function WLAgreements() {
   const handleSign = async (agreementId: string) => {
     if (!user) return;
     try {
-      await supabase.from("wl_terms_agreements").update({
+      const { error } = await supabase.from("wl_terms_agreements").update({
         signed_at: new Date().toISOString(),
         signed_by: user.id,
       }).eq("id", agreementId);
+      if (error) throw error;
       toast({ title: "Agreement Signed", description: "Thank you for signing the agreement." });
       fetchData();
     } catch (err) {
-      toast({ title: "Error", variant: "destructive" });
+      console.error("Error signing agreement:", err);
+      toast({ title: "Signing failed", description: "Your signature could not be saved. Please try again or contact support.", variant: "destructive" });
     }
   };
 

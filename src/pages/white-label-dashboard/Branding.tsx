@@ -160,7 +160,7 @@ export default function WhiteLabelBranding() {
     setBranding(prev => ({ ...prev, [field]: value }));
   };
 
-  const cnameTarget = partnerId ? `portal-${partnerId}.virtual-rep.lovable.app` : '';
+  const cnameTarget = partnerId ? `portal-${partnerId}.${import.meta.env.VITE_CNAME_TARGET || 'app.24hvirtual.com'}` : '';
 
   const cnameStatusBadge = () => {
     switch (branding.cname_status) {
