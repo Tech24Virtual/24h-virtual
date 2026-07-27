@@ -16,11 +16,13 @@ import {
   Mail
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 
 export default function GrowthHub() {
   const { user } = useAuth();
+  const { toast } = useToast();
 
   const { data: partner } = useQuery({
     queryKey: ["wl-partner", user?.id],
@@ -48,19 +50,49 @@ export default function GrowthHub() {
         supabase.from("wl_email_sends").select("id", { count: "exact", head: true }).eq("partner_id", partner!.id).eq("status", "sent"),
       ]);
 
-      const blogItems = blogRes.data || [];
-      const keywords = keywordRes.data || [];
+      const { data: blogData, error: blogError } = blogRes;
+      const { data: keywordData, error: keywordError } = keywordRes;
+      const { data: wpData, error: wpError } = wpRes;
+      const { count: snippetsCountRaw, error: snippetsError } = snippetsRes;
+      const { count: reportsCountRaw, error: reportsError } = reportsRes;
+      const { count: newsletterCountRaw, error: newsletterError } = newsletterRes;
+      const { count: emailSendsCountRaw, error: emailSendsError } = emailSendsRes;
+
+      const errors = [
+        blogError,
+        keywordError,
+        wpError,
+        snippetsError,
+        reportsError,
+        newsletterError,
+        emailSendsError,
+      ].filter(Boolean);
+
+      if (errors.length > 0) {
+        console.error("[GrowthHub] query errors:", errors);
+      }
+
+      if (errors.length === 7) {
+        toast({
+          title: "Some data could not be loaded",
+          description: "Check your permissions or contact support.",
+          variant: "destructive",
+        });
+      }
+
+      const blogItems = blogData ?? [];
+      const keywords = keywordData ?? [];
 
       return {
         totalPosts: blogItems.length,
         publishedPosts: blogItems.filter(b => b.status === "published").length,
         totalKeywords: keywords.length,
         coveredKeywords: keywords.filter(k => k.content_status !== "not_started").length,
-        wpConnected: wpRes.data?.status === "connected",
-        snippetsCount: snippetsRes.count ?? 0,
-        reportsCount: reportsRes.count ?? 0,
-        newsletterCount: newsletterRes.count ?? 0,
-        emailSendsCount: emailSendsRes.count ?? 0,
+        wpConnected: wpData?.status === "connected",
+        snippetsCount: snippetsCountRaw ?? 0,
+        reportsCount: reportsCountRaw ?? 0,
+        newsletterCount: newsletterCountRaw ?? 0,
+        emailSendsCount: emailSendsCountRaw ?? 0,
       };
     },
     enabled: !!partner?.id,

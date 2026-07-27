@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Users } from "lucide-react";
+import { Plus, Users, Trash2 } from "lucide-react";
 import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -119,6 +119,40 @@ export default function WLTeam() {
 
   const displayEmail = (member: Member) => member.invited_email ?? `user:${member.user_id?.slice(0, 8)}`;
 
+  const handleChangeRole = async (memberId: string, newRole: string) => {
+    try {
+      const { error } = await supabase
+        .from('wl_partner_members')
+        .update({ role: newRole })
+        .eq('id', memberId);
+
+      if (error) throw error;
+
+      toast({ title: "Role updated" });
+      fetchPartnerAndMembers();
+    } catch (error) {
+      console.error("Error updating role:", error);
+      toast({ title: "Error", description: "Failed to update role.", variant: "destructive" });
+    }
+  };
+
+  const handleRemoveMember = async (memberId: string) => {
+    try {
+      const { error } = await supabase
+        .from('wl_partner_members')
+        .delete()
+        .eq('id', memberId);
+
+      if (error) throw error;
+
+      toast({ title: "Member removed", description: "Team member has been removed." });
+      fetchPartnerAndMembers();
+    } catch (error) {
+      console.error("Error removing member:", error);
+      toast({ title: "Error", description: "Failed to remove member.", variant: "destructive" });
+    }
+  };
+
   return (
     <WhiteLabelLayout>
       <div className="space-y-6">
@@ -194,27 +228,54 @@ export default function WLTeam() {
                       <TableHead>Role</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Invited</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {members.map(member => (
-                      <TableRow key={member.id}>
-                        <TableCell className="font-medium">{displayEmail(member)}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className={roleColors[member.role] ?? ''}>
-                            {member.role}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className={statusColors[member.status] ?? ''}>
-                            {member.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-sm">
-                          {format(new Date(member.invited_at), 'MMM d, yyyy')}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {members.map(member => {
+                      const isSelf = !!user && member.user_id === user.id;
+                      return (
+                        <TableRow key={member.id}>
+                          <TableCell className="font-medium">{displayEmail(member)}</TableCell>
+                          <TableCell>
+                            {isSelf ? (
+                              <Badge variant="secondary" className={roleColors[member.role] ?? ''}>
+                                {member.role}
+                              </Badge>
+                            ) : (
+                              <Select value={member.role} onValueChange={value => handleChangeRole(member.id, value)}>
+                                <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="owner">Owner</SelectItem>
+                                  <SelectItem value="manager">Manager</SelectItem>
+                                  <SelectItem value="agent">Agent</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className={statusColors[member.status] ?? ''}>
+                              {member.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">
+                            {format(new Date(member.invited_at), 'MMM d, yyyy')}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {!isSelf && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => handleRemoveMember(member.id)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

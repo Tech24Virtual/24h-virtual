@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { FileText, CheckCircle, Clock } from "lucide-react";
+import { FileText, CheckCircle, Clock, Download } from "lucide-react";
+import jsPDF from "jspdf";
 import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,44 @@ export default function WLAgreements() {
       console.error("Error signing agreement:", err);
       toast({ title: "Signing failed", description: "Your signature could not be saved. Please try again or contact support.", variant: "destructive" });
     }
+  };
+
+  const handleDownloadPDF = (agreement: any) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 15;
+    let y = 20;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text(`Agreement v${agreement.agreement_version}`, margin, y);
+    y += 10;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.text(`Version: ${agreement.agreement_version}`, margin, y);
+    y += 7;
+    doc.text(
+      `Signed: ${agreement.signed_at ? format(new Date(agreement.signed_at), "MMMM d, yyyy") : "Not signed"}`,
+      margin,
+      y
+    );
+    y += 10;
+
+    doc.setFontSize(10);
+    const lines: string[] = doc.splitTextToSize(agreement.agreement_content || "", pageWidth - margin * 2);
+    const lineHeight = 6;
+    for (const line of lines) {
+      if (y > pageHeight - margin) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.text(line, margin, y);
+      y += lineHeight;
+    }
+
+    doc.save(`agreement-${agreement.agreement_version}.pdf`);
   };
 
   const currentAgreement = agreements.find(a => a.is_current);
@@ -123,6 +162,12 @@ export default function WLAgreements() {
                     <Button variant="outline" onClick={() => setViewingAgreement(currentAgreement)}>
                       View Full Agreement
                     </Button>
+                    {currentAgreement.signed_at && (
+                      <Button variant="outline" onClick={() => handleDownloadPDF(currentAgreement)}>
+                        <Download className="w-4 h-4 mr-2" />
+                        Download PDF
+                      </Button>
+                    )}
                     {!currentAgreement.signed_at && (
                       <Button onClick={() => handleSign(currentAgreement.id)}>
                         Sign Agreement
@@ -149,7 +194,15 @@ export default function WLAgreements() {
                             {a.signed_at ? `Signed ${format(new Date(a.signed_at), "MMM d, yyyy")}` : "Not signed"}
                           </p>
                         </div>
-                        <Button variant="ghost" size="sm" onClick={() => setViewingAgreement(a)}>View</Button>
+                        <div className="flex gap-2">
+                          <Button variant="ghost" size="sm" onClick={() => setViewingAgreement(a)}>View</Button>
+                          {a.signed_at && (
+                            <Button variant="ghost" size="sm" onClick={() => handleDownloadPDF(a)}>
+                              <Download className="w-4 h-4 mr-1" />
+                              PDF
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>

@@ -7,9 +7,16 @@ import { Progress } from "@/components/ui/progress";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { format, subMonths, startOfMonth } from "date-fns";
+
+const monthOptions = Array.from({ length: 6 }, (_, i) => {
+  const d = startOfMonth(subMonths(new Date(), i));
+  return { value: format(d, "yyyy-MM"), label: format(d, "MMMM yyyy") };
+});
 
 export default function WLUsageDashboard() {
   const { user } = useAuth();
@@ -19,10 +26,11 @@ export default function WLUsageDashboard() {
   const [pricing, setPricing] = useState<any>(null);
   const [trendData, setTrendData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
 
   useEffect(() => {
     if (user) fetchData();
-  }, [user]);
+  }, [user, selectedMonth]);
 
   const fetchData = async () => {
     if (!user) return;
@@ -32,8 +40,7 @@ export default function WLUsageDashboard() {
       if (!partner) return;
       setPartnerId(partner.id);
 
-      const now = new Date();
-      const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+      const periodStart = `${selectedMonth}-01`;
 
       const [summaryRes, usageRes, pricingRes, trendRes] = await Promise.all([
         supabase.from("wl_partner_usage_summary").select("*")
@@ -69,9 +76,21 @@ export default function WLUsageDashboard() {
   return (
     <WhiteLabelLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-heading">Usage & Billing</h1>
-          <p className="text-muted-foreground mt-1">Track minutes, costs, and volume discount progress</p>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-bold text-heading">Usage & Billing</h1>
+            <p className="text-muted-foreground mt-1">Track minutes, costs, and volume discount progress</p>
+          </div>
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {monthOptions.map(m => (
+                <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {isLoading ? (

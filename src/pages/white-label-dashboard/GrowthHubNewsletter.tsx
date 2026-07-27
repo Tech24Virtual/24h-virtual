@@ -27,6 +27,61 @@ function getMonthOptions() {
   return options;
 }
 
+function CopyButton({
+  text,
+  field,
+  label,
+  copiedField,
+  onCopy,
+}: {
+  text: string;
+  field: string;
+  label: string;
+  copiedField: string | null;
+  onCopy: (text: string, field: string) => void;
+}) {
+  return (
+    <Button variant="outline" size="sm" onClick={() => onCopy(text, field)}>
+      {copiedField === field ? <><Check className="w-3.5 h-3.5 mr-1" /> Copied</> : <><Copy className="w-3.5 h-3.5 mr-1" /> {label}</>}
+    </Button>
+  );
+}
+
+function SendViaEmailButton({ draft, partnerId }: { draft: any; partnerId?: string }) {
+  const sendMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("wl-send-newsletter", {
+        body: {
+          scope: "partner",
+          partner_id: partnerId,
+          newsletter_draft_id: draft.id,
+          subject: draft.subject_line,
+          html_content: draft.html_content,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(typeof data.error === 'string' ? data.error : data.error?.message ?? 'Unknown error');
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({ title: "Newsletter sent!", description: `Sent to ${data.sent} contacts.` });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Send failed", description: e.message, variant: "destructive" });
+    },
+  });
+
+  return (
+    <Button size="sm" onClick={() => sendMutation.mutate()} disabled={sendMutation.isPending}>
+      {sendMutation.isPending ? (
+        <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Sending...</>
+      ) : (
+        <><Send className="w-3.5 h-3.5 mr-1" /> Send via Email</>
+      )}
+    </Button>
+  );
+}
+
 export default function GrowthHubNewsletter() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -80,47 +135,6 @@ export default function GrowthHubNewsletter() {
     await navigator.clipboard.writeText(text);
     setCopiedField(field);
     setTimeout(() => setCopiedField(null), 2000);
-  };
-
-  const CopyButton = ({ text, field, label }: { text: string; field: string; label: string }) => (
-    <Button variant="outline" size="sm" onClick={() => copyText(text, field)}>
-      {copiedField === field ? <><Check className="w-3.5 h-3.5 mr-1" /> Copied</> : <><Copy className="w-3.5 h-3.5 mr-1" /> {label}</>}
-    </Button>
-  );
-
-  const SendViaEmailButton = ({ draft, partnerId }: { draft: any; partnerId?: string }) => {
-    const sendMutation = useMutation({
-      mutationFn: async () => {
-        const { data, error } = await supabase.functions.invoke("wl-send-newsletter", {
-          body: {
-            scope: "partner",
-            partner_id: partnerId,
-            newsletter_draft_id: draft.id,
-            subject: draft.subject_line,
-            html_content: draft.html_content,
-          },
-        });
-        if (error) throw error;
-        if (data?.error) throw new Error(typeof data.error === 'string' ? data.error : data.error?.message ?? 'Unknown error');
-        return data;
-      },
-      onSuccess: (data) => {
-        toast({ title: "Newsletter sent!", description: `Sent to ${data.sent} contacts.` });
-      },
-      onError: (e: Error) => {
-        toast({ title: "Send failed", description: e.message, variant: "destructive" });
-      },
-    });
-
-    return (
-      <Button size="sm" onClick={() => sendMutation.mutate()} disabled={sendMutation.isPending}>
-        {sendMutation.isPending ? (
-          <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Sending...</>
-        ) : (
-          <><Send className="w-3.5 h-3.5 mr-1" /> Send via Email</>
-        )}
-      </Button>
-    );
   };
 
   const latestDraft = drafts?.[0];
@@ -180,7 +194,7 @@ export default function GrowthHubNewsletter() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg">Subject Line</CardTitle>
-                  <CopyButton text={latestDraft.subject_line || ""} field="subject" label="Copy" />
+                  <CopyButton text={latestDraft.subject_line || ""} field="subject" label="Copy" copiedField={copiedField} onCopy={copyText} />
                 </div>
               </CardHeader>
               <CardContent>
@@ -227,8 +241,8 @@ export default function GrowthHubNewsletter() {
 
             {/* Copy & Send Actions */}
             <div className="flex gap-3">
-              <CopyButton text={latestDraft.html_content || ""} field="html" label="Copy HTML" />
-              <CopyButton text={latestDraft.plain_text || ""} field="plain" label="Copy Plain Text" />
+              <CopyButton text={latestDraft.html_content || ""} field="html" label="Copy HTML" copiedField={copiedField} onCopy={copyText} />
+              <CopyButton text={latestDraft.plain_text || ""} field="plain" label="Copy Plain Text" copiedField={copiedField} onCopy={copyText} />
               <SendViaEmailButton draft={latestDraft} partnerId={partner?.id} />
             </div>
 
@@ -247,7 +261,7 @@ export default function GrowthHubNewsletter() {
                           {new Date(draft.created_at).toLocaleDateString()}
                         </p>
                       </div>
-                      <CopyButton text={draft.html_content || ""} field={`html-${draft.id}`} label="Copy HTML" />
+                      <CopyButton text={draft.html_content || ""} field={`html-${draft.id}`} label="Copy HTML" copiedField={copiedField} onCopy={copyText} />
                     </div>
                   ))}
                 </CardContent>
