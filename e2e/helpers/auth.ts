@@ -12,8 +12,15 @@ export const TEST_USERS = {
 
 const PASSWORD = 'QATestPass123!';
 
+// wl_client-role users are blocked from the main /login page and must
+// authenticate through their partner's dedicated portal login route.
+const WL_PORTAL_LOGIN_ROLES: Partial<Record<keyof typeof TEST_USERS, string>> = {
+  wlClient1: '/portal/acme-corp/login',
+};
+
 export async function loginAs(page: Page, role: keyof typeof TEST_USERS) {
-  await page.goto('/login');
+  const loginUrl = WL_PORTAL_LOGIN_ROLES[role] ?? '/login';
+  await page.goto(loginUrl);
   await page.waitForLoadState('networkidle');
 
   await page.getByRole('textbox', { name: 'Email', exact: true }).fill(TEST_USERS[role]);
