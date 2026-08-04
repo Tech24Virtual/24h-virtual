@@ -35,12 +35,14 @@ function getRoleBasedRedirect(roles: string[], isAffiliate: boolean, isWhiteLabe
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [pendingRedirect, setPendingRedirect] = useState(false);
+  const [blockedError, setBlockedError] = useState<string | null>(null);
   const { signIn, roles, isAffiliate, isWhiteLabel, user, loading, rolesLoaded } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
   const hasRedirected = useRef(false);
+  const isBlockedRef = useRef(false);
 
   const {
     register,
@@ -61,34 +63,36 @@ export function LoginForm() {
     setPendingRedirect(false);
     setIsLoading(false);
 
+    if (roles.includes('wl_client')) {
+      isBlockedRef.current = true;
+      supabase.auth.signOut().then(() => {
+        setBlockedError('Invalid credentials. Contact your account manager if you need help.');
+      });
+      return;
+    }
+
+    if (isBlockedRef.current) return;
+
+    toast({
+      title: 'Welcome back!',
+      description: 'You have successfully logged in.',
+    });
+
     if (from) {
       navigate(from, { replace: true });
       return;
     }
 
-    if (roles.includes('wl_client')) {
-      supabase
-        .from('white_label_clients')
-        .select('client_portal_slug')
-        .eq('user_id', user.id)
-        .maybeSingle()
-        .then(({ data: clientRecord }) => {
-          const destination = clientRecord?.client_portal_slug
-            ? `/portal/${clientRecord.client_portal_slug}`
-            : '/client-dashboard';
-          navigate(destination, { replace: true });
-        });
-      return;
-    }
-
     navigate(getRoleBasedRedirect(roles, isAffiliate, isWhiteLabel), { replace: true });
-  }, [pendingRedirect, user, roles, loading, rolesLoaded, isAffiliate, isWhiteLabel, from, navigate]);
+  }, [pendingRedirect, user, roles, loading, rolesLoaded, isAffiliate, isWhiteLabel, from, navigate, toast]);
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
+    setBlockedError(null);
     hasRedirected.current = false;
+    isBlockedRef.current = false;
     const { error } = await signIn(data.email, data.password);
-    
+
     if (error) {
       toast({
         title: 'Login failed',
@@ -97,10 +101,6 @@ export function LoginForm() {
       });
       setIsLoading(false);
     } else {
-      toast({
-        title: 'Welcome back!',
-        description: 'You have successfully logged in.',
-      });
       setPendingRedirect(true);
     }
   };
@@ -114,6 +114,9 @@ export function LoginForm() {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {blockedError && (
+          <p className="mb-4 text-sm text-destructive text-center">{blockedError}</p>
+        )}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
