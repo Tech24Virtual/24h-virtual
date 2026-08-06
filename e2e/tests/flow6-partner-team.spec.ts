@@ -75,7 +75,7 @@ test.describe.serial('Flow 6 — Partner Team Management', () => {
         // Success toast — asserting on "Invite recorded" (fires immediately after the DB
         // insert) rather than "Invite sent" (only fires if the invite-user edge function
         // succeeds, which isn't guaranteed in CI/staging)
-        await expect(page.getByText('Invite recorded')).toBeVisible({ timeout: 10000 });
+        await expect(page.getByText('Invite recorded', { exact: true })).toBeVisible({ timeout: 10000 });
 
         // New member appears in table with pending status
         await expect(page.getByText(testEmail).first()).toBeVisible({ timeout: 10000 });
