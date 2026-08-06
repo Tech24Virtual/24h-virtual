@@ -27,7 +27,7 @@ export function WLPartnerExportsCard() {
   const [loading, setLoading] = useState(true);
 
   const refresh = async () => {
-    if (!partnerId) return;
+    if (!partnerId || typeof partnerId !== 'string') return;
     try {
       setLoading(true);
       setSnapshots(await listSnapshots({ type: "wl_partner_snapshot", partnerId, limit: 10 }));
@@ -38,10 +38,12 @@ export function WLPartnerExportsCard() {
     }
   };
 
-  useEffect(() => { refresh(); }, [partnerId]);
+  useEffect(() => {
+    if (partnerId && typeof partnerId === 'string') refresh();
+  }, [partnerId]);
 
   const handleGenerate = async () => {
-    if (!partnerId) return;
+    if (!partnerId || typeof partnerId !== 'string') return;
     try {
       setBusy(true);
       await generateWLPartnerSnapshot(partnerId);
@@ -72,7 +74,7 @@ export function WLPartnerExportsCard() {
     downloadFile(`partner_snapshot_${ts}.csv`, out.join("\n"), "text/csv");
   };
 
-  if (!partnerId) return null;
+  if (!partnerId || typeof partnerId !== 'string') return null;
 
   return (
     <Card>
