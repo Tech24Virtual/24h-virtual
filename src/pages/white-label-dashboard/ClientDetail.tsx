@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, CheckCircle2, Circle, ExternalLink } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Circle, ExternalLink, Star } from 'lucide-react';
 import { WhiteLabelLayout } from '@/components/white-label/WhiteLabelLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,9 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -187,6 +190,53 @@ export default function WLClientDetail() {
     },
   });
 
+  // Fetch outbound call requests submitted by this client
+  const { data: outboundRequests, isLoading: outboundLoading } = useQuery({
+    queryKey: ['wl-client-outbound', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('outbound_call_requests')
+        .select('id, contact_name, contact_phone, reason, urgency, status, created_at')
+        .eq('wl_client_id', id!)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
+  // Fetch reviews submitted for this client
+  const { data: clientReviews, isLoading: reviewsLoading } = useQuery({
+    queryKey: ['wl-client-reviews', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wl_client_reviews')
+        .select('id, reviewer_name, rating, title, content, is_public, created_at')
+        .eq('wl_client_id', id!)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
+  // Fetch business hours schedule for this client
+  const { data: clientSchedule, isLoading: scheduleLoading } = useQuery({
+    queryKey: ['wl-client-schedule', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wl_client_schedules')
+        .select('id, day_of_week, start_time, end_time, is_enabled')
+        .eq('wl_client_id', id!)
+        .order('day_of_week');
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
   const isLoading = clientLoading || configLoading || !partner;
 
   if (isLoading) {
@@ -257,6 +307,40 @@ export default function WLClientDetail() {
   const portalUrl = client.client_portal_slug
     ? `${window.location.origin}/c/${client.client_portal_slug}`
     : null;
+
+  const outboundStatusBadge = (status: string) => {
+    if (status === 'completed') {
+      return <Badge className="bg-cta/10 text-cta">Completed</Badge>;
+    }
+    if (status === 'cancelled') {
+      return <Badge variant="secondary">Cancelled</Badge>;
+    }
+    return (
+      <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+        {status === 'pending' ? 'Pending' : status}
+      </Badge>
+    );
+  };
+
+  const outboundUrgencyBadge = (urgency: string) => {
+    if (urgency === 'high') {
+      return <Badge variant="destructive">High</Badge>;
+    }
+    return <Badge variant="secondary">{urgency || 'Normal'}</Badge>;
+  };
+
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+  const reviewStars = (rating: number) => (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <Star
+          key={n}
+          className={`w-4 h-4 ${n <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`}
+        />
+      ))}
+    </div>
+  );
 
   return (
     <WhiteLabelLayout>
@@ -468,6 +552,139 @@ export default function WLClientDetail() {
                 </div>
               )}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Outbound call requests */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Outbound Call Requests</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {outboundLoading ? (
+              <Skeleton className="h-24 w-full" />
+            ) : !outboundRequests || outboundRequests.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No outbound call requests from this client yet.
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Reason</TableHead>
+                    <TableHead>Urgency</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Created</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {outboundRequests.map((req) => (
+                    <TableRow key={req.id}>
+                      <TableCell>{req.contact_name ?? '—'}</TableCell>
+                      <TableCell>{req.contact_phone ?? '—'}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">{req.reason ?? '—'}</TableCell>
+                      <TableCell>{outboundUrgencyBadge(req.urgency ?? '')}</TableCell>
+                      <TableCell>{outboundStatusBadge(req.status ?? '')}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {new Date(req.created_at).toLocaleDateString()}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Client reviews */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Client Reviews</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {reviewsLoading ? (
+              <Skeleton className="h-24 w-full" />
+            ) : !clientReviews || clientReviews.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No reviews from this client yet.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {clientReviews.map((review) => (
+                  <div key={review.id} className="py-3 border-b last:border-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          {reviewStars(review.rating)}
+                          {review.is_public ? (
+                            <Badge variant="secondary" className="text-xs">Public</Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">Private</Badge>
+                          )}
+                        </div>
+                        {review.title && (
+                          <p className="font-medium mt-1">{review.title}</p>
+                        )}
+                        <p className="text-sm text-muted-foreground mt-0.5">
+                          {review.reviewer_name || 'Anonymous'}
+                        </p>
+                      </div>
+                      <p className="text-xs text-muted-foreground shrink-0">
+                        {new Date(review.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    {review.content && (
+                      <p className="text-sm mt-2 line-clamp-2">{review.content}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Business hours */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Business Hours</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {scheduleLoading ? (
+              <Skeleton className="h-24 w-full" />
+            ) : !clientSchedule || clientSchedule.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No business hours set by this client yet.
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Day</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Start Time</TableHead>
+                    <TableHead>End Time</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {clientSchedule.map((s) => (
+                    <TableRow key={s.id}>
+                      <TableCell>{dayNames[s.day_of_week]}</TableCell>
+                      <TableCell>
+                        {s.is_enabled ? (
+                          <Badge className="bg-cta/10 text-cta">Enabled</Badge>
+                        ) : (
+                          <Badge variant="secondary">Disabled</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>{s.is_enabled ? (s.start_time ?? '—') : '—'}</TableCell>
+                      <TableCell>{s.is_enabled ? (s.end_time ?? '—') : '—'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
 

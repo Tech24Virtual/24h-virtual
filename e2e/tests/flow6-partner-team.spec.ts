@@ -1,7 +1,24 @@
 import { test, expect } from '@playwright/test';
 import { loginAs } from '../helpers/auth';
+import { createClient } from '@supabase/supabase-js';
+
+// ── Supabase service-role client (only available in test environment) ─────────
+// Used to clean up the pending invite row created by F6-04 without going
+// through the UI (same pattern as flow17-policy-acknowledgment.spec.ts).
+const SUPABASE_URL    = process.env.VITE_SUPABASE_URL    ?? process.env.SUPABASE_URL    ?? '';
+const SUPABASE_SK     = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+const serviceSupabase = SUPABASE_URL && SUPABASE_SK
+  ? createClient(SUPABASE_URL, SUPABASE_SK, { auth: { persistSession: false } })
+  : null;
 
 test.describe.serial('Flow 6 — Partner Team Management', () => {
+    // Set by F6-04 once it creates the pending invite, so afterAll can remove it.
+    let createdInviteEmail: string | null = null;
+
+    test.afterAll(async () => {
+        if (!serviceSupabase || !createdInviteEmail) return;
+        await serviceSupabase.from('wl_partner_members').delete().eq('invited_email', createdInviteEmail);
+    });
 
     test('F6-01: Team page shows existing members', async ({ page }) => {
         await loginAs(page, 'wlOwner');
@@ -56,6 +73,7 @@ test.describe.serial('Flow 6 — Partner Team Management', () => {
         await page.waitForTimeout(1000);
 
         const testEmail = `qa-flow6-${Date.now()}@example.com`;
+        createdInviteEmail = testEmail;
 
         await page.getByRole('button', { name: 'Invite Member' }).click();
         await page.waitForTimeout(300);
