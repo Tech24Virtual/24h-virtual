@@ -34,6 +34,7 @@ export function WLPortalMobileNav({ onClose }: WLPortalMobileNavProps) {
     { name: 'Call Logs', href: wlClientUrl(slug, 'calls'), icon: Phone, module: 'calls' },
     { name: 'Leads', href: wlClientUrl(slug, 'leads'), icon: Users, module: 'leads' },
     { name: 'Scripts', href: wlClientUrl(slug, 'scripts'), icon: FileText, module: 'scripts' },
+    { name: 'My Campaign', href: wlClientUrl(slug, 'script'), icon: Megaphone, module: 'scripts' },
     { name: 'Schedule', href: wlClientUrl(slug, 'schedule'), icon: Calendar, module: 'schedule' },
     { name: 'Outbound Calls', href: wlClientUrl(slug, 'outbound-requests'), icon: PhoneOutgoing, module: 'outbound-requests' },
     { name: 'Reviews', href: wlClientUrl(slug, 'reviews'), icon: Star, module: 'reviews' },

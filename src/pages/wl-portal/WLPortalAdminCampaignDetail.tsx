@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,11 +21,24 @@ import { wlClientUrl } from '@/lib/wlClientUrl';
  *
  * "Request edit from 24H" creates a script_change_requests row tagged with
  * the partner's user id so the 24H team can pick it up.
+ *
+ * Visible only to partner staff (app_role `white_label`) — clientInfo has no
+ * role field, so end-clients (role `wl_client`) are redirected back to the
+ * portal dashboard rather than relying on RLS alone.
  */
 export default function WLPortalAdminCampaignDetail() {
   const { slug, id } = useParams<{ slug: string; id: string }>();
   const { branding } = useWLPortal();
-  const { user } = useAuth();
+  const { user, isWhiteLabel, isAdmin } = useAuth();
+  const navigate = useNavigate();
+  const isAuthorized = isWhiteLabel || isAdmin;
+
+  useEffect(() => {
+    if (!isAuthorized) {
+      navigate(wlClientUrl(slug), { replace: true });
+    }
+  }, [isAuthorized, slug, navigate]);
+
   const { data: campaign, isLoading } = usePartnerCampaign(id);
   const departmentId = campaign?.department?.id ?? null;
   const { data: scenarios } = useMyClientCampaignScenarios(id);
@@ -54,6 +67,8 @@ export default function WLPortalAdminCampaignDetail() {
       setSubmitting(false);
     }
   };
+
+  if (!isAuthorized) return null;
 
   if (isLoading) {
     return (

@@ -20,7 +20,7 @@ import { usePageView } from '@/lib/analytics';
 
 export default function WLPortalDashboard() {
   usePageView('wl_portal_dashboard', 'wl_partner');
-  const { slug, clientInfo, branding, partnerId } = useWLPortal();
+  const { slug, clientInfo } = useWLPortal();
   const [stats, setStats] = useState({ callsThisMonth: 0, totalMinutes: 0, missedCalls: 0, activeScripts: 0 });
   const [recentCalls, setRecentCalls] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);

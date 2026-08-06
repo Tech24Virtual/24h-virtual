@@ -1,22 +1,38 @@
-import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, Loader2, Megaphone } from 'lucide-react';
 import { WLPortalLayout } from '@/components/wl-portal/WLPortalLayout';
 import { useWLPortal } from '@/contexts/WLPortalContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { usePartnerCampaigns } from '@/hooks/campaign-os/usePartnerCampaigns';
 import { wlClientUrl } from '@/lib/wlClientUrl';
 
 /**
  * WL Partner — Cross-client Campaign OS list.
  *
- * Visible only when the authenticated user owns the WL partner record (RLS
- * gates the row set). End-clients should never see this page.
+ * Visible only when the authenticated user owns the WL partner record. RLS
+ * gates the row set server-side, but clientInfo carries no role field to
+ * distinguish partner staff from end-clients, so this frontend guard checks
+ * the `white_label` app_role directly — end-clients (role `wl_client`) are
+ * redirected back to the portal dashboard.
  */
 export default function WLPortalAdminCampaigns() {
   const { slug, partnerId, branding } = useWLPortal();
+  const { isWhiteLabel, isAdmin } = useAuth();
+  const navigate = useNavigate();
+  const isAuthorized = isWhiteLabel || isAdmin;
   const { data: groups, isLoading } = usePartnerCampaigns(partnerId);
+
+  useEffect(() => {
+    if (!isAuthorized) {
+      navigate(wlClientUrl(slug), { replace: true });
+    }
+  }, [isAuthorized, slug, navigate]);
+
+  if (!isAuthorized) return null;
 
   return (
     <WLPortalLayout
