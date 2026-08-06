@@ -23,19 +23,22 @@
     <meta name="twitter:image" content="" />
     <meta name="twitter:description" content="" />
 
-    <script>
-      if (window.location.pathname.startsWith('/portal/')) {
-        var link = document.querySelector("link[rel='icon']") || document.createElement('link');
-        link.rel = 'icon';
-        link.href = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
-        document.head.appendChild(link);
-      }
-    </script>
-    <link rel="icon" href="/favicon.png" type="image/png" />
     <link rel="canonical" href="" />
 
     <!-- Google Search Console verification (replace token at launch) -->
     <meta name="google-site-verification" content="REPLACE_ME_GSC_TOKEN" />
+
+    <script>
+      var link = document.createElement('link');
+      link.rel = 'icon';
+      link.type = 'image/png';
+      if (window.location.pathname.startsWith('/portal/')) {
+        link.href = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+      } else {
+        link.href = '/favicon.png';
+      }
+      document.head.appendChild(link);
+    </script>
 </head>
 
   <body>
