@@ -33,6 +33,7 @@ interface WLClientInfo {
   phone: string | null;
   status: string | null;
   enabled_modules: WLModuleSlug[];
+  welcome_seen: boolean | null;
 }
 
 interface WLPortalContextType {
@@ -169,7 +170,7 @@ export function WLPortalProvider({ children, partnerIdOverride }: WLPortalProvid
     try {
       const { data } = await supabase
         .from('white_label_clients')
-        .select('id, partner_id, client_name, contact_name, email, phone, status, enabled_modules')
+        .select('id, partner_id, client_name, contact_name, email, phone, status, enabled_modules, welcome_seen')
         .eq('user_id', user.id)
         .eq('partner_id', partnerId)
         .single();

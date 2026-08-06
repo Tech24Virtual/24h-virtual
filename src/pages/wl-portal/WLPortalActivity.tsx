@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Phone, FileText, CreditCard, MessageSquare, PhoneOutgoing, Activity as ActivityIcon } from 'lucide-react';
+import { Phone, FileText, MessageSquare, PhoneOutgoing, Activity as ActivityIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { WLPortalLayout } from '@/components/wl-portal/WLPortalLayout';
@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-type ActivityKind = 'call' | 'script' | 'invoice' | 'ticket' | 'outbound';
+type ActivityKind = 'call' | 'script' | 'ticket' | 'outbound';
 
 interface ActivityItem {
   id: string;
@@ -22,7 +22,6 @@ interface ActivityItem {
 const META: Record<ActivityKind, { icon: typeof Phone; bg: string; color: string; label: string }> = {
   call: { icon: Phone, bg: 'bg-primary/10', color: 'text-primary', label: 'Call' },
   script: { icon: FileText, bg: 'bg-secondary/10', color: 'text-secondary', label: 'Script' },
-  invoice: { icon: CreditCard, bg: 'bg-cta/10', color: 'text-cta', label: 'Billing' },
   ticket: { icon: MessageSquare, bg: 'bg-brand-rose', color: 'text-heading', label: 'Support' },
   outbound: { icon: PhoneOutgoing, bg: 'bg-primary/10', color: 'text-primary', label: 'Outbound' },
 };
@@ -40,11 +39,9 @@ export default function WLPortalActivity() {
         .eq('wl_client_id', clientInfo.id).order('created_at', { ascending: false }).limit(25);
       const scriptsP = (supabase as any).from('wl_client_scripts').select('id, title, updated_at, is_active')
         .eq('wl_client_id', clientInfo.id).order('updated_at', { ascending: false }).limit(15);
-      const invoicesP = (supabase as any).from('wl_invoices').select('id, amount_cents, currency, status, created_at, invoice_number')
-        .eq('wl_client_id', clientInfo.id).order('created_at', { ascending: false }).limit(15);
       const ticketsP = (supabase as any).from('wl_client_tickets').select('id, subject, status, created_at')
         .eq('wl_client_id', clientInfo.id).order('created_at', { ascending: false }).limit(15);
-      const [calls, scripts, invoices, tickets] = await Promise.all([callsP, scriptsP, invoicesP, ticketsP]);
+      const [calls, scripts, tickets] = await Promise.all([callsP, scriptsP, ticketsP]);
 
       const merged: ActivityItem[] = [];
       (calls.data || []).forEach((c: any) => merged.push({
@@ -56,12 +53,6 @@ export default function WLPortalActivity() {
         id: `script-${s.id}`, kind: 'script', at: s.updated_at,
         title: `Script updated: ${s.title}`,
         badge: s.is_active ? 'active' : 'inactive',
-      }));
-      (invoices.data || []).forEach((i: any) => merged.push({
-        id: `invoice-${i.id}`, kind: 'invoice', at: i.created_at,
-        title: `Invoice ${i.invoice_number || ''}`.trim(),
-        description: `${((i.amount_cents ?? 0) / 100).toFixed(2)} ${i.currency || 'USD'}`,
-        badge: i.status,
       }));
       (tickets.data || []).forEach((t: any) => merged.push({
         id: `ticket-${t.id}`, kind: 'ticket', at: t.created_at,
@@ -86,7 +77,7 @@ export default function WLPortalActivity() {
             <div className="text-center py-12 text-muted-foreground">
               <ActivityIcon className="w-16 h-16 mx-auto mb-4 opacity-30" />
               <h3 className="text-lg font-medium text-heading mb-2">No activity yet</h3>
-              <p className="text-sm">Calls, scripts, invoices, and tickets will appear here.</p>
+              <p className="text-sm">Calls, scripts, and tickets will appear here.</p>
             </div>
           ) : (
             <div className="space-y-3">
