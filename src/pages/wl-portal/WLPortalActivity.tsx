@@ -38,7 +38,7 @@ export default function WLPortalActivity() {
       setLoading(true);
       const callsP = (supabase as any).from('wl_call_logs').select('id, caller_name, caller_phone, status, created_at')
         .eq('wl_client_id', clientInfo.id).order('created_at', { ascending: false }).limit(25);
-      const scriptsP = (supabase as any).from('wl_client_scripts').select('id, name, updated_at, is_active')
+      const scriptsP = (supabase as any).from('wl_client_scripts').select('id, title, updated_at, is_active')
         .eq('wl_client_id', clientInfo.id).order('updated_at', { ascending: false }).limit(15);
       const invoicesP = (supabase as any).from('wl_invoices').select('id, amount_cents, currency, status, created_at, invoice_number')
         .eq('wl_client_id', clientInfo.id).order('created_at', { ascending: false }).limit(15);
@@ -54,13 +54,13 @@ export default function WLPortalActivity() {
       }));
       (scripts.data || []).forEach((s: any) => merged.push({
         id: `script-${s.id}`, kind: 'script', at: s.updated_at,
-        title: `Script updated: ${s.name}`,
+        title: `Script updated: ${s.title}`,
         badge: s.is_active ? 'active' : 'inactive',
       }));
       (invoices.data || []).forEach((i: any) => merged.push({
         id: `invoice-${i.id}`, kind: 'invoice', at: i.created_at,
         title: `Invoice ${i.invoice_number || ''}`.trim(),
-        description: `${(i.amount_cents / 100).toFixed(2)} ${i.currency || 'USD'}`,
+        description: `${((i.amount_cents ?? 0) / 100).toFixed(2)} ${i.currency || 'USD'}`,
         badge: i.status,
       }));
       (tickets.data || []).forEach((t: any) => merged.push({

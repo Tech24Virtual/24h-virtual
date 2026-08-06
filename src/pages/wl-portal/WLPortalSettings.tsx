@@ -101,7 +101,13 @@ export default function WLPortalSettings() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Button variant="outline" className="w-full">Change Password</Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => toast('To change your password, contact your portal administrator.')}
+            >
+              Change Password
+            </Button>
           </CardContent>
         </Card>
       </div>

@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { WLPortalLayout } from '@/components/wl-portal/WLPortalLayout';
 import { useWLPortal } from '@/contexts/WLPortalContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -53,7 +54,7 @@ export default function WLPortalReviews() {
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const [form, setForm] = useState({ reviewer_name: '', reviewer_email: '', rating: 5, title: '', content: '' });
+  const [form, setForm] = useState({ reviewer_name: '', reviewer_email: '', rating: 5, title: '', content: '', is_public: true });
 
   const load = async () => {
     if (!clientInfo) return;
@@ -81,6 +82,7 @@ export default function WLPortalReviews() {
       title: form.title || null,
       content: form.content || null,
       source: 'portal',
+      is_public: form.is_public,
     });
     setSubmitting(false);
     if (error) {
@@ -88,7 +90,7 @@ export default function WLPortalReviews() {
       return;
     }
     toast({ title: 'Review submitted', description: 'Thanks for the feedback.' });
-    setForm({ reviewer_name: '', reviewer_email: '', rating: 5, title: '', content: '' });
+    setForm({ reviewer_name: '', reviewer_email: '', rating: 5, title: '', content: '', is_public: true });
     setOpen(false);
     load();
   };
@@ -189,6 +191,14 @@ export default function WLPortalReviews() {
             <div>
               <Label htmlFor="rc">Feedback</Label>
               <Textarea id="rc" rows={4} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                id="isPublic"
+                checked={form.is_public}
+                onCheckedChange={(v) => setForm({ ...form, is_public: v })}
+              />
+              <Label htmlFor="isPublic" className="cursor-pointer">Make this review public</Label>
             </div>
           </div>
           <DialogFooter>

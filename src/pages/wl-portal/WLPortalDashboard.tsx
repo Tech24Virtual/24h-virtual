@@ -49,7 +49,7 @@ export default function WLPortalDashboard() {
         ]);
 
         const calls = callsData.data || [];
-        const totalMinutes = calls.reduce((sum: number, c: any) => sum + (c.call_duration || 0), 0) / 60;
+        const totalMinutes = calls.reduce((sum: number, c: any) => sum + (c.handle_time_seconds || 0), 0) / 60;
 
         setStats({
           callsThisMonth: calls.length,
