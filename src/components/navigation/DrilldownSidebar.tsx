@@ -38,6 +38,7 @@ function BrandHeader({
   compact = false,
   logoSrc = logoBlue,
   logoAlt = '24H Virtual',
+  logoHref = '/',
   badge,
   tag,
   suppressDefaultLogo = false,
@@ -46,6 +47,7 @@ function BrandHeader({
   compact?: boolean;
   logoSrc?: string;
   logoAlt?: string;
+  logoHref?: string;
   badge?: ReactNode;
   tag?: string;
   suppressDefaultLogo?: boolean;
@@ -68,7 +70,7 @@ function BrandHeader({
         )} />
       ) : (
         <>
-          <Link to="/" className="flex min-w-0 items-center gap-2">
+          <Link to={logoHref} className="flex min-w-0 items-center gap-2">
             {compact && resolvedLogoSrc && (
               <img
                 src={resolvedLogoSrc}
@@ -174,7 +176,7 @@ export function DrilldownSidebar({
     const Icon = activeGroup.icon;
     return (
       <aside className="hidden lg:flex w-60 flex-col bg-card border-r h-screen sticky top-0">
-        <BrandHeader logoSrc={logoSrc} logoAlt={logoAlt} badge={logoBadge} tag={brandTag} suppressDefaultLogo={suppressDefaultLogo} logoLoading={logoLoading} />
+        <BrandHeader logoSrc={logoSrc} logoAlt={logoAlt} logoHref={rootPath} badge={logoBadge} tag={brandTag} suppressDefaultLogo={suppressDefaultLogo} logoLoading={logoLoading} />
 
         {backLink && (
           <div className="px-4 pt-3 pb-1 shrink-0">
@@ -250,7 +252,7 @@ export function DrilldownSidebar({
         'w-14 hover:w-56 transition-[width] duration-200 ease-out'
       )}
     >
-      <BrandHeader compact logoSrc={logoSrc} logoAlt={logoAlt} badge={logoBadge} tag={brandTag} suppressDefaultLogo={suppressDefaultLogo} logoLoading={logoLoading} />
+      <BrandHeader compact logoSrc={logoSrc} logoAlt={logoAlt} logoHref={rootPath} badge={logoBadge} tag={brandTag} suppressDefaultLogo={suppressDefaultLogo} logoLoading={logoLoading} />
 
       {backLink && (
         <div className="px-2 pt-2 pb-1 shrink-0 overflow-hidden">
