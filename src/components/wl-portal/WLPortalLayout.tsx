@@ -20,10 +20,12 @@ export function WLPortalLayout({ children, title, description }: WLPortalLayoutP
 
   return (
     <div className="min-h-screen bg-background flex" style={branding?.font_body ? { fontFamily: `'${branding.font_body}', sans-serif` } : undefined}>
-      <Helmet>
-        <title>{portalName}</title>
-        <meta property="og:title" content={portalName} />
-      </Helmet>
+      {branding && (
+        <Helmet>
+          <title>{portalName}</title>
+          <meta property="og:title" content={portalName} />
+        </Helmet>
+      )}
       <WLPortalSidebar />
       <div className="flex-1 flex flex-col">
         <WLPortalHeader />
