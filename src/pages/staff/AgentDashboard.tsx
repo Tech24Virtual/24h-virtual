@@ -5,7 +5,7 @@ import {
   Play, Square,
   Users, MessageSquare, ClipboardList,
   Layers, Search, CalendarDays, FileText,
-  ChevronRight, Bell, Building2, ArrowRight, Send,
+  ChevronRight, Bell, Building2, ArrowRight, Send, PhoneCall,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -54,6 +54,21 @@ interface RecentNotification {
   created_at: string | null;
   is_read: boolean | null;
   action_url: string | null;
+}
+
+interface Five9AgentState {
+  state: string;
+  calls_handled: number;
+  time_in_state: number; // seconds
+}
+
+function five9StateBadgeClasses(state: string): string {
+  const s = state.toLowerCase();
+  if (s.includes('available')) return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+  if (s.includes('call')) return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
+  if (s.includes('not ready') || s.includes('notready')) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
+  if (s.includes('logged out') || s.includes('loggedout') || s.includes('offline')) return 'bg-muted text-muted-foreground';
+  return 'bg-muted text-muted-foreground';
 }
 
 /** HH:MM:SS elapsed display for the clocked-in card */
@@ -259,6 +274,58 @@ export default function AgentDashboard() {
     },
   });
 
+  // ── Five9 username (same pattern as AgentCallLogs.tsx) ────────────────────
+  const { data: onboarding } = useQuery({
+    queryKey: ['agent-onboarding-username', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('agent_onboarding')
+        .select('five9_username')
+        .eq('applicant_user_id', user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+    staleTime: 5 * 60_000,
+  });
+  const five9Username = onboarding?.five9_username ?? null;
+
+  // ── Five9 live ACD status (same fetch pattern as useFive9CampaignMapping.ts) ─
+  const { data: five9AgentState, isError: five9StateError, isLoading: five9StateLoading } = useQuery<Five9AgentState | null>({
+    queryKey: ['five9-agent-state', five9Username],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const authToken = session?.access_token;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+      let res: Response;
+      try {
+        res = await fetch(
+          `${supabaseUrl}/functions/v1/five9-proxy?action=getAgentState&username=${encodeURIComponent(five9Username!)}`,
+          {
+            headers: {
+              apikey: anonKey,
+              Authorization: `Bearer ${authToken}`,
+            },
+            signal: AbortSignal.timeout(10_000),
+          }
+        );
+      } catch (e: any) {
+        if (e?.name === 'TimeoutError' || e?.name === 'AbortError') {
+          throw new Error('Five9 API timed out — check Five9 connectivity');
+        }
+        throw e;
+      }
+      if (!res.ok) throw new Error('Five9 API unavailable');
+      const json = await res.json();
+      return json.data as Five9AgentState;
+    },
+    enabled: !!five9Username && !!activeShift,
+    refetchInterval: 30_000,
+    retry: 1,
+  });
+
   // ── Today at a Glance ─────────────────────────────────────────────────────
   const { data: myClientsCount = 0 } = useQuery({
     queryKey: ['my-assigned-clients-count', user?.id],
@@ -449,7 +516,52 @@ export default function AgentDashboard() {
           )}
 
           {/* ── Section 2: Today at a Glance ─────────────────────────────────── */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="shadow-sm rounded-2xl h-full">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 shrink-0 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <PhoneCall className="h-5 w-5 text-primary" />
+                    </div>
+                    <p className="text-sm font-medium text-muted-foreground">Five9 Status</p>
+                  </div>
+                  {five9AgentState && !five9StateError && (
+                    <span className="flex items-center gap-1 text-[10px] font-medium text-green-600 dark:text-green-400 shrink-0">
+                      <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                      Live
+                    </span>
+                  )}
+                </div>
+                {!five9Username ? (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Five9 not configured</p>
+                    <Link to="/staff/agent/onboarding" className="text-xs text-primary hover:underline">
+                      Complete onboarding
+                    </Link>
+                  </div>
+                ) : !activeShift ? (
+                  <p className="text-sm text-muted-foreground">Clock in to see live status</p>
+                ) : five9StateLoading ? (
+                  <Skeleton className="h-12 w-full" />
+                ) : five9StateError || !five9AgentState ? (
+                  <p className="text-sm text-muted-foreground">Five9 status unavailable</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    <Badge className={cn('capitalize', five9StateBadgeClasses(five9AgentState.state))}>
+                      {five9AgentState.state}
+                    </Badge>
+                    <p className="text-xs text-muted-foreground">
+                      {formatHMS(five9AgentState.time_in_state)} in state
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {five9AgentState.calls_handled} calls handled today
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <Link to="/staff/agent/clients" className="block">
               <Card className="shadow-sm rounded-2xl hover:shadow-md hover:border-blue-200 dark:hover:border-blue-800 transition-all cursor-pointer h-full">
                 <CardContent className="flex items-center gap-4 p-5">
