@@ -70,12 +70,13 @@ test.describe.serial('Flow 8 — WL Partner-Client Onboarding', () => {
   test('service configuration can be saved', async ({ page }) => {
     await loginAs(page, 'wlOwner');
 
-    await page.goto('/white-label-dashboard/clients');
+    // Navigate directly to the client captured in test 2 — re-resolving via
+    // the list + .first() is unsafe here because the shared staging DB
+    // accumulates many rows named "Flow8 Test Client" (no teardown), and a
+    // newer one can outrank this run's row between tests.
+    await page.goto(clientDetailUrl);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
-
-    await page.getByText('Flow8 Test Client').first().click();
-    await page.waitForTimeout(2000);
 
     // Fill estimated monthly minutes
     const minutesInput = page.getByLabel('Estimated Monthly Minutes');
@@ -101,12 +102,11 @@ test.describe.serial('Flow 8 — WL Partner-Client Onboarding', () => {
   test('portal slug can be saved', async ({ page }) => {
     await loginAs(page, 'wlOwner');
 
-    await page.goto('/white-label-dashboard/clients');
+    // Same client as test 3 — navigate directly rather than re-resolving
+    // via the list, for the reason noted there.
+    await page.goto(clientDetailUrl);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
-
-    await page.getByText('Flow8 Test Client').first().click();
-    await page.waitForTimeout(2000);
 
     const slugInput = page.getByLabel('Portal Slug');
     await slugInput.clear();
@@ -132,12 +132,11 @@ test.describe.serial('Flow 8 — WL Partner-Client Onboarding', () => {
   test('setup checklist updates as items are completed', async ({ page }) => {
     await loginAs(page, 'wlOwner');
 
-    await page.goto('/white-label-dashboard/clients');
+    // Same client as tests 3 + 4 — navigate directly rather than re-resolving
+    // via the list, for the reason noted there.
+    await page.goto(clientDetailUrl);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
-
-    await page.getByText('Flow8 Test Client').first().click();
-    await page.waitForTimeout(2000);
 
     // After tests 3 + 4 ran, service config and slug are saved.
     // "Service configured" (minutes > 0) and "Billing rate set" and "Portal slug set"
