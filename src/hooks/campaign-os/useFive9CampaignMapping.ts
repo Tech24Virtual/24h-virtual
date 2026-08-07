@@ -24,10 +24,11 @@ export function useFive9Campaigns() {
     queryFn: async (): Promise<Five9Campaign[]> => {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+      const { data: { session } } = await supabase.auth.getSession();
       let res: Response;
       try {
         res = await fetch(`${supabaseUrl}/functions/v1/five9-proxy?action=campaigns`, {
-          headers: { apikey: anonKey },
+          headers: { apikey: anonKey, Authorization: `Bearer ${session?.access_token}` },
           signal: AbortSignal.timeout(10_000),
         });
       } catch (e: any) {
@@ -109,8 +110,9 @@ export function useVerifyMapping() {
     mutationFn: async ({ campaignId, mappedName }: { campaignId: string; mappedName: string }) => {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(`${supabaseUrl}/functions/v1/five9-proxy?action=campaigns`, {
-        headers: { apikey: anonKey },
+        headers: { apikey: anonKey, Authorization: `Bearer ${session?.access_token}` },
       });
       if (!res.ok) throw new Error('Failed to reach Five9');
       const json = await res.json();
