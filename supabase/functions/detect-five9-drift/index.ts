@@ -81,6 +81,9 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const clientDepartmentId = body?.client_department_id as string | undefined;
     const isLive = body?.live === true;
+    const providedCampaigns = Array.isArray(body?.five9_campaigns)
+      ? (body.five9_campaigns as Array<{ name: string; type: string }>)
+      : undefined;
 
     if (!clientDepartmentId) {
       return new Response(JSON.stringify({ error: 'client_department_id required' }), {
@@ -88,9 +91,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // In manual mode, variables must be provided; in live mode we fetch them from Five9
-    if (!isLive && !Array.isArray(body?.variables)) {
-      return new Response(JSON.stringify({ error: 'variables must be an array (or pass live:true to fetch from Five9)' }), {
+    // In manual mode, variables must be provided; in live mode we either use the caller-supplied
+    // five9_campaigns or fall back to fetching them ourselves via the internal five9-proxy call
+    if (!isLive && !providedCampaigns && !Array.isArray(body?.variables)) {
+      return new Response(JSON.stringify({ error: 'variables must be an array (or pass five9_campaigns, or live:true to fetch from Five9)' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -101,8 +105,15 @@ Deno.serve(async (req) => {
     let five9Vars: Five9Var[];
     let source: string;
 
-    if (isLive) {
-      const proxyRes = await fetch(`${supabaseUrl}/functions/v1/five9-proxy?action=campaigns`);
+    if (providedCampaigns) {
+      // Caller (browser) already fetched campaigns from five9-proxy directly — skip the internal call
+      five9Vars = providedCampaigns.map((c) => ({ name: c.name, kind: 'campaign', type: c.type }));
+      source = 'live_api';
+    } else if (isLive) {
+      const proxyRes = await fetch(`${supabaseUrl}/functions/v1/five9-proxy?action=campaigns`, {
+        headers: { apikey: anonKey },
+        signal: AbortSignal.timeout(10_000),
+      });
       if (!proxyRes.ok) {
         return new Response(JSON.stringify({ error: 'Failed to fetch live Five9 campaigns' }), {
           status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },

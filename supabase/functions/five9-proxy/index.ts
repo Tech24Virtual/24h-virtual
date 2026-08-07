@@ -128,6 +128,22 @@ async function getSkills() {
     return skills;
 }
 
+async function getVariables() {
+    const cached = getCached("variables");
+    if (cached) return cached;
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://service.admin.ws.five9.com/">
+  <soapenv:Body><ser:getVariables/></soapenv:Body>
+</soapenv:Envelope>`;
+
+    const response = await soapRequest(xml, "getVariables");
+    const variables = parseXmlObjects(response, "return", ["name", "type", "description"]);
+    if (variables.length === 0) return { raw: response.substring(0, 3000), variables };
+    setCache("variables", variables, 300);
+    return variables;
+}
+
 async function getDispositions() {
     const cached = getCached("dispositions");
     if (cached) return cached;
@@ -158,6 +174,7 @@ serve(async (req) => {
             case "campaigns": data = await getCampaigns(); break;
             case "skills": data = await getSkills(); break;
             case "dispositions": data = await getDispositions(); break;
+            case "getVariables": data = await getVariables(); break;
             case "test": {
                 const testXml = `<?xml version="1.0" encoding="UTF-8"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://service.admin.ws.five9.com/">

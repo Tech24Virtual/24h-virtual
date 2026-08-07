@@ -1,17 +1,15 @@
 import { useMemo, useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { StaffLayout } from '@/components/staff/StaffLayout';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { RefreshCw, Search, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Search, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface DriftJson {
@@ -23,10 +21,7 @@ interface DriftJson {
 }
 
 export default function TechFive9() {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
-  const [checkDepartmentId, setCheckDepartmentId] = useState<string>('');
 
   const { data: departments } = useQuery({
     queryKey: ['tech-five9-departments'],
@@ -78,25 +73,6 @@ export default function TechFive9() {
     return mappings.filter(m => m.five9_variable_name.toLowerCase().includes(term));
   }, [mappings, searchTerm]);
 
-  const runCheck = useMutation({
-    mutationFn: async () => {
-      if (!checkDepartmentId) throw new Error('Select a call flow / department first');
-      const { data, error } = await supabase.functions.invoke('detect-five9-drift', {
-        body: { client_department_id: checkDepartmentId, live: true },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tech-five9-drift-snapshots'] });
-      toast({ title: 'Drift check complete' });
-    },
-    onError: (error: Error) => {
-      toast({ title: 'Drift check failed', description: error.message, variant: 'destructive' });
-    },
-  });
-
   const driftCounts = (drift: DriftJson | null | undefined) => ({
     missingInFive9: drift?.missing_in_five9?.length || 0,
     missingInOs: drift?.missing_in_os?.length || 0,
@@ -119,24 +95,21 @@ export default function TechFive9() {
           </TabsList>
 
           <TabsContent value="drift" className="space-y-4">
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertTitle>On-demand drift checks are unavailable</AlertTitle>
+              <AlertDescription>
+                There is currently no scheduled job or working on-demand trigger for Five9 drift detection from this page.
+                The table below shows historical snapshots only.
+              </AlertDescription>
+            </Alert>
+
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Run Drift Check</CardTitle>
-                <CardDescription>Compares live Five9 campaign data against this department's stored variable mappings.</CardDescription>
+                <CardTitle className="text-base">Manual Paste</CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-wrap items-center gap-3">
-                <Select value={checkDepartmentId} onValueChange={setCheckDepartmentId}>
-                  <SelectTrigger className="w-64"><SelectValue placeholder="Select call flow / department" /></SelectTrigger>
-                  <SelectContent>
-                    {(departments || []).map(d => (
-                      <SelectItem key={d.id} value={d.id}>{d.display_name || d.department_name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button onClick={() => runCheck.mutate()} disabled={runCheck.isPending || !checkDepartmentId}>
-                  <RefreshCw className={`h-4 w-4 mr-2 ${runCheck.isPending ? 'animate-spin' : ''}`} />
-                  Run Drift Check
-                </Button>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">For manual drift analysis, use the Admin → Five9 tab.</p>
               </CardContent>
             </Card>
 
