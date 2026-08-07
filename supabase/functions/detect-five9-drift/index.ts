@@ -65,15 +65,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Admin check
+    // Admin or Tech check
     const { data: roleRow } = await userClient
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
-      .eq('role', 'admin')
+      .in('role', ['admin', 'tech'])
       .maybeSingle();
     if (!roleRow) {
-      return new Response(JSON.stringify({ error: 'Admin required' }), {
+      return new Response(JSON.stringify({ error: 'Admin or Tech role required' }), {
         status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

@@ -75,6 +75,7 @@ const TechSystemIssues = lazy(() => import("@/pages/staff/TechSystemIssues"));
 const TechKnowledgeBase = lazy(() => import("@/pages/staff/TechKnowledgeBase"));
 const TechChatDeployments = lazy(() => import("@/pages/staff/TechChatDeployments"));
 const TechChatDeploymentDetail = lazy(() => import("@/pages/staff/TechChatDeploymentDetail"));
+const TechFive9 = lazy(() => import("@/pages/staff/TechFive9"));
 
 // Shared
 const StaffTicketDetail = lazy(() => import("@/pages/staff/StaffTicketDetail"));
@@ -204,6 +205,7 @@ export const StaffRoutes = (
     <Route path="/staff/tech/knowledge-base" element={guard("tech", <TechKnowledgeBase />)} />
     <Route path="/staff/tech/chat-deployments" element={guard("tech", <TechChatDeployments />)} />
     <Route path="/staff/tech/chat-deployments/:id" element={guard("tech", <TechChatDeploymentDetail />)} />
+    <Route path="/staff/tech/five9" element={guard("tech", <TechFive9 />)} />
     <Route path="/staff/tech/settings" element={guard("tech", <StaffSettings role="tech" />)} />
     <Route path="/staff/tech/support" element={guard("tech", <StaffSupport role="tech" />)} />
     <Route path="/staff/tech/feedback" element={guard("tech", <StaffFeedback role="tech" />)} />

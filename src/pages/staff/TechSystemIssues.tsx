@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, AlertTriangle, CheckCircle, UserCheck, Filter } from 'lucide-react';
+import { Plus, AlertTriangle, CheckCircle, UserCheck, Filter, Archive } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function TechSystemIssues() {
@@ -77,6 +77,23 @@ export default function TechSystemIssues() {
       toast({ title: 'Issue resolved' });
       setResolveId(null);
       setResolutionNotes('');
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to resolve issue', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const closeMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('tech_issues').update({ status: 'closed' }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tech-issues'] });
+      toast({ title: 'Issue closed' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to close issue', description: error.message, variant: 'destructive' });
     },
   });
 
@@ -203,6 +220,11 @@ export default function TechSystemIssues() {
                                 <Button onClick={() => resolveMutation.mutate(issue.id)} disabled={resolveMutation.isPending} className="w-full">Mark Resolved</Button>
                               </DialogContent>
                             </Dialog>
+                          )}
+                          {issue.status === 'resolved' && (
+                            <Button size="sm" variant="ghost" onClick={() => closeMutation.mutate(issue.id)} disabled={closeMutation.isPending}>
+                              <Archive className="h-4 w-4 mr-1" />Close
+                            </Button>
                           )}
                         </div>
                       </TableCell>

@@ -243,6 +243,7 @@ export function getStaffNav(role: StaffRole): NavGroup[] {
         { name: 'Issues', icon: ClipboardList, basePath: `${root}/issues`, children: [{ name: 'System Issues', href: `${root}/issues` }] },
         { name: 'Knowledge Base', icon: FileText, basePath: `${root}/knowledge-base`, children: [{ name: 'Knowledge Base', href: `${root}/knowledge-base` }] },
         { name: 'Chat Deployments', icon: MessageCircle, basePath: `${root}/chat-deployments`, children: [{ name: 'Chat Deployments', href: `${root}/chat-deployments` }] },
+        { name: 'Five9', icon: Phone, basePath: `${root}/five9`, children: [{ name: 'Five9 Management', href: `${root}/five9` }] },
         {
           name: 'Support',
           icon: LifeBuoy,

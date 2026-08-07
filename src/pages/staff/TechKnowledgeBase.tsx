@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { StaffLayout } from '@/components/staff/StaffLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -28,17 +28,27 @@ export default function TechKnowledgeBase() {
   const [form, setForm] = useState({ title: '', description: '', dashboard: 'admin', is_active: true, content_type: 'feature', sort_order: 0, onboarding_step: null as number | null });
 
   const { data: entries, isLoading } = useQuery({
-    queryKey: ['platform-knowledge', filterDashboard, searchTerm],
+    queryKey: ['platform-knowledge', filterDashboard],
     queryFn: async () => {
       let query = supabase.from('platform_knowledge').select('*').order('dashboard').order('sort_order').order('title');
       if (filterDashboard !== 'all') query = query.eq('dashboard', filterDashboard);
-      if (filterContentType !== 'all') query = query.eq('content_type', filterContentType);
-      if (searchTerm) query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
       const { data, error } = await query;
       if (error) throw error;
       return data;
     },
   });
+
+  const filteredEntries = useMemo(() => {
+    if (!entries) return entries;
+    const term = searchTerm.trim().toLowerCase();
+    return entries.filter(entry => {
+      const matchesType = filterContentType === 'all' || entry.content_type === filterContentType;
+      const matchesSearch = !term
+        || entry.title.toLowerCase().includes(term)
+        || entry.description.toLowerCase().includes(term);
+      return matchesType && matchesSearch;
+    });
+  }, [entries, searchTerm, filterContentType]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -55,6 +65,9 @@ export default function TechKnowledgeBase() {
       toast({ title: editingId ? 'Entry updated' : 'Entry created' });
       resetForm();
     },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to save entry', description: error.message, variant: 'destructive' });
+    },
   });
 
   const deleteMutation = useMutation({
@@ -65,6 +78,9 @@ export default function TechKnowledgeBase() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['platform-knowledge'] });
       toast({ title: 'Entry deleted' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to delete entry', description: error.message, variant: 'destructive' });
     },
   });
 
@@ -80,7 +96,7 @@ export default function TechKnowledgeBase() {
     setDialogOpen(true);
   };
 
-  const grouped = entries?.reduce((acc: Record<string, any[]>, entry: any) => {
+  const grouped = filteredEntries?.reduce((acc: Record<string, any[]>, entry: any) => {
     (acc[entry.dashboard] = acc[entry.dashboard] || []).push(entry);
     return acc;
   }, {}) || {};
@@ -155,7 +171,7 @@ export default function TechKnowledgeBase() {
 
         {isLoading ? (
           <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full" />)}</div>
-        ) : !entries?.length ? (
+        ) : !filteredEntries?.length ? (
           <Card><CardContent className="py-8 text-center text-muted-foreground">No knowledge entries found</CardContent></Card>
         ) : (
           Object.entries(grouped).map(([dashboard, items]) => (

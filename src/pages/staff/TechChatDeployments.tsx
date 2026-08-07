@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, MessageCircle } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 
 export default function TechChatDeployments() {
   const { user } = useAuth();
@@ -42,6 +43,32 @@ export default function TechChatDeployments() {
       return data || [];
     },
   });
+
+  const directClientIds = [...new Set((deployments || []).map(d => d.direct_client_id).filter(Boolean))] as string[];
+  const wlClientIds = [...new Set((deployments || []).map(d => d.wl_client_id).filter(Boolean))] as string[];
+
+  const { data: directClientNames } = useQuery({
+    queryKey: ['chat-deployments-direct-client-names', directClientIds],
+    queryFn: async () => {
+      const { data } = await supabase.from('leads').select('id, name').in('id', directClientIds);
+      return new Map((data || []).map(c => [c.id, c.name]));
+    },
+    enabled: directClientIds.length > 0,
+  });
+
+  const { data: wlClientNames } = useQuery({
+    queryKey: ['chat-deployments-wl-client-names', wlClientIds],
+    queryFn: async () => {
+      const { data } = await supabase.from('white_label_clients').select('id, client_name').in('id', wlClientIds);
+      return new Map((data || []).map(c => [c.id, c.client_name]));
+    },
+    enabled: wlClientIds.length > 0,
+  });
+
+  const clientNameFor = (d: { ownership_mode: string; direct_client_id: string | null; wl_client_id: string | null }) => {
+    if (d.ownership_mode === 'wl') return (d.wl_client_id && wlClientNames?.get(d.wl_client_id)) || '—';
+    return (d.direct_client_id && directClientNames?.get(d.direct_client_id)) || '—';
+  };
 
   const { data: directClients } = useQuery({
     queryKey: ['active-direct-clients'],
@@ -135,6 +162,7 @@ export default function TechChatDeployments() {
                   <div className="border rounded-lg p-3 hover:bg-accent transition-colors flex items-center justify-between">
                     <div>
                       <p className="font-medium">{d.display_name}</p>
+                      <p className="text-sm text-muted-foreground">{clientNameFor(d)}</p>
                       <div className="flex gap-2 mt-1">
                         <Badge variant={d.ownership_mode === 'wl' ? 'secondary' : 'default'}>
                           {d.ownership_mode === 'wl' ? 'WL Partner Client' : 'Direct Client'}
@@ -142,6 +170,9 @@ export default function TechChatDeployments() {
                         <Badge variant="outline" className="capitalize">{d.status}</Badge>
                       </div>
                     </div>
+                    <span className="text-xs text-muted-foreground shrink-0 ml-3">
+                      {formatDistanceToNow(new Date(d.created_at), { addSuffix: true })}
+                    </span>
                   </div>
                 </Link>
               ))}
