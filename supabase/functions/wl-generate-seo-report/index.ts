@@ -13,9 +13,6 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Missing authorization header");
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
-
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -32,6 +29,13 @@ serve(async (req) => {
 
     const { partner_id, report_month } = await req.json();
     if (!partner_id || !report_month) throw new Error("partner_id and report_month are required");
+
+    if (!Deno.env.get("ANTHROPIC_API_KEY")) {
+      return new Response(JSON.stringify({ success: false, error: "API not configured" }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Get partner info
     const { data: partner } = await supabaseAdmin
@@ -92,22 +96,24 @@ Location: ${partner?.target_location || ""}
 
 Write a professional, encouraging summary highlighting achievements and suggesting next steps. Do NOT use markdown formatting. Write in plain paragraphs.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
+        "x-api-key": Deno.env.get("ANTHROPIC_API_KEY")!,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 2000,
         messages: [{ role: "user", content: prompt }],
       }),
     });
 
-    if (!response.ok) throw new Error("AI generation failed");
+    if (!aiRes.ok) throw new Error("AI generation failed");
 
-    const aiResult = await response.json();
-    const narrative = aiResult.choices?.[0]?.message?.content || "";
+    const aiJson = await aiRes.json();
+    const reportText = aiJson.content?.[0]?.text || "";
 
     // Upsert report
     const { data: existing } = await supabaseAdmin
@@ -120,18 +126,18 @@ Write a professional, encouraging summary highlighting achievements and suggesti
     if (existing) {
       await supabaseAdmin.from("wl_seo_reports").update({
         stats_json: stats,
-        narrative,
+        narrative: reportText,
       }).eq("id", existing.id);
     } else {
       await supabaseAdmin.from("wl_seo_reports").insert({
         partner_id,
         report_month: report_month + "-01",
         stats_json: stats,
-        narrative,
+        narrative: reportText,
       });
     }
 
-    return new Response(JSON.stringify({ success: true, stats, narrative }), {
+    return new Response(JSON.stringify({ success: true, stats, narrative: reportText }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

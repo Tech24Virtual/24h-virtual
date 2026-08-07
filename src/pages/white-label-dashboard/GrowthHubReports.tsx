@@ -14,7 +14,7 @@ import jsPDF from "jspdf";
 function getMonthOptions() {
   const options = [];
   const now = new Date();
-  for (let i = 1; i <= 12; i++) {
+  for (let i = 0; i <= 11; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     const label = d.toLocaleString("en-US", { month: "long", year: "numeric" });
