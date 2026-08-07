@@ -1,5 +1,5 @@
 # GTM Readiness
-Last updated: 2026-07-02
+Last updated: 2026-08-07
 
 ## 🔖 CONTEXT FOR NEW CHAT
 
@@ -246,6 +246,34 @@ Admin Dashboard and Client Dashboard fully redesigned and audited. All 16 client
 | Client Dashboard — Billing cleanup | mode_used badge hidden, Upgrade Plan opens mailto |
 | Client Dashboard — mobile nav fix | Derived from clientNavGroups, all routes included |
 | Client Dashboard — billing nav fix | basePath corrected, highlights correctly |
+| Sales Dashboard | URL restructure, SalesPerformance, SalesProposals, pipeline board |
+| HR Portal | All bug fixes, pagination, payroll refresh |
+| WL Partner Dashboard | Full audit — 21 pages fixed, missing grants applied, Growth Hub permissions + SEO report generation fixed (migrated to Anthropic Claude) |
+| WL Client Portal | Full audit — welcome modal fix, favicon flash fix, demo data seeded |
+| Tech Dashboard | Built from scratch — TechFive9.tsx (Five9 Management page), TechSystemIssues.tsx, TechChatDeployments.tsx, all 6 pages audited + fixed |
+| Google Calendar OAuth | Wired for Agent + Admin portals |
+| payment_transactions audit table | Created (migration 20260722000008), service_role grant fixed, error-checked inserts on success/failure/error paths — confirmed logging a real failed transaction |
+| Five9 daily call report cron job | pg_cron job `five9-call-report-daily-pull`, runs 0 2 * * * UTC, hardcoded service_role JWT pattern | migration 20260722000006 |
+| Five9 ACD status widget | Five9 Status card added to AgentDashboard.tsx — shows agent state/time-in-state when available; displays "unavailable" until the `getAgentState` backend action is built in five9-proxy (not yet implemented) |
+| auto-retry-failed-payments cron fix | Was using `current_setting()` auth vars that were NULL at the DB level since creation (Bearer NULL, every run silently rejected) — replaced with hardcoded service_role JWT | migration 20260722000007, job id 13 |
+| WL client login blocked from main 24H login | Login flow separated |
+| DrilldownSidebar active highlight fix | Active nav highlight now correct across all portals | DrilldownSidebar.tsx |
+| send-proposal-email edge function | Deployed — also used as the reference pattern for generate-partner-report |
+| Demo seed data | Realistic demo data seeded across all portals, including QA test partner Growth Hub + Tech support data |
+
+---
+
+## ⏳ WAITING ON EXTERNAL
+
+| Item | Notes |
+|------|-------|
+| Live NMI credentials from Ryker at PlatPay | Merchant account + live API key needed for go-live. Whether the currently-configured NMI_API_KEY is sandbox or live is unconfirmed — NMI's `security_key` has no prefix/format that distinguishes the two, so this can't be verified from code |
+| Five9 webhook registration | Needs to be registered in Five9 admin for real-time call ingestion |
+| Vercel account setup | For domain migration to 24hv.io |
+| 24hvirtual.com → 24hv.io 301 redirect | Needs to be configured at Namecheap |
+| Partner subdomain routing | admin.vezavirtual.com, client.vezavirtual.com |
+| Stripe → NMI migration | 1 remaining Stripe client — Paul to set crossover date |
+| Paul confirmation to remove Stripe edge functions | stripe-webhook still live — confirmed still targeted by pre-launch-checks; do not remove without explicit go-ahead |
 
 ---
 
@@ -253,15 +281,11 @@ Admin Dashboard and Client Dashboard fully redesigned and audited. All 16 client
 
 | Task | Priority | Notes |
 |------|----------|-------|
-| Dashboard redesign — Sales/HR/WL | LOW | After Client |
-| Google Calendar integration | MEDIUM | Waiting on Paul's Google Workspace API credentials |
-| NMI go-live | HIGH | Waiting on Paul + Ryker (PlatPay) — need merchant account + live API key |
+| NMI end-to-end charge verification | HIGH | payment_transactions logging is confirmed working for a failed charge attempt. A successful charge has not yet been confirmed logged, and whether the live "Charge Now" tests being run are hitting a sandbox or live NMI account is still unverified — see WAITING ON EXTERNAL |
 | Notification badges for all portals | MEDIUM | Currently only agent portal has badges |
-| Stripe → NMI migration | MEDIUM | Phase 2 — Paul to set crossover date |
 | URL readability improvements | LOW | IDs in URLs not human-readable |
 | Client self-service card entry (Collect.js) | LOW | Decision needed from Paul |
 | Tracking pixels server-level enforcement | LOW | Suppressed in code, needs Cloudflare/server config |
-| pg_cron Five9 pull schedule | LOW | Already wired, needs service_role_key set via `ALTER DATABASE postgres SET app.service_role_key = '...'` |
 | Admin Partners — WL Partners page polish | LOW | Raw useEffect, gradient headers for remaining 3 pages |
 
 ---
@@ -269,7 +293,7 @@ Admin Dashboard and Client Dashboard fully redesigned and audited. All 16 client
 ## 📊 Test Score
 ```
 Vitest RLS:  19/19  ✅
-Playwright: 186/186 ✅
+Playwright: 173/173 passed (13 skipped, 186 total) ✅
 CI Pipeline:   green ✅
-Total:       205/205 ✅
+Total:       192/192 passed (13 skipped, 205 total) ✅
 ```
