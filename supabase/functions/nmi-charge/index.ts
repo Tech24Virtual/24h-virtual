@@ -7,19 +7,33 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Hoisted so the outer catch can log a best-effort error transaction —
+  // any of these may still be undefined if the failure happened before
+  // that particular assignment ran.
+  let auth: Awaited<ReturnType<typeof authenticateAgent>> | undefined;
+  let supabase: ReturnType<typeof createClient> | undefined;
+  let lead_id: string | undefined;
+  let amount: number | undefined;
+  let description: string | undefined;
+  let currency = "usd";
+
   try {
-    const auth = await authenticateAgent(req, ["admin", "billing"]);
+    auth = await authenticateAgent(req, ["admin", "billing"]);
     if (auth.error) return auth.error;
 
     const nmiKey = Deno.env.get("NMI_API_KEY");
     if (!nmiKey) throw new Error("NMI_API_KEY is not configured");
 
-    const supabase = createClient(
+    supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { lead_id, amount, description, currency = "usd" } = await req.json();
+    const body = await req.json();
+    lead_id = body.lead_id;
+    amount = body.amount;
+    description = body.description;
+    currency = body.currency || "usd";
 
     if (!lead_id || !amount || amount <= 0) {
       return new Response(
@@ -69,6 +83,18 @@ Deno.serve(async (req) => {
         amount,
       });
 
+      const { error: logError } = await supabase.from("payment_transactions").insert({
+        lead_id,
+        processor: "nmi",
+        transaction_id: result.transaction_id || null,
+        amount,
+        currency: currency.toUpperCase(),
+        status: "failed",
+        description: description || "Subscription charge",
+        initiated_by: auth.user.id,
+      });
+      if (logError) console.error("[nmi-charge] failed to log transaction:", logError);
+
       const { data: adminUsers } = await supabase
         .from("user_roles")
         .select("user_id")
@@ -92,6 +118,18 @@ Deno.serve(async (req) => {
       );
     }
 
+    const { error: logError } = await supabase.from("payment_transactions").insert({
+      lead_id,
+      processor: "nmi",
+      transaction_id: result.transaction_id || null,
+      amount,
+      currency: currency.toUpperCase(),
+      status: "success",
+      description: description || "Subscription charge",
+      initiated_by: auth.user.id,
+    });
+    if (logError) console.error("[nmi-charge] failed to log transaction:", logError);
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -102,6 +140,29 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
+    console.error("[nmi-charge] unexpected error:", err);
+
+    // Best-effort logging only — skip if we don't even have enough state
+    // to satisfy the table's NOT NULL amount column, or never got a
+    // Supabase client to write with.
+    if (supabase && amount != null) {
+      try {
+        const { error: logError } = await supabase.from("payment_transactions").insert({
+          lead_id: lead_id ?? null,
+          processor: "nmi",
+          transaction_id: null,
+          amount,
+          currency: currency.toUpperCase(),
+          status: "error",
+          description: description || "Subscription charge",
+          initiated_by: auth?.user?.id ?? null,
+        });
+        if (logError) console.error("[nmi-charge] failed to log transaction:", logError);
+      } catch (logErr) {
+        console.error("[nmi-charge] failed to log error transaction:", logErr);
+      }
+    }
+
     return new Response(
       JSON.stringify({ error: String(err) }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

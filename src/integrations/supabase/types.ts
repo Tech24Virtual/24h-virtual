@@ -17490,6 +17490,186 @@ export type Database = {
           },
         ]
       }
+      payment_transactions: {
+        Row: {
+          amount: number
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          id: string
+          initiated_by: string | null
+          lead_id: string | null
+          processor: string
+          status: string
+          transaction_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          id?: string
+          initiated_by?: string | null
+          lead_id?: string | null
+          processor?: string
+          status: string
+          transaction_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          id?: string
+          initiated_by?: string | null
+          lead_id?: string | null
+          processor?: string
+          status?: string
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_transactions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_delivery_360"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_direct_success_summary"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_subscription_churn_events"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_subscription_snapshot"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_success_account_status"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_success_expansion_candidates"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_delivery_status"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_receptionist_summary"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_direct_self_success"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_direct_success_summary"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_growth_attribution_lead"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_lifecycle_overview"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_success_accounts"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_revenue_lead_360"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_subscription_churn_events"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_subscription_snapshot"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_success_account_status"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_success_expansion_candidates"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_unit_econ_lead_cost"
+            referencedColumns: ["lead_id"]
+          },
+        ]
+      }
       people: {
         Row: {
           created_at: string
