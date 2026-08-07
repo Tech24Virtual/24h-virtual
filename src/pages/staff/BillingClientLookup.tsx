@@ -163,7 +163,7 @@ export default function BillingClientLookup() {
                 {selectedLead.stripe_subscription_id && (
                   <div className="flex items-center gap-2 mt-2">
                     <CreditCard className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-medium">Active Stripe Subscription</span>
+                    <span className="text-sm font-medium">Active Subscription</span>
                   </div>
                 )}
               </CardContent>

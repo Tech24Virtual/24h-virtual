@@ -5,8 +5,8 @@ import {
   CreditCard,
   Clock,
   DollarSign,
-  ExternalLink,
   Loader2,
+  Mail,
   Plus,
   RefreshCw,
   Sparkles,
@@ -101,8 +101,6 @@ export default function Billing() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const [isLoadingPortal, setIsLoadingPortal] = useState(false);
-
   // Card management dialogs
   const [showAddCard, setShowAddCard] = useState(false);
   const [showUpdateCard, setShowUpdateCard] = useState(false);
@@ -192,17 +190,8 @@ export default function Billing() {
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
-  const handleManageSubscription = async () => {
-    setIsLoadingPortal(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('customer-portal');
-      if (error) throw error;
-      if (data?.url) window.open(data.url, '_blank');
-    } catch {
-      toast.error('Failed to open billing portal. Please try again.');
-    } finally {
-      setIsLoadingPortal(false);
-    }
+  const handleContactBilling = () => {
+    window.open('mailto:billing@24hvirtual.com?subject=Update Payment Details', '_blank');
   };
 
   const handleAddCard = async () => {
@@ -385,16 +374,11 @@ export default function Billing() {
                 {!isNmi && (
                   <Button
                     variant="outline"
-                    onClick={handleManageSubscription}
-                    disabled={isLoadingPortal}
-                    data-testid="stripe-manage-billing-btn"
+                    onClick={handleContactBilling}
+                    data-testid="contact-billing-btn"
                   >
-                    {isLoadingPortal ? (
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    ) : (
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                    )}
-                    Manage Billing
+                    <Mail className="w-4 h-4 mr-2" />
+                    Contact Billing
                   </Button>
                 )}
               </div>
@@ -477,17 +461,17 @@ export default function Billing() {
                   <CreditCard className="w-6 h-6" />
                 </div>
                 <div>
-                  <p className="font-medium">Managed by Stripe</p>
-                  <p className="text-sm text-muted-foreground">Click "Manage Billing" to update</p>
+                  <p className="font-medium">Payment method on file — managed by 24H Virtual</p>
+                  <p className="text-sm text-muted-foreground">Contact billing to update your payment details</p>
                 </div>
               </div>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleManageSubscription}
-                disabled={isLoadingPortal}
+                onClick={handleContactBilling}
               >
-                Update
+                <Mail className="w-4 h-4 mr-2" />
+                Contact Billing
               </Button>
             </div>
           </CardContent>
@@ -544,15 +528,14 @@ export default function Billing() {
           ) : subscription?.subscribed ? (
             <div className="text-center py-8 text-muted-foreground">
               <CreditCard className="w-12 h-12 mx-auto mb-4 opacity-30" />
-              <p>Invoices are managed by Stripe</p>
+              <p>Invoice history is managed by 24H Virtual</p>
               <Button
                 variant="link"
-                onClick={handleManageSubscription}
-                disabled={isLoadingPortal}
+                onClick={handleContactBilling}
                 className="mt-2"
               >
-                View in Billing Portal
-                <ExternalLink className="w-4 h-4 ml-2" />
+                Contact billing@24hvirtual.com
+                <Mail className="w-4 h-4 ml-2" />
               </Button>
             </div>
           ) : (

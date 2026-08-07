@@ -18,7 +18,7 @@ export default function BillingDashboard() {
         supabase.from('support_tickets').select('id, status, source', { count: 'exact' }).eq('category', 'billing'),
         supabase.from('payment_failures').select('id, resolved_at', { count: 'exact' }),
         supabase.from('sales_commissions').select('id, status, commission_amount'),
-        supabase.from('leads').select('id', { count: 'exact' }).not('stripe_subscription_id', 'is', null),
+        supabase.from('leads').select('id', { count: 'exact' }).eq('pipeline_stage', 'active'),
         supabase.from('wl_client_service_config').select('id', { count: 'exact' }).eq('billing_verified', false),
       ]);
 
