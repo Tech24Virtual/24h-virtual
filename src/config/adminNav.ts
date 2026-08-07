@@ -106,6 +106,7 @@ export const adminNavGroups: AdminNavGroup[] = [
         name: 'Integrations',
         tabs: [
           { name: 'Five9 Mappings', href: '/admin/campaign-os/five9' },
+          { name: 'Five9 Call Routing', href: '/admin/five9-routing' },
           { name: 'Fields', href: '/admin/campaign-os/fields' },
           { name: 'FAQs', href: '/admin/campaign-os/faqs' },
           { name: 'Policies', href: '/admin/campaign-os/policies' },

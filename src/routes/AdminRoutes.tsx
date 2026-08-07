@@ -28,6 +28,7 @@ const AdminBlog = lazy(() => import("@/pages/admin/AdminBlog"));
 const AdminBlogEditor = lazy(() => import("@/pages/admin/AdminBlogEditor"));
 const AdminKeywords = lazy(() => import("@/pages/admin/AdminKeywords"));
 const AdminPartnerDetail = lazy(() => import("@/pages/admin/AdminPartnerDetail"));
+const AdminFive9Routing = lazy(() => import("@/pages/admin/AdminFive9Routing"));
 const AdminGrowthHub = lazy(() => import("@/pages/admin/AdminGrowthHub"));
 const AdminGrowthHubSocial = lazy(() => import("@/pages/admin/AdminGrowthHubSocial"));
 const AdminGrowthHubReports = lazy(() => import("@/pages/admin/AdminGrowthHubReports"));
@@ -109,6 +110,7 @@ export const AdminRoutes = (
       <Route path="settings" element={<LazyRoute><AdminSettings /></LazyRoute>} />
       <Route path="settings/product-testing" element={<LazyRoute><AdminProductTesting /></LazyRoute>} />
       <Route path="nmi-test" element={<LazyRoute><NmiPaymentTest /></LazyRoute>} />
+      <Route path="five9-routing" element={<LazyRoute><AdminFive9Routing /></LazyRoute>} />
       <Route path="support" element={<LazyRoute><AdminSupport /></LazyRoute>} />
       <Route path="blog" element={<LazyRoute><AdminBlog /></LazyRoute>} />
       <Route path="blog/editor" element={<LazyRoute><AdminBlogEditor /></LazyRoute>} />
