@@ -36,6 +36,7 @@ const TEST_USERS = [
   { email: "qa-wl-client1@24hv-test.com", role: "wl_client" },
   { email: "qa-wl-client2@24hv-test.com", role: "wl_client" },
   { email: "qa-wl-partner-b@24hv-test.com", role: "white_label" },
+  { email: "qa-wl-veza@24hv-test.com", role: "white_label" },
 ];
 
 async function seed() {
@@ -138,6 +139,24 @@ async function seed() {
       console.error(`❌ WL Partner B failed: ${error.message}`);
     } else {
       console.log('✅ WL Partner B created (qa-test-agency-b)');
+    }
+  }
+
+  const wlVeza = userList.find(x => x.email === 'qa-wl-veza@24hv-test.com');
+
+  if (wlVeza) {
+    const { error } = await supabase.rpc('seed_test_wl_partner', {
+      p_user_id: wlVeza.id,
+      p_slug: 'veza-reception',
+      p_company: 'Veza Reception',
+      p_email: 'qa-wl-veza@24hv-test.com',
+      p_contact_name: 'QA Veza Owner',
+      p_color: '#0B60B0'
+    });
+    if (error) {
+      console.error(`❌ WL Partner Veza link failed: ${error.message}`);
+    } else {
+      console.log('✅ qa-wl-veza linked to existing veza-reception partner');
     }
   }
 
