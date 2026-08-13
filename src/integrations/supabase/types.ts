@@ -10090,7 +10090,7 @@ export type Database = {
           created_at: string | null
           id: string
           is_active: boolean | null
-          lead_id: string
+          lead_id: string | null
           match_type: string
           match_value: string
           partner_id: string | null
@@ -10100,7 +10100,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_active?: boolean | null
-          lead_id: string
+          lead_id?: string | null
           match_type: string
           match_value: string
           partner_id?: string | null
@@ -10110,7 +10110,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_active?: boolean | null
-          lead_id?: string
+          lead_id?: string | null
           match_type?: string
           match_value?: string
           partner_id?: string | null
@@ -22079,6 +22079,7 @@ export type Database = {
           partner_id: string
           phone: string | null
           plan: string | null
+          plan_id: string | null
           service_type: string
           status: string | null
           updated_at: string | null
@@ -22101,6 +22102,7 @@ export type Database = {
           partner_id: string
           phone?: string | null
           plan?: string | null
+          plan_id?: string | null
           service_type?: string
           status?: string | null
           updated_at?: string | null
@@ -22123,6 +22125,7 @@ export type Database = {
           partner_id?: string
           phone?: string | null
           plan?: string | null
+          plan_id?: string | null
           service_type?: string
           status?: string | null
           updated_at?: string | null
@@ -22227,6 +22230,13 @@ export type Database = {
             columns: ["partner_id"]
             isOneToOne: false
             referencedRelation: "white_label_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "white_label_clients_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "wl_partner_plans"
             referencedColumns: ["id"]
           },
         ]
@@ -27015,6 +27025,150 @@ export type Database = {
             columns: ["proposal_id"]
             isOneToOne: true
             referencedRelation: "wl_partner_proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wl_partner_plans: {
+        Row: {
+          created_at: string | null
+          free_trial: boolean
+          free_trial_days: number | null
+          id: string
+          included_minutes: number | null
+          is_active: boolean
+          monthly_cost: number | null
+          overage_cost_per_minute: number
+          partner_id: string
+          plan_name: string
+          plan_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          free_trial?: boolean
+          free_trial_days?: number | null
+          id?: string
+          included_minutes?: number | null
+          is_active?: boolean
+          monthly_cost?: number | null
+          overage_cost_per_minute: number
+          partner_id: string
+          plan_name: string
+          plan_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          free_trial?: boolean
+          free_trial_days?: number | null
+          id?: string
+          included_minutes?: number | null
+          is_active?: boolean
+          monthly_cost?: number | null
+          overage_cost_per_minute?: number
+          partner_id?: string
+          plan_name?: string
+          plan_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wl_partner_plans_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_partner_success_summary"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "wl_partner_plans_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_subscription_wl_recurring"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "wl_partner_plans_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_wl_partner_economics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "wl_partner_plans_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_wl_partner_profitability_ranking"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "wl_partner_plans_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_wl_partner_readiness"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "wl_partner_plans_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_self_success"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "wl_partner_plans_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_success_summary"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "wl_partner_plans_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_subscription_wl_recurring"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "wl_partner_plans_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_wl_partner_economics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "wl_partner_plans_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_wl_partner_profitability_ranking"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "wl_partner_plans_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_wl_partner_readiness"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "wl_partner_plans_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_wl_partner_self_economics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "wl_partner_plans_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_wl_partner_self_portfolio_health"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "wl_partner_plans_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "white_label_partners"
             referencedColumns: ["id"]
           },
         ]

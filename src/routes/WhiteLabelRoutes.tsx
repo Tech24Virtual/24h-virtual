@@ -37,6 +37,7 @@ const WLOnboarding = lazy(() => import("@/pages/white-label-dashboard/Onboarding
 const WLOnboardingDetail = lazy(() => import("@/pages/white-label-dashboard/OnboardingDetail"));
 const WLTeam = lazy(() => import("@/pages/white-label-dashboard/Team"));
 const WLTasks = lazy(() => import("@/pages/white-label-dashboard/Tasks"));
+const WLPlans = lazy(() => import("@/pages/white-label-dashboard/Plans"));
 
 const guard = (el: React.ReactNode) => (
   <ProtectedRoute requiredRole="white_label"><LazyRoute>{el}</LazyRoute></ProtectedRoute>
@@ -60,6 +61,7 @@ export const WhiteLabelRoutes = (
     <Route path="/white-label-dashboard/clients/usage" element={guard(<WLUsageDashboard />)} />
     <Route path="/white-label-dashboard/clients/tasks" element={guard(<WLTasks />)} />
     <Route path="/white-label-dashboard/clients/tickets" element={guard(<WLClientTickets />)} />
+    <Route path="/white-label-dashboard/plans" element={guard(<WLPlans />)} />
 
     {/* ── Campaigns ── */}
     <Route path="/white-label-dashboard/campaigns" element={guard(<WLCampaigns />)} />
