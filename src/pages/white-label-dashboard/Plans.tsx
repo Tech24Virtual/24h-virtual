@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
-import { Plus, MoreHorizontal, Pencil, Trash2, DollarSign } from "lucide-react";
+import { Plus, MoreHorizontal, Pencil, Trash2, DollarSign, Package } from "lucide-react";
 import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -71,6 +72,35 @@ const planToForm = (plan: Plan): PlanFormState => ({
   is_active: plan.is_active,
 });
 
+interface AddonProduct {
+  id: string;
+  name: string;
+  description: string | null;
+  default_price: number;
+  billing_type: string;
+  unit: string | null;
+}
+
+interface AddonPricingRow {
+  id: string;
+  partner_id: string;
+  addon_product_id: string;
+  wholesale_price: number;
+  retail_price: number | null;
+  is_available: boolean;
+  billing_cycle: string;
+}
+
+const billingCycleFor = (billingType: string) =>
+  billingType === "usage_based" ? "per_minute" : billingType === "recurring" ? "monthly" : "one_time";
+
+const formatWholesaleCost = (p: AddonProduct) => {
+  const price = Number(p.default_price).toFixed(2);
+  if (p.billing_type === "usage_based") return `$${price}/${p.unit || "min"}`;
+  if (p.billing_type === "recurring") return `$${price}/mo`;
+  return `$${price} one-time`;
+};
+
 export default function WLPlans() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -82,7 +112,15 @@ export default function WLPlans() {
   const [form, setForm] = useState<PlanFormState>(emptyForm);
   const [isSaving, setIsSaving] = useState(false);
 
+  const [addonProducts, setAddonProducts] = useState<AddonProduct[]>([]);
+  const [addonPricingByProduct, setAddonPricingByProduct] = useState<Record<string, AddonPricingRow>>({});
+  const [addonAvailable, setAddonAvailable] = useState<Record<string, boolean>>({});
+  const [addonRetailPrice, setAddonRetailPrice] = useState<Record<string, string>>({});
+  const [addonsLoading, setAddonsLoading] = useState(true);
+  const [savingAddonId, setSavingAddonId] = useState<string | null>(null);
+
   useEffect(() => { fetchPartnerAndPlans(); }, [user]);
+  useEffect(() => { if (partnerId) fetchAddons(partnerId); }, [partnerId]);
 
   const fetchPartnerAndPlans = async () => {
     if (!user) return;
@@ -98,6 +136,62 @@ export default function WLPlans() {
       console.error("Error fetching plans:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchAddons = async (partner: string) => {
+    setAddonsLoading(true);
+    try {
+      const [productsRes, pricingRes] = await Promise.all([
+        supabase.from("addon_products").select("id, name, description, default_price, billing_type, unit").eq("is_active", true).order("name"),
+        supabase.from("wl_addon_pricing").select("*").eq("partner_id", partner),
+      ]);
+      const products = (productsRes.data || []) as AddonProduct[];
+      setAddonProducts(products);
+
+      const pricingByProduct: Record<string, AddonPricingRow> = {};
+      (pricingRes.data || []).forEach((row: any) => { pricingByProduct[row.addon_product_id] = row; });
+      setAddonPricingByProduct(pricingByProduct);
+
+      const availableInit: Record<string, boolean> = {};
+      const retailInit: Record<string, string> = {};
+      products.forEach((p) => {
+        availableInit[p.id] = pricingByProduct[p.id]?.is_available ?? true;
+        const existingRetail = pricingByProduct[p.id]?.retail_price;
+        retailInit[p.id] = existingRetail != null ? String(existingRetail) : "";
+      });
+      setAddonAvailable(availableInit);
+      setAddonRetailPrice(retailInit);
+    } catch (error) {
+      console.error("Error fetching add-ons:", error);
+      toast({ title: "Error", description: "Failed to load add-ons.", variant: "destructive" });
+    } finally {
+      setAddonsLoading(false);
+    }
+  };
+
+  const handleSaveAddon = async (product: AddonProduct) => {
+    if (!partnerId) return;
+    setSavingAddonId(product.id);
+    try {
+      const retailInput = addonRetailPrice[product.id];
+      const payload = {
+        partner_id: partnerId,
+        addon_product_id: product.id,
+        wholesale_price: product.default_price,
+        retail_price: retailInput !== undefined && retailInput !== "" ? Number(retailInput) : null,
+        is_available: addonAvailable[product.id] ?? true,
+        billing_cycle: billingCycleFor(product.billing_type),
+      };
+      const { error } = await supabase.from("wl_addon_pricing").upsert(payload, { onConflict: "partner_id,addon_product_id" });
+      if (error) throw error;
+      toast({ title: "Add-on saved" });
+      fetchAddons(partnerId);
+    } catch (error) {
+      console.error("Error saving add-on:", error);
+      toast({ title: "Error", description: "Failed to save add-on.", variant: "destructive" });
+    } finally {
+      setSavingAddonId(null);
     }
   };
 
@@ -252,103 +346,266 @@ export default function WLPlans() {
   return (
     <WhiteLabelLayout>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-heading">Pricing Plans</h1>
-            <p className="text-muted-foreground mt-1">Create and manage pricing plans for your clients.</p>
-          </div>
-          <Dialog open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) resetForm(); }}>
-            <DialogTrigger asChild>
-              <Button onClick={() => resetForm()}><Plus className="w-4 h-4 mr-2" />Create Plan</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader><DialogTitle>Create Pricing Plan</DialogTitle></DialogHeader>
-              {renderFormFields()}
-              <Button onClick={handleCreate} disabled={isSaving} className="w-full mt-2">
-                {isSaving ? "Creating..." : "Create Plan"}
-              </Button>
-            </DialogContent>
-          </Dialog>
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-bold text-heading">Pricing Plans</h1>
+          <p className="text-muted-foreground mt-1">Create and manage pricing plans for your clients.</p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">All Plans ({plans.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="text-center py-8 text-muted-foreground">Loading...</div>
-            ) : plans.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <DollarSign className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                <p className="text-lg font-medium mb-2">No pricing plans yet</p>
-                <Button onClick={() => setIsCreateOpen(true)}><Plus className="w-4 h-4 mr-2" />Create Your First Plan</Button>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Plan Name</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Monthly Cost</TableHead>
-                      <TableHead>Included Minutes</TableHead>
-                      <TableHead>Overage Rate</TableHead>
-                      <TableHead>Free Trial</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="w-12"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {plans.map(plan => (
-                      <TableRow key={plan.id}>
-                        <TableCell className="font-medium">{plan.plan_name}</TableCell>
-                        <TableCell>
-                          {plan.plan_type === "fixed" ? (
-                            <Badge className="bg-blue-100 text-blue-800">Fixed</Badge>
-                          ) : (
-                            <Badge className="bg-purple-100 text-purple-800">Custom</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>{plan.plan_type === "custom" ? "—" : `$${Number(plan.monthly_cost ?? 0).toFixed(2)}`}</TableCell>
-                        <TableCell>{plan.plan_type === "custom" ? "—" : (plan.included_minutes ?? 0).toLocaleString()}</TableCell>
-                        <TableCell>${Number(plan.overage_cost_per_minute).toFixed(2)}/min</TableCell>
-                        <TableCell>
-                          {plan.free_trial ? (
-                            <Badge variant="secondary">{plan.free_trial_days ?? 7} days</Badge>
-                          ) : (
-                            <Badge variant="outline">None</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Switch checked={plan.is_active} onCheckedChange={() => toggleActive(plan)} />
-                            <span className="text-sm text-muted-foreground">{plan.is_active ? "Active" : "Inactive"}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon"><MoreHorizontal className="w-4 h-4" /></Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openEdit(plan)}>
-                                <Pencil className="w-4 h-4 mr-2" />Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleDelete(plan)} className="text-destructive">
-                                <Trash2 className="w-4 h-4 mr-2" />Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
+        <Tabs defaultValue="plans">
+          <TabsList>
+            <TabsTrigger value="plans">My Plans</TabsTrigger>
+            <TabsTrigger value="addons">Add-Ons</TabsTrigger>
+            <TabsTrigger value="wholesale">Wholesale Rates</TabsTrigger>
+          </TabsList>
+
+          {/* Tab 1: My Plans */}
+          <TabsContent value="plans" className="space-y-6">
+            <div className="flex justify-end">
+              <Dialog open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) resetForm(); }}>
+                <DialogTrigger asChild>
+                  <Button onClick={() => resetForm()}><Plus className="w-4 h-4 mr-2" />Create Plan</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader><DialogTitle>Create Pricing Plan</DialogTitle></DialogHeader>
+                  {renderFormFields()}
+                  <Button onClick={handleCreate} disabled={isSaving} className="w-full mt-2">
+                    {isSaving ? "Creating..." : "Create Plan"}
+                  </Button>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">All Plans ({plans.length})</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="text-center py-8 text-muted-foreground">Loading...</div>
+                ) : plans.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <DollarSign className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                    <p className="text-lg font-medium mb-2">No pricing plans yet</p>
+                    <Button onClick={() => setIsCreateOpen(true)}><Plus className="w-4 h-4 mr-2" />Create Your First Plan</Button>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Plan Name</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Monthly Cost</TableHead>
+                          <TableHead>Included Minutes</TableHead>
+                          <TableHead>Overage Rate</TableHead>
+                          <TableHead>Free Trial</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="w-12"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {plans.map(plan => (
+                          <TableRow key={plan.id}>
+                            <TableCell className="font-medium">{plan.plan_name}</TableCell>
+                            <TableCell>
+                              {plan.plan_type === "fixed" ? (
+                                <Badge className="bg-blue-100 text-blue-800">Fixed</Badge>
+                              ) : (
+                                <Badge className="bg-purple-100 text-purple-800">Custom</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>{plan.plan_type === "custom" ? "—" : `$${Number(plan.monthly_cost ?? 0).toFixed(2)}`}</TableCell>
+                            <TableCell>{plan.plan_type === "custom" ? "—" : (plan.included_minutes ?? 0).toLocaleString()}</TableCell>
+                            <TableCell>${Number(plan.overage_cost_per_minute).toFixed(2)}/min</TableCell>
+                            <TableCell>
+                              {plan.free_trial ? (
+                                <Badge variant="secondary">{plan.free_trial_days ?? 7} days</Badge>
+                              ) : (
+                                <Badge variant="outline">None</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Switch checked={plan.is_active} onCheckedChange={() => toggleActive(plan)} />
+                                <span className="text-sm text-muted-foreground">{plan.is_active ? "Active" : "Inactive"}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon"><MoreHorizontal className="w-4 h-4" /></Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => openEdit(plan)}>
+                                    <Pencil className="w-4 h-4 mr-2" />Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleDelete(plan)} className="text-destructive">
+                                    <Trash2 className="w-4 h-4 mr-2" />Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Tab 2: Add-Ons */}
+          <TabsContent value="addons" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Available Add-Ons</CardTitle>
+                <CardDescription>Choose which add-ons to offer your clients and set your retail price.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {addonsLoading ? (
+                  <div className="text-center py-8 text-muted-foreground">Loading...</div>
+                ) : addonProducts.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Package className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                    <p className="text-lg font-medium">No add-ons available</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Product Name</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Wholesale Cost</TableHead>
+                          <TableHead>Partner Retail Price</TableHead>
+                          <TableHead>Available</TableHead>
+                          <TableHead className="w-24"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {addonProducts.map((product) => (
+                          <TableRow key={product.id}>
+                            <TableCell className="font-medium">{product.name}</TableCell>
+                            <TableCell className="max-w-[240px] truncate text-muted-foreground">{product.description || "—"}</TableCell>
+                            <TableCell>{formatWholesaleCost(product)}</TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                className="w-28"
+                                placeholder="0.00"
+                                value={addonRetailPrice[product.id] ?? ""}
+                                onChange={(e) => setAddonRetailPrice((prev) => ({ ...prev, [product.id]: e.target.value }))}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Switch
+                                checked={addonAvailable[product.id] ?? true}
+                                onCheckedChange={(v) => setAddonAvailable((prev) => ({ ...prev, [product.id]: v }))}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Button size="sm" onClick={() => handleSaveAddon(product)} disabled={savingAddonId === product.id}>
+                                {savingAddonId === product.id ? "Saving..." : "Save"}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Tab 3: Wholesale Rates */}
+          <TabsContent value="wholesale" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">24H Virtual Wholesale Rates</CardTitle>
+                <CardDescription>For reference only — your cost from 24H Virtual</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <h3 className="font-medium mb-2 text-sm">Plan Tiers</h3>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Plan</TableHead>
+                        <TableHead>Price</TableHead>
+                        <TableHead>Included Minutes</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell className="font-medium">Starter</TableCell>
+                        <TableCell>$125</TableCell>
+                        <TableCell>100 min</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium">Growth</TableCell>
+                        <TableCell>$312</TableCell>
+                        <TableCell>250 min</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium">Professional</TableCell>
+                        <TableCell>$500</TableCell>
+                        <TableCell>500 min</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium">Scale</TableCell>
+                        <TableCell>$1000</TableCell>
+                        <TableCell>1000 min</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <div>
+                  <h3 className="font-medium mb-2 text-sm">Per-Minute Rates</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <div className="flex justify-between border-b py-2">
+                      <span className="text-muted-foreground">Under 500 min</span>
+                      <span className="font-medium">$1.25/min</span>
+                    </div>
+                    <div className="flex justify-between border-b py-2">
+                      <span className="text-muted-foreground">500 min+</span>
+                      <span className="font-medium">$1.00/min</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-medium mb-2 text-sm">Language Add-Ons</h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between border-b py-2">
+                      <span className="text-muted-foreground">English Only</span>
+                      <span className="font-medium">Included</span>
+                    </div>
+                    <div className="flex justify-between border-b py-2">
+                      <span className="text-muted-foreground">+ Spanish</span>
+                      <span className="font-medium">$0.05/min</span>
+                    </div>
+                    <div className="flex justify-between border-b py-2">
+                      <span className="text-muted-foreground">+ French</span>
+                      <span className="font-medium">$0.05/min</span>
+                    </div>
+                    <div className="flex justify-between py-2">
+                      <span className="text-muted-foreground">+ Spanish + French</span>
+                      <span className="font-medium">$0.07/min</span>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-xs text-muted-foreground italic">
+                  These are your wholesale costs. Your retail prices should include your margin.
+                </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
 
       <Dialog open={!!editingPlan} onOpenChange={(open) => !open && closeEdit()}>

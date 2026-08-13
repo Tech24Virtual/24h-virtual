@@ -64,6 +64,7 @@ export const adminNavGroups: AdminNavGroup[] = [
       { name: 'CRM', href: '/admin/crm' },
       { name: 'Outbound', href: '/admin/outbound-calls' },
       { name: 'Billing', href: '/admin/billing' },
+      { name: 'Product Catalog', href: '/admin/product-catalog' },
       { name: 'Tickets', href: '/admin/tickets' },
       { name: 'Fulfillment', href: '/admin/fulfillment-intake' },
       { name: 'Agents', href: '/admin/agents' },

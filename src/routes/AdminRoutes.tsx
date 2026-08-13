@@ -14,6 +14,7 @@ const AdminCRM = lazy(() => import("@/pages/admin/AdminCRM"));
 const AdminTickets = lazy(() => import("@/pages/admin/AdminTickets"));
 const AdminTicketDetail = lazy(() => import("@/pages/admin/AdminTicketDetail"));
 const AdminBilling = lazy(() => import("@/pages/admin/AdminBilling"));
+const AdminProductCatalog = lazy(() => import("@/pages/admin/AdminProductCatalog"));
 const AdminAgents = lazy(() => import("@/pages/admin/AdminAgents"));
 const AdminPartners = lazy(() => import("@/pages/admin/AdminPartners"));
 const AdminAnalytics = lazy(() => import("@/pages/admin/AdminAnalytics"));
@@ -99,6 +100,7 @@ export const AdminRoutes = (
       <Route path="tickets" element={<LazyRoute><AdminTickets /></LazyRoute>} />
       <Route path="tickets/:id" element={<LazyRoute><AdminTicketDetail /></LazyRoute>} />
       <Route path="billing" element={<LazyRoute><AdminBilling /></LazyRoute>} />
+      <Route path="product-catalog" element={<LazyRoute><AdminProductCatalog /></LazyRoute>} />
       <Route path="agents" element={<LazyRoute><AdminAgents /></LazyRoute>} />
       <Route path="users" element={<LazyRoute><AdminUsers /></LazyRoute>} />
       <Route path="users/supervisor-scope" element={<LazyRoute><SupervisorScopeManager /></LazyRoute>} />

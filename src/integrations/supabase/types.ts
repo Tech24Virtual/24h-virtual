@@ -22687,6 +22687,7 @@ export type Database = {
           id: string
           is_available: boolean
           partner_id: string
+          retail_price: number | null
           wholesale_price: number
         }
         Insert: {
@@ -22696,6 +22697,7 @@ export type Database = {
           id?: string
           is_available?: boolean
           partner_id: string
+          retail_price?: number | null
           wholesale_price: number
         }
         Update: {
@@ -22705,6 +22707,7 @@ export type Database = {
           id?: string
           is_available?: boolean
           partner_id?: string
+          retail_price?: number | null
           wholesale_price?: number
         }
         Relationships: [
