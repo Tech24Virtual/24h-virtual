@@ -1,44 +1,33 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Outlet } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Helmet } from "react-helmet-async";
 import { WhiteLabelSidebar } from "./WhiteLabelSidebar";
 import { WhiteLabelHeader } from "./WhiteLabelHeader";
 import { AdminDashboardSwitcher } from "@/components/admin/AdminDashboardSwitcher";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-
-interface PartnerBranding {
-  company_name: string | null;
-  favicon_url: string | null;
-}
+import { useWLPartnerId } from "@/hooks/wl/useWLPartnerId";
 
 export function WhiteLabelLayout({ children }: { children?: React.ReactNode }) {
-  const { user } = useAuth();
-  const [branding, setBranding] = useState<PartnerBranding | null>(null);
+  // Warms the ['wl-partner-id', user?.id] query cache so every child page's
+  // useWLPartnerId() call resolves from cache instead of re-fetching.
+  const { data: partnerId } = useWLPartnerId();
 
-  useEffect(() => {
-    if (!user) return;
-    supabase
-      .from('white_label_partners')
-      .select('id, company_name')
-      .eq('user_id', user.id)
-      .maybeSingle()
-      .then(({ data: partner }) => {
-        if (!partner) return;
-        supabase
-          .from('white_label_branding')
-          .select('favicon_url')
-          .eq('partner_id', partner.id)
-          .maybeSingle()
-          .then(({ data: b }) => {
-            setBranding({
-              company_name: partner.company_name ?? null,
-              favicon_url: b?.favicon_url ?? null,
-            });
-          });
-      });
-  }, [user]);
+  const { data: branding } = useQuery({
+    queryKey: ['wl-partner-branding', partnerId],
+    enabled: !!partnerId,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('white_label_branding')
+        .select('company_name, favicon_url')
+        .eq('partner_id', partnerId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
 
   useEffect(() => {
     if (!branding?.favicon_url) return;

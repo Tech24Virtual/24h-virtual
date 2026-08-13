@@ -14,7 +14,8 @@ export function useWLPartnerId() {
   return useQuery({
     queryKey: ['wl-partner-id', user?.id],
     enabled: !!user?.id,
-    staleTime: 5 * 60 * 1000,
+    staleTime: Infinity,
+    gcTime: 10 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('white_label_partners')
