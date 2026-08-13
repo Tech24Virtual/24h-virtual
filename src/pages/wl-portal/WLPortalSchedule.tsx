@@ -8,6 +8,7 @@ import { WLPortalLayout } from '@/components/wl-portal/WLPortalLayout';
 import { useWLPortal } from '@/contexts/WLPortalContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { ClientCoverageCard } from '@/components/coverage/ClientCoverageCard';
 
 const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -149,6 +150,10 @@ export default function WLPortalSchedule() {
           )}
         </CardContent>
       </Card>
+
+      <div className="mt-6">
+        <ClientCoverageCard wlClientId={clientInfo?.id} readOnly={false} />
+      </div>
     </WLPortalLayout>
   );
 }

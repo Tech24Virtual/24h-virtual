@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { FileText, CheckCircle, Clock, Download } from "lucide-react";
 import jsPDF from "jspdf";
-import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -95,7 +94,6 @@ export default function WLAgreements() {
   const pastAgreements = agreements.filter(a => !a.is_current);
 
   return (
-    <WhiteLabelLayout>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-heading">Agreements</h1>
@@ -224,6 +222,5 @@ export default function WLAgreements() {
           </DialogContent>
         </Dialog>
       </div>
-    </WhiteLabelLayout>
   );
 }

@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { WhiteLabelLayout } from '@/components/white-label/WhiteLabelLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -143,7 +142,7 @@ export default function WLTasks() {
   };
 
   return (
-    <WhiteLabelLayout>
+    <>
       <SEO title="Tasks — White Label Dashboard" description="Partner tasks and reminders" suppressBranding />
       <div className="space-y-6 max-w-6xl">
         <div className="flex items-center justify-between flex-wrap gap-3">
@@ -388,6 +387,6 @@ export default function WLTasks() {
           </div>
         )}
       </div>
-    </WhiteLabelLayout>
+    </>
   );
 }

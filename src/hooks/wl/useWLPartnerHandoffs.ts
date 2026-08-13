@@ -54,6 +54,7 @@ export function useWLPartnerHandoffs() {
   return useQuery({
     queryKey: ['wl-partner-handoffs', partnerId],
     enabled: !!partnerId && !isLoading,
+    staleTime: 30 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('wl_partner_onboarding_handoffs')

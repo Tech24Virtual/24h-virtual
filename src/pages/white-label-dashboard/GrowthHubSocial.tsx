@@ -1,4 +1,3 @@
-import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -84,7 +83,6 @@ export default function GrowthHubSocial() {
   };
 
   return (
-    <WhiteLabelLayout>
       <div className="space-y-6">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild>
@@ -179,6 +177,5 @@ export default function GrowthHubSocial() {
           </Card>
         )}
       </div>
-    </WhiteLabelLayout>
   );
 }

@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CheckCircle2, Circle, ExternalLink, Star } from 'lucide-react';
-import { WhiteLabelLayout } from '@/components/white-label/WhiteLabelLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,34 +19,19 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useWLPartnerId } from '@/hooks/wl/useWLPartnerId';
+import { ClientCoverageCard } from '@/components/coverage/ClientCoverageCard';
 
 export default function WLClientDetail() {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const [slugInput, setSlugInput] = useState('');
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 
-  // Fetch partner ID for the current user
-  const { data: partner } = useQuery({
-    queryKey: ['wl-partner-id', user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('white_label_partners')
-        .select('id')
-        .eq('user_id', user!.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user,
-  });
-
-  const partnerId = partner?.id ?? null;
+  const { data: partnerId } = useWLPartnerId();
 
   // Fetch client row
   const { data: client, isLoading: clientLoading } = useQuery({
@@ -223,24 +207,21 @@ export default function WLClientDetail() {
     enabled: !!id,
   });
 
-  const isLoading = clientLoading || configLoading || !partner;
+  const isLoading = clientLoading || configLoading || !partnerId;
 
   if (isLoading) {
     return (
-      <WhiteLabelLayout>
         <div className="space-y-4 max-w-3xl">
           <Skeleton className="h-8 w-40" />
           <Skeleton className="h-40 w-full" />
           <Skeleton className="h-56 w-full" />
           <Skeleton className="h-56 w-full" />
         </div>
-      </WhiteLabelLayout>
     );
   }
 
   if (!client || client.partner_id !== partnerId) {
     return (
-      <WhiteLabelLayout>
         <div className="max-w-3xl space-y-4">
           <Link
             to="/white-label-dashboard/clients"
@@ -251,7 +232,6 @@ export default function WLClientDetail() {
           </Link>
           <p className="text-muted-foreground">Client not found.</p>
         </div>
-      </WhiteLabelLayout>
     );
   }
 
@@ -329,7 +309,7 @@ export default function WLClientDetail() {
   );
 
   return (
-    <WhiteLabelLayout>
+    <>
       <div className="space-y-6 max-w-3xl">
 
         <Link
@@ -651,6 +631,9 @@ export default function WLClientDetail() {
           </CardContent>
         </Card>
 
+        {/* Coverage */}
+        <ClientCoverageCard wlClientId={id} partnerId={partnerId ?? undefined} />
+
       </div>
 
       {/* Invite confirmation dialog */}
@@ -676,6 +659,6 @@ export default function WLClientDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </WhiteLabelLayout>
+    </>
   );
 }

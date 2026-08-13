@@ -11,7 +11,6 @@ import {
   CheckCircle2,
   Circle
 } from "lucide-react";
-import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -153,7 +152,7 @@ export default function WhiteLabelDashboard() {
   ];
 
   return (
-    <WhiteLabelLayout>
+    <>
       <PartnerWelcomeModal partnerName={partnerData?.contact_name || partnerData?.company_name} />
       <div className="space-y-8">
         {/* Header */}
@@ -317,6 +316,6 @@ export default function WhiteLabelDashboard() {
           </Card>
         )}
       </div>
-    </WhiteLabelLayout>
+    </>
   );
 }

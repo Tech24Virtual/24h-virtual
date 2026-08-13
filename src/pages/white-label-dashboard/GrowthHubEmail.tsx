@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,7 +80,7 @@ export default function GrowthHubEmail() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if ((!apiKey && !hasExistingKey) || !fromEmail || !fromName) throw new Error("All fields required");
-      const payload: Record<string, unknown> = {
+      const basePayload = {
         partner_id: partner!.id,
         provider: "resend" as const,
         from_name: fromName,
@@ -89,12 +88,18 @@ export default function GrowthHubEmail() {
         status: "connected",
         last_tested_at: new Date().toISOString(),
       };
-      if (apiKey) payload.api_key_encrypted = apiKey;
       if (connection) {
-        const { error } = await supabase.from("wl_email_connections").update(payload).eq("id", connection.id);
+        const { error } = await supabase.from("wl_email_connections").update({
+          ...basePayload,
+          ...(apiKey ? { api_key_encrypted: apiKey } : {}),
+        }).eq("id", connection.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("wl_email_connections").insert(payload);
+        if (!apiKey) throw new Error("API key is required");
+        const { error } = await supabase.from("wl_email_connections").insert({
+          ...basePayload,
+          api_key_encrypted: apiKey,
+        });
         if (error) throw error;
       }
     },
@@ -128,7 +133,6 @@ export default function GrowthHubEmail() {
   });
 
   return (
-    <WhiteLabelLayout>
       <div className="space-y-6">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild>
@@ -239,6 +243,5 @@ export default function GrowthHubEmail() {
           </TabsContent>
         </Tabs>
       </div>
-    </WhiteLabelLayout>
   );
 }

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Search, MoreHorizontal, UserPlus, ShieldCheck, AlertTriangle, SlidersHorizontal } from "lucide-react";
-import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -138,7 +137,7 @@ export default function WhiteLabelClients() {
   const unverifiedCount = clients.filter(c => !c.billing_verified && c.status === 'active').length;
 
   return (
-    <WhiteLabelLayout>
+    <>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -309,6 +308,6 @@ export default function WhiteLabelClients() {
         clientName={modulesDialogClient?.name}
         onSaved={fetchPartnerAndClients}
       />
-    </WhiteLabelLayout>
+    </>
   );
 }

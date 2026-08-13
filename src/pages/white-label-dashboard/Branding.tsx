@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { Palette, Save, Globe, Upload, Building, Mail, Phone, CheckCircle, AlertCircle, Clock, RefreshCw, Eye, Type, Monitor, ImageIcon, X, LayoutDashboard, FileText, Calendar, CreditCard, LifeBuoy, Settings as SettingsIcon, User, LogOut } from "lucide-react";
-import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -183,7 +182,6 @@ export default function WhiteLabelBranding() {
   ];
 
   return (
-    <WhiteLabelLayout>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -638,6 +636,5 @@ export default function WhiteLabelBranding() {
           </div>
         )}
       </div>
-    </WhiteLabelLayout>
   );
 }

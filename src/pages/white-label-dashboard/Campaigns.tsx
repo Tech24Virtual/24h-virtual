@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Plus, Megaphone } from "lucide-react";
-import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -100,7 +99,6 @@ export default function WLCampaigns() {
   }, 0);
 
   return (
-    <WhiteLabelLayout>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -201,6 +199,5 @@ export default function WLCampaigns() {
           </CardContent>
         </Card>
       </div>
-    </WhiteLabelLayout>
   );
 }

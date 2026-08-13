@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { WhiteLabelLayout } from '@/components/white-label/WhiteLabelLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -71,18 +70,15 @@ export default function WLProposalDetail() {
 
   if (isLoading) {
     return (
-      <WhiteLabelLayout>
         <div className="max-w-4xl space-y-4">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-64 w-full" />
         </div>
-      </WhiteLabelLayout>
     );
   }
 
   if (!proposal) {
     return (
-      <WhiteLabelLayout>
         <div className="max-w-4xl">
           <Card className="p-12 text-center">
             <p className="font-medium">Proposal not found</p>
@@ -95,7 +91,6 @@ export default function WLProposalDetail() {
             </Button>
           </Card>
         </div>
-      </WhiteLabelLayout>
     );
   }
 
@@ -151,7 +146,7 @@ export default function WLProposalDetail() {
   };
 
   return (
-    <WhiteLabelLayout>
+    <>
       <SEO
         title={`${proposal.title} — Proposal`}
         description="White-label partner proposal detail"
@@ -468,6 +463,6 @@ export default function WLProposalDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </WhiteLabelLayout>
+    </>
   );
 }

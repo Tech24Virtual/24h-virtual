@@ -1,5 +1,4 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { WhiteLabelLayout } from '@/components/white-label/WhiteLabelLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft } from 'lucide-react';
@@ -14,7 +13,7 @@ export default function WLProposalNew() {
   const { createProposal } = useWLPartnerProposalMutations();
 
   return (
-    <WhiteLabelLayout>
+    <>
       <SEO title="New Proposal — White Label Partner" description="Create a new proposal" suppressBranding />
       <div className="space-y-6 max-w-3xl">
         <div>
@@ -46,6 +45,6 @@ export default function WLProposalNew() {
           />
         </Card>
       </div>
-    </WhiteLabelLayout>
+    </>
   );
 }

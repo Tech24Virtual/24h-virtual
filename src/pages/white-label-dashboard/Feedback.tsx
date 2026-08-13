@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Inbox, Users, ClipboardList, Send, ArrowUpRight, CheckCircle2, PlayCircle } from 'lucide-react';
-import { WhiteLabelLayout } from '@/components/white-label/WhiteLabelLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -194,7 +193,7 @@ export default function WLFeedbackQueue() {
   };
 
   return (
-    <WhiteLabelLayout>
+    <>
       <div className="mb-6">
         <h1 className="text-2xl lg:text-3xl font-bold">Feedback</h1>
         <p className="text-muted-foreground mt-1">Manage client requests, internal items, and product feedback to the platform.</p>
@@ -333,7 +332,7 @@ export default function WLFeedbackQueue() {
           onConfirm={(note) => runAction(noteDialog.row, noteDialog.action, note)}
         />
       )}
-    </WhiteLabelLayout>
+    </>
   );
 }
 

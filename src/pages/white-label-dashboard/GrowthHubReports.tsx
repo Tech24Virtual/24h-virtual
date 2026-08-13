@@ -1,4 +1,3 @@
-import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -127,7 +126,6 @@ export default function GrowthHubReports() {
   ];
 
   return (
-    <WhiteLabelLayout>
       <div className="space-y-6">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild>
@@ -216,6 +214,5 @@ export default function GrowthHubReports() {
           </div>
         )}
       </div>
-    </WhiteLabelLayout>
   );
 }

@@ -45,6 +45,7 @@ export function useWLPartnerProposals() {
   return useQuery({
     queryKey: ['wl-partner-proposals', partnerId],
     enabled: !!partnerId && !partnerLoading,
+    staleTime: 30 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('wl_partner_proposals')

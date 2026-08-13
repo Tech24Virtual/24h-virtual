@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -113,7 +112,6 @@ export default function GrowthHubWordPress() {
   });
 
   return (
-    <WhiteLabelLayout>
       <div className="space-y-6 max-w-2xl">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild>
@@ -237,6 +235,5 @@ export default function GrowthHubWordPress() {
           </CardContent>
         </Card>
       </div>
-    </WhiteLabelLayout>
   );
 }

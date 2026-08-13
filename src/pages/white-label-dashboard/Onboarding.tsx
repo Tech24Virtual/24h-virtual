@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import { useMemo, useState } from 'react';
-import { WhiteLabelLayout } from '@/components/white-label/WhiteLabelLayout';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -69,7 +68,7 @@ export default function WLOnboarding() {
   }, [handoffs, submissionFilter]);
 
   return (
-    <WhiteLabelLayout>
+    <>
       <SEO title="Onboarding — White Label Dashboard" description="Accepted proposals queued for onboarding" suppressBranding />
       <div className="space-y-6 max-w-6xl">
         <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -170,6 +169,6 @@ export default function WLOnboarding() {
           </div>
         )}
       </div>
-    </WhiteLabelLayout>
+    </>
   );
 }

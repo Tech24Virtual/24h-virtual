@@ -1,7 +1,8 @@
 import { lazy } from "react";
-import { Route, Navigate } from "react-router-dom";
+import { Route, Navigate, Outlet } from "react-router-dom";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { LazyRoute } from "./LazyRoute";
+import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
 
 const WhiteLabelDashboard = lazy(() => import("@/pages/white-label-dashboard/WhiteLabelDashboard"));
 const WhiteLabelClients = lazy(() => import("@/pages/white-label-dashboard/Clients"));
@@ -40,57 +41,65 @@ const WLTasks = lazy(() => import("@/pages/white-label-dashboard/Tasks"));
 const WLPlans = lazy(() => import("@/pages/white-label-dashboard/Plans"));
 const WLServiceConfig = lazy(() => import("@/pages/white-label-dashboard/ServiceConfig"));
 
-const guard = (el: React.ReactNode) => (
-  <ProtectedRoute requiredRole="white_label"><LazyRoute>{el}</LazyRoute></ProtectedRoute>
-);
+function WLLayoutWrapper() {
+  return (
+    <ProtectedRoute requiredRole="white_label">
+      <WhiteLabelLayout>
+        <Outlet />
+      </WhiteLabelLayout>
+    </ProtectedRoute>
+  );
+}
 
 export const WhiteLabelRoutes = (
   <>
-    {/* ── Core ── */}
-    <Route path="/white-label-dashboard" element={guard(<WhiteLabelDashboard />)} />
+    <Route element={<WLLayoutWrapper />}>
+      {/* ── Core ── */}
+      <Route path="/white-label-dashboard" element={<LazyRoute><WhiteLabelDashboard /></LazyRoute>} />
 
-    {/* ── Clients ── */}
-    <Route path="/white-label-dashboard/clients" element={guard(<WhiteLabelClients />)} />
-    <Route path="/white-label-dashboard/clients/:id" element={guard(<WLClientDetail />)} />
-    <Route path="/white-label-dashboard/clients/leads" element={guard(<WLPartnerLeadsPage />)} />
-    <Route path="/white-label-dashboard/clients/pipeline" element={guard(<WLPartnerPipelinePage />)} />
-    <Route path="/white-label-dashboard/clients/proposals" element={guard(<WLProposals />)} />
-    <Route path="/white-label-dashboard/clients/proposals/new" element={guard(<WLProposalNew />)} />
-    <Route path="/white-label-dashboard/clients/proposals/:id" element={guard(<WLProposalDetail />)} />
-    <Route path="/white-label-dashboard/clients/onboarding" element={guard(<WLOnboarding />)} />
-    <Route path="/white-label-dashboard/clients/onboarding/:id" element={guard(<WLOnboardingDetail />)} />
-    <Route path="/white-label-dashboard/clients/usage" element={guard(<WLUsageDashboard />)} />
-    <Route path="/white-label-dashboard/clients/tasks" element={guard(<WLTasks />)} />
-    <Route path="/white-label-dashboard/clients/tickets" element={guard(<WLClientTickets />)} />
-    <Route path="/white-label-dashboard/plans" element={guard(<WLPlans />)} />
-    <Route path="/white-label-dashboard/service-config" element={guard(<WLServiceConfig />)} />
+      {/* ── Clients ── */}
+      <Route path="/white-label-dashboard/clients" element={<LazyRoute><WhiteLabelClients /></LazyRoute>} />
+      <Route path="/white-label-dashboard/clients/:id" element={<LazyRoute><WLClientDetail /></LazyRoute>} />
+      <Route path="/white-label-dashboard/clients/leads" element={<LazyRoute><WLPartnerLeadsPage /></LazyRoute>} />
+      <Route path="/white-label-dashboard/clients/pipeline" element={<LazyRoute><WLPartnerPipelinePage /></LazyRoute>} />
+      <Route path="/white-label-dashboard/clients/proposals" element={<LazyRoute><WLProposals /></LazyRoute>} />
+      <Route path="/white-label-dashboard/clients/proposals/new" element={<LazyRoute><WLProposalNew /></LazyRoute>} />
+      <Route path="/white-label-dashboard/clients/proposals/:id" element={<LazyRoute><WLProposalDetail /></LazyRoute>} />
+      <Route path="/white-label-dashboard/clients/onboarding" element={<LazyRoute><WLOnboarding /></LazyRoute>} />
+      <Route path="/white-label-dashboard/clients/onboarding/:id" element={<LazyRoute><WLOnboardingDetail /></LazyRoute>} />
+      <Route path="/white-label-dashboard/clients/usage" element={<LazyRoute><WLUsageDashboard /></LazyRoute>} />
+      <Route path="/white-label-dashboard/clients/tasks" element={<LazyRoute><WLTasks /></LazyRoute>} />
+      <Route path="/white-label-dashboard/clients/tickets" element={<LazyRoute><WLClientTickets /></LazyRoute>} />
+      <Route path="/white-label-dashboard/plans" element={<LazyRoute><WLPlans /></LazyRoute>} />
+      <Route path="/white-label-dashboard/service-config" element={<LazyRoute><WLServiceConfig /></LazyRoute>} />
 
-    {/* ── Campaigns ── */}
-    <Route path="/white-label-dashboard/campaigns" element={guard(<WLCampaigns />)} />
-    <Route path="/white-label-dashboard/campaigns/campaign-os" element={guard(<WLCampaignOs />)} />
-    <Route path="/white-label-dashboard/campaigns/knowledge-base" element={guard(<WLKnowledgeBase />)} />
+      {/* ── Campaigns ── */}
+      <Route path="/white-label-dashboard/campaigns" element={<LazyRoute><WLCampaigns /></LazyRoute>} />
+      <Route path="/white-label-dashboard/campaigns/campaign-os" element={<LazyRoute><WLCampaignOs /></LazyRoute>} />
+      <Route path="/white-label-dashboard/campaigns/knowledge-base" element={<LazyRoute><WLKnowledgeBase /></LazyRoute>} />
 
-    {/* ── Growth ── */}
-    <Route path="/white-label-dashboard/growth" element={guard(<WLGrowthHub />)} />
-    <Route path="/white-label-dashboard/growth/blog" element={guard(<WLGrowthHubBlog />)} />
-    <Route path="/white-label-dashboard/growth/keywords" element={guard(<WLGrowthHubKeywords />)} />
-    <Route path="/white-label-dashboard/growth/wordpress" element={guard(<WLGrowthHubWordPress />)} />
-    <Route path="/white-label-dashboard/growth/social" element={guard(<WLGrowthHubSocial />)} />
-    <Route path="/white-label-dashboard/growth/reports" element={guard(<WLGrowthHubReports />)} />
-    <Route path="/white-label-dashboard/growth/newsletter" element={guard(<WLGrowthHubNewsletter />)} />
-    <Route path="/white-label-dashboard/growth/email" element={guard(<WLGrowthHubEmail />)} />
+      {/* ── Growth ── */}
+      <Route path="/white-label-dashboard/growth" element={<LazyRoute><WLGrowthHub /></LazyRoute>} />
+      <Route path="/white-label-dashboard/growth/blog" element={<LazyRoute><WLGrowthHubBlog /></LazyRoute>} />
+      <Route path="/white-label-dashboard/growth/keywords" element={<LazyRoute><WLGrowthHubKeywords /></LazyRoute>} />
+      <Route path="/white-label-dashboard/growth/wordpress" element={<LazyRoute><WLGrowthHubWordPress /></LazyRoute>} />
+      <Route path="/white-label-dashboard/growth/social" element={<LazyRoute><WLGrowthHubSocial /></LazyRoute>} />
+      <Route path="/white-label-dashboard/growth/reports" element={<LazyRoute><WLGrowthHubReports /></LazyRoute>} />
+      <Route path="/white-label-dashboard/growth/newsletter" element={<LazyRoute><WLGrowthHubNewsletter /></LazyRoute>} />
+      <Route path="/white-label-dashboard/growth/email" element={<LazyRoute><WLGrowthHubEmail /></LazyRoute>} />
 
-    {/* ── Account ── */}
-    <Route path="/white-label-dashboard/account/billing" element={guard(<WhiteLabelBilling />)} />
-    <Route path="/white-label-dashboard/account/pricing" element={guard(<WLPricing />)} />
-    <Route path="/white-label-dashboard/account/agreements" element={guard(<WLAgreements />)} />
-    <Route path="/white-label-dashboard/account/branding" element={guard(<WhiteLabelBranding />)} />
-    <Route path="/white-label-dashboard/account/branding/custom-domain" element={guard(<WLCustomDomain />)} />
-    <Route path="/white-label-dashboard/account/team" element={guard(<WLTeam />)} />
-    <Route path="/white-label-dashboard/account/support" element={guard(<WhiteLabelSupport />)} />
-    <Route path="/white-label-dashboard/account/support/:id" element={guard(<WLSupportDetail />)} />
-    <Route path="/white-label-dashboard/account/feedback" element={guard(<WLFeedbackQueue />)} />
-    <Route path="/white-label-dashboard/account/settings" element={guard(<WhiteLabelSettings />)} />
+      {/* ── Account ── */}
+      <Route path="/white-label-dashboard/account/billing" element={<LazyRoute><WhiteLabelBilling /></LazyRoute>} />
+      <Route path="/white-label-dashboard/account/pricing" element={<LazyRoute><WLPricing /></LazyRoute>} />
+      <Route path="/white-label-dashboard/account/agreements" element={<LazyRoute><WLAgreements /></LazyRoute>} />
+      <Route path="/white-label-dashboard/account/branding" element={<LazyRoute><WhiteLabelBranding /></LazyRoute>} />
+      <Route path="/white-label-dashboard/account/branding/custom-domain" element={<LazyRoute><WLCustomDomain /></LazyRoute>} />
+      <Route path="/white-label-dashboard/account/team" element={<LazyRoute><WLTeam /></LazyRoute>} />
+      <Route path="/white-label-dashboard/account/support" element={<LazyRoute><WhiteLabelSupport /></LazyRoute>} />
+      <Route path="/white-label-dashboard/account/support/:id" element={<LazyRoute><WLSupportDetail /></LazyRoute>} />
+      <Route path="/white-label-dashboard/account/feedback" element={<LazyRoute><WLFeedbackQueue /></LazyRoute>} />
+      <Route path="/white-label-dashboard/account/settings" element={<LazyRoute><WhiteLabelSettings /></LazyRoute>} />
+    </Route>
 
     {/* ── Legacy redirects (old URLs → new hierarchical paths) ── */}
     <Route path="/white-label-dashboard/leads" element={<Navigate to="/white-label-dashboard/clients/leads" replace />} />

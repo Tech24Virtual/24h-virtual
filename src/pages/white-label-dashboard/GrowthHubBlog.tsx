@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -126,7 +125,6 @@ export default function GrowthHubBlog() {
   });
 
   return (
-    <WhiteLabelLayout>
       <div className="space-y-6">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild>
@@ -236,6 +234,5 @@ export default function GrowthHubBlog() {
           </CardContent>
         </Card>
       </div>
-    </WhiteLabelLayout>
   );
 }

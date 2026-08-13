@@ -12,7 +12,6 @@ import {
   ExternalLink,
   Info,
 } from "lucide-react";
-import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -373,7 +372,7 @@ export default function WLCustomDomain() {
   }
 
   return (
-    <WhiteLabelLayout>
+    <>
       <div className="space-y-6 max-w-4xl">
         {/* Header */}
         <div className="space-y-2">
@@ -782,6 +781,6 @@ export default function WLCustomDomain() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </WhiteLabelLayout>
+    </>
   );
 }

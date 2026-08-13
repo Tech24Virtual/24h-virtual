@@ -1,4 +1,3 @@
-import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Megaphone, Building2, FileText, Eye } from "lucide-react";
@@ -12,7 +11,6 @@ import { Megaphone, Building2, FileText, Eye } from "lucide-react";
  */
 export default function WLCampaignOs() {
   return (
-    <WhiteLabelLayout>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-semibold">Campaigns</h1>
@@ -73,6 +71,5 @@ export default function WLCampaignOs() {
           </CardContent>
         </Card>
       </div>
-    </WhiteLabelLayout>
   );
 }

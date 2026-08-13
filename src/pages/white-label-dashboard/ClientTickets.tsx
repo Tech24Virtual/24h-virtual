@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Plus, Search, MessageSquare, ArrowUpRight, Shield } from "lucide-react";
-import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -161,7 +160,6 @@ export default function WLClientTickets() {
   });
 
   return (
-    <WhiteLabelLayout>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -334,6 +332,5 @@ export default function WLClientTickets() {
           )}
         </div>
       </div>
-    </WhiteLabelLayout>
   );
 }

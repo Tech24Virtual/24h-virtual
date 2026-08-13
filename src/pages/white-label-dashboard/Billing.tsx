@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Receipt, CreditCard, Download, CheckCircle } from "lucide-react";
-import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -98,7 +97,6 @@ export default function WhiteLabelBilling() {
   const nextPaymentStr = nextPaymentDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
   return (
-    <WhiteLabelLayout>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-heading">Billing</h1>
@@ -248,6 +246,5 @@ export default function WhiteLabelBilling() {
           </div>
         )}
       </div>
-    </WhiteLabelLayout>
   );
 }

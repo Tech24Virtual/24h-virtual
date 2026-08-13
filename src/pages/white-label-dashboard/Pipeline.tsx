@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { WhiteLabelLayout } from '@/components/white-label/WhiteLabelLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -50,7 +49,7 @@ export default function WLPartnerPipeline() {
     stageLeads.reduce((sum, l) => sum + (l.estimated_value ?? 0), 0);
 
   return (
-    <WhiteLabelLayout>
+    <>
       <SEO title="Pipeline — White Label Partner" description="Visual pipeline of your sales leads" suppressBranding />
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -125,6 +124,6 @@ export default function WLPartnerPipeline() {
         open={!!converting}
         onOpenChange={(o) => !o && setConverting(null)}
       />
-    </WhiteLabelLayout>
+    </>
   );
 }

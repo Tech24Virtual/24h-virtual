@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { LifeBuoy, Plus, Sparkles } from 'lucide-react';
-import { WhiteLabelLayout } from '@/components/white-label/WhiteLabelLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -43,7 +42,6 @@ export default function WhiteLabelSupport() {
   const assistantLabel = brandName ? `${brandName} Assistant` : 'AI Assistant';
 
   return (
-    <WhiteLabelLayout>
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Support</h1>
@@ -99,6 +97,5 @@ export default function WhiteLabelSupport() {
           }}
         />
       </div>
-    </WhiteLabelLayout>
   );
 }

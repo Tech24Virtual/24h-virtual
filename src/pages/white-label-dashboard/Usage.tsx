@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Clock, TrendingUp, Users, DollarSign, Zap } from "lucide-react";
-import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -74,7 +73,6 @@ export default function WLUsageDashboard() {
   const volumeActive = summary?.volume_discount_active || false;
 
   return (
-    <WhiteLabelLayout>
       <div className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -260,6 +258,5 @@ export default function WLUsageDashboard() {
           </>
         )}
       </div>
-    </WhiteLabelLayout>
   );
 }

@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Pencil, Settings, ShieldCheck } from "lucide-react";
-import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -146,7 +145,7 @@ export default function WLServiceConfig() {
   };
 
   return (
-    <WhiteLabelLayout>
+    <>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-heading">Service Configuration</h1>
@@ -261,6 +260,6 @@ export default function WLServiceConfig() {
           </div>
         </DialogContent>
       </Dialog>
-    </WhiteLabelLayout>
+    </>
   );
 }

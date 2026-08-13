@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { DollarSign, Calculator, Zap } from "lucide-react";
-import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -66,7 +65,6 @@ export default function WLWholesalePricing() {
   const totalProjected = minuteCost + campaignFees;
 
   return (
-    <WhiteLabelLayout>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-heading">Wholesale Pricing</h1>
@@ -292,6 +290,5 @@ export default function WLWholesalePricing() {
           </div>
         )}
       </div>
-    </WhiteLabelLayout>
   );
 }

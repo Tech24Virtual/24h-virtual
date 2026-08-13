@@ -1,6 +1,5 @@
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useState } from 'react';
-import { WhiteLabelLayout } from '@/components/white-label/WhiteLabelLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -69,18 +68,15 @@ export default function WLOnboardingDetail() {
 
   if (isLoading) {
     return (
-      <WhiteLabelLayout>
         <div className="max-w-5xl space-y-4">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-64 w-full" />
         </div>
-      </WhiteLabelLayout>
     );
   }
 
   if (!handoff) {
     return (
-      <WhiteLabelLayout>
         <Card className="p-12 text-center max-w-4xl">
           <p className="font-medium">Handoff not found</p>
           <Button
@@ -91,7 +87,6 @@ export default function WLOnboardingDetail() {
             Back to onboarding
           </Button>
         </Card>
-      </WhiteLabelLayout>
     );
   }
 
@@ -114,7 +109,7 @@ export default function WLOnboardingDetail() {
   };
 
   return (
-    <WhiteLabelLayout>
+    <>
       <SEO
         title={`Onboarding — ${handoff.client_name_snapshot || 'Client'}`}
         description="White-label partner onboarding handoff"
@@ -333,6 +328,6 @@ export default function WLOnboardingDetail() {
           </div>
         </div>
       </div>
-    </WhiteLabelLayout>
+    </>
   );
 }

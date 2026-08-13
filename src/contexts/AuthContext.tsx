@@ -15,6 +15,7 @@ interface Profile {
   avatar_url: string | null;
   onboarding_completed?: boolean;
   onboarding_completed_at?: string | null;
+  wl_partner_id: string | null;
 }
 
 interface AffiliateData {
@@ -118,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setRolesLoaded(false);
           // Use setTimeout to avoid Supabase client deadlock
           setTimeout(async () => {
-            fetchProfile(session.user.id);
+            await fetchProfile(session.user.id);
             const fetchedRoles = await fetchRoles(session.user.id);
             if (fetchedRoles.includes('affiliate' as AppRole)) fetchAffiliateData(session.user.id);
           }, 0);
@@ -140,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (session?.user) {
         setRolesLoaded(false);
-        fetchProfile(session.user.id);
+        await fetchProfile(session.user.id);
         const fetchedRoles = await fetchRoles(session.user.id);
         if (fetchedRoles.includes('affiliate' as AppRole)) fetchAffiliateData(session.user.id);
       } else {

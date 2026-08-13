@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Plus, MoreHorizontal, Pencil, Trash2, DollarSign, Package } from "lucide-react";
-import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -344,7 +343,7 @@ export default function WLPlans() {
   );
 
   return (
-    <WhiteLabelLayout>
+    <>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-heading">Pricing Plans</h1>
@@ -617,6 +616,6 @@ export default function WLPlans() {
           </Button>
         </DialogContent>
       </Dialog>
-    </WhiteLabelLayout>
+    </>
   );
 }

@@ -1,4 +1,3 @@
-import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -151,7 +150,6 @@ export default function GrowthHub() {
   ];
 
   return (
-    <WhiteLabelLayout>
       <div className="space-y-8">
         {/* Header */}
         <div>
@@ -239,6 +237,5 @@ export default function GrowthHub() {
         </div>
 
       </div>
-    </WhiteLabelLayout>
   );
 }

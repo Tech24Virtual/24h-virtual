@@ -8957,6 +8957,318 @@ export type Database = {
           },
         ]
       }
+      client_coverage: {
+        Row: {
+          coverage_days: string
+          coverage_hours: string
+          coverage_type: string
+          created_at: string | null
+          end_time: string | null
+          id: string
+          lead_id: string | null
+          partner_id: string | null
+          start_time: string | null
+          timezone: string | null
+          updated_at: string | null
+          wl_client_id: string | null
+        }
+        Insert: {
+          coverage_days?: string
+          coverage_hours?: string
+          coverage_type?: string
+          created_at?: string | null
+          end_time?: string | null
+          id?: string
+          lead_id?: string | null
+          partner_id?: string | null
+          start_time?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+          wl_client_id?: string | null
+        }
+        Update: {
+          coverage_days?: string
+          coverage_hours?: string
+          coverage_type?: string
+          created_at?: string | null
+          end_time?: string | null
+          id?: string
+          lead_id?: string | null
+          partner_id?: string | null
+          start_time?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+          wl_client_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_coverage_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_coverage_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_account_delivery_360"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_bi_direct_success_summary"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_bi_subscription_churn_events"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_bi_subscription_snapshot"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_bi_success_account_status"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_bi_success_expansion_candidates"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_client_delivery_status"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_client_receptionist_summary"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_direct_self_success"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_direct_success_summary"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_growth_attribution_lead"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_lifecycle_overview"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_partner_success_accounts"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_revenue_lead_360"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_subscription_churn_events"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_subscription_snapshot"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_success_account_status"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_success_expansion_candidates"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_unit_econ_lead_cost"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_partner_success_summary"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_subscription_wl_recurring"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_wl_partner_economics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_wl_partner_profitability_ranking"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_wl_partner_readiness"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_self_success"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_success_summary"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_subscription_wl_recurring"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_wl_partner_economics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_wl_partner_profitability_ranking"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_wl_partner_readiness"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_wl_partner_self_economics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_wl_partner_self_portfolio_health"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "white_label_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_coverage_wl_client_id_fkey"
+            columns: ["wl_client_id"]
+            isOneToOne: true
+            referencedRelation: "v_bi_wl_partner_export"
+            referencedColumns: ["wl_client_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_wl_client_id_fkey"
+            columns: ["wl_client_id"]
+            isOneToOne: true
+            referencedRelation: "v_wl_client_directory_for_partner"
+            referencedColumns: ["wl_client_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_wl_client_id_fkey"
+            columns: ["wl_client_id"]
+            isOneToOne: true
+            referencedRelation: "v_wl_client_service_status"
+            referencedColumns: ["wl_client_id"]
+          },
+          {
+            foreignKeyName: "client_coverage_wl_client_id_fkey"
+            columns: ["wl_client_id"]
+            isOneToOne: true
+            referencedRelation: "white_label_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_departments: {
         Row: {
           client_lead_id: string | null
@@ -18442,6 +18754,7 @@ export type Database = {
           reporting_to: string | null
           trackabi_user_id: string | null
           updated_at: string
+          wl_partner_id: string | null
         }
         Insert: {
           after_hours_settings?: Json | null
@@ -18469,6 +18782,7 @@ export type Database = {
           reporting_to?: string | null
           trackabi_user_id?: string | null
           updated_at?: string
+          wl_partner_id?: string | null
         }
         Update: {
           after_hours_settings?: Json | null
@@ -18496,8 +18810,108 @@ export type Database = {
           reporting_to?: string | null
           trackabi_user_id?: string | null
           updated_at?: string
+          wl_partner_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_wl_partner_id_fkey"
+            columns: ["wl_partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_partner_success_summary"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "profiles_wl_partner_id_fkey"
+            columns: ["wl_partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_subscription_wl_recurring"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "profiles_wl_partner_id_fkey"
+            columns: ["wl_partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_wl_partner_economics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "profiles_wl_partner_id_fkey"
+            columns: ["wl_partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_wl_partner_profitability_ranking"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "profiles_wl_partner_id_fkey"
+            columns: ["wl_partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_wl_partner_readiness"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "profiles_wl_partner_id_fkey"
+            columns: ["wl_partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_self_success"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "profiles_wl_partner_id_fkey"
+            columns: ["wl_partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_success_summary"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "profiles_wl_partner_id_fkey"
+            columns: ["wl_partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_subscription_wl_recurring"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "profiles_wl_partner_id_fkey"
+            columns: ["wl_partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_wl_partner_economics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "profiles_wl_partner_id_fkey"
+            columns: ["wl_partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_wl_partner_profitability_ranking"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "profiles_wl_partner_id_fkey"
+            columns: ["wl_partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_wl_partner_readiness"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "profiles_wl_partner_id_fkey"
+            columns: ["wl_partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_wl_partner_self_economics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "profiles_wl_partner_id_fkey"
+            columns: ["wl_partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_wl_partner_self_portfolio_health"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "profiles_wl_partner_id_fkey"
+            columns: ["wl_partner_id"]
+            isOneToOne: false
+            referencedRelation: "white_label_partners"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       promotions: {
         Row: {

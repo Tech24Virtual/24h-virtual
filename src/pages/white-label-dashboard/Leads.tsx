@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { WhiteLabelLayout } from '@/components/white-label/WhiteLabelLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -67,7 +66,7 @@ export default function WLPartnerLeads() {
   }, [leads, search, stageFilter, tempFilter]);
 
   return (
-    <WhiteLabelLayout>
+    <>
       <SEO title="Leads — White Label Partner" description="Manage your partner leads" suppressBranding />
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -233,6 +232,6 @@ export default function WLPartnerLeads() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </WhiteLabelLayout>
+    </>
   );
 }

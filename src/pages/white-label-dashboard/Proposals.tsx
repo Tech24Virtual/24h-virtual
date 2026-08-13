@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { WhiteLabelLayout } from '@/components/white-label/WhiteLabelLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -65,7 +64,7 @@ export default function WLProposals() {
   }, [proposals, search, statusFilter, leadFilter]);
 
   return (
-    <WhiteLabelLayout>
+    <>
       <SEO title="Proposals — White Label Partner" description="Manage your sales proposals" suppressBranding />
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -212,6 +211,6 @@ export default function WLProposals() {
           )}
         </Card>
       </div>
-    </WhiteLabelLayout>
+    </>
   );
 }
