@@ -29,12 +29,6 @@ export default function WLClientDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [serviceForm, setServiceForm] = useState({
-    estimated_monthly_minutes: '',
-    partner_retail_rate: '',
-    service_type: 'virtual_receptionist',
-    language_support: 'english_only',
-  });
   const [slugInput, setSlugInput] = useState('');
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 
@@ -125,50 +119,6 @@ export default function WLClientDetail() {
       return data;
     },
     enabled: !!id,
-  });
-
-  useEffect(() => {
-    if (serviceConfig) {
-      setServiceForm({
-        estimated_monthly_minutes: String(serviceConfig.estimated_monthly_minutes ?? ''),
-        partner_retail_rate: serviceConfig.partner_retail_rate != null
-          ? String(serviceConfig.partner_retail_rate)
-          : '',
-        service_type: serviceConfig.service_type ?? 'virtual_receptionist',
-        language_support: serviceConfig.language_support ?? 'english_only',
-      });
-    }
-  }, [serviceConfig]);
-
-  // Save service config
-  const saveServiceMutation = useMutation({
-    mutationFn: async () => {
-      const patch = {
-        estimated_monthly_minutes: Number(serviceForm.estimated_monthly_minutes) || 0,
-        partner_retail_rate: serviceForm.partner_retail_rate !== '' ? Number(serviceForm.partner_retail_rate) : null,
-        service_type: serviceForm.service_type,
-        language_support: serviceForm.language_support,
-      };
-      if (serviceConfig?.id) {
-        const { error } = await supabase
-          .from('wl_client_service_config')
-          .update(patch)
-          .eq('id', serviceConfig.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('wl_client_service_config')
-          .insert({ ...patch, wl_client_id: id!, partner_id: partnerId! });
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['wl-client-service-config', id] });
-      toast({ title: 'Service config saved' });
-    },
-    onError: (err: Error) => {
-      toast({ title: 'Save failed', description: err.message, variant: 'destructive' });
-    },
   });
 
   // Save portal slug
@@ -507,78 +457,6 @@ export default function WLClientDetail() {
                 </Button>
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        {/* Service configuration */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Service Configuration</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="est-minutes">Estimated Monthly Minutes</Label>
-                <Input
-                  id="est-minutes"
-                  type="number"
-                  min={0}
-                  value={serviceForm.estimated_monthly_minutes}
-                  onChange={(e) => setServiceForm((p) => ({ ...p, estimated_monthly_minutes: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="retail-rate">Retail Rate ($/min)</Label>
-                <Input
-                  id="retail-rate"
-                  type="number"
-                  min={0}
-                  step="0.001"
-                  placeholder="e.g. 0.085"
-                  value={serviceForm.partner_retail_rate}
-                  onChange={(e) => setServiceForm((p) => ({ ...p, partner_retail_rate: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Service Type</Label>
-                <Select
-                  value={serviceForm.service_type}
-                  onValueChange={(v) => setServiceForm((p) => ({ ...p, service_type: v }))}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="virtual_receptionist">Virtual Receptionist</SelectItem>
-                    <SelectItem value="answering_service">Answering Service</SelectItem>
-                    <SelectItem value="live_chat">Live Chat</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Language Support</Label>
-                <Select
-                  value={serviceForm.language_support}
-                  onValueChange={(v) => setServiceForm((p) => ({ ...p, language_support: v }))}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="english_only">English Only</SelectItem>
-                    <SelectItem value="bilingual">Bilingual</SelectItem>
-                    <SelectItem value="multilingual">Multilingual</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <Button
-              onClick={() => saveServiceMutation.mutate()}
-              disabled={saveServiceMutation.isPending}
-              size="sm"
-            >
-              {saveServiceMutation.isPending ? 'Saving…' : 'Save Configuration'}
-            </Button>
           </CardContent>
         </Card>
 

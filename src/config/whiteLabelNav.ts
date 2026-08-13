@@ -25,6 +25,7 @@ export const whiteLabelNavGroups: NavGroup[] = [
     children: [
       { name: 'Clients',    href: `${whiteLabelRoot}/clients` },
       { name: 'Plans',      href: `${whiteLabelRoot}/plans` },
+      { name: 'Service Config', href: `${whiteLabelRoot}/service-config` },
       { name: 'Leads',      href: `${whiteLabelRoot}/clients/leads` },
       { name: 'Pipeline',   href: `${whiteLabelRoot}/clients/pipeline` },
       { name: 'Proposals',  href: `${whiteLabelRoot}/clients/proposals` },
