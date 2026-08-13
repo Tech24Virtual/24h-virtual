@@ -180,7 +180,7 @@ export default function WLServiceConfig() {
                   </TableHeader>
                   <TableBody>
                     {clients.map(client => (
-                      <TableRow key={client.id}>
+                      <TableRow key={client.id} data-testid={`client-row-${client.id}`}>
                         <TableCell className="font-medium">{client.client_name}</TableCell>
                         <TableCell>{client.config ? (serviceTypeLabels[client.config.service_type] ?? client.config.service_type) : "—"}</TableCell>
                         <TableCell>{client.config ? (languageLabels[client.config.language_support] ?? client.config.language_support) : "—"}</TableCell>

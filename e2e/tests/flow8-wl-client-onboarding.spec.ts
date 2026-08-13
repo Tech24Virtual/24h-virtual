@@ -70,29 +70,44 @@ test.describe.serial('Flow 8 — WL Partner-Client Onboarding', () => {
   test('service configuration can be saved', async ({ page }) => {
     await loginAs(page, 'wlOwner');
 
-    // Navigate directly to the client captured in test 2 — re-resolving via
-    // the list + .first() is unsafe here because the shared staging DB
-    // accumulates many rows named "Flow8 Test Client" (no teardown), and a
-    // newer one can outrank this run's row between tests.
-    await page.goto(clientDetailUrl);
+    // Service configuration now lives on the standalone Service Config page,
+    // not the client detail page — it manages every client for the partner
+    // in one table rather than one client at a time.
+    await page.goto('/white-label-dashboard/service-config');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
 
-    // Fill estimated monthly minutes
-    const minutesInput = page.getByLabel('Estimated Monthly Minutes');
+    // Target the exact client from test 2 by id — the shared staging DB
+    // accumulates many rows named "Flow8 Test Client" (no teardown), so
+    // matching by name alone (as elsewhere in this spec) would risk editing
+    // a different client's row and desyncing test 5's checklist assertion,
+    // which reads the checklist for this specific client id.
+    const clientId = clientDetailUrl.match(/\/clients\/([0-9a-f-]{36})/)?.[1];
+    const row = page.getByTestId(`client-row-${clientId}`);
+    await expect(row).toBeVisible({ timeout: 10000 });
+
+    // Click its Edit button (icon-only, no accessible name)
+    await row.getByRole('button').click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible({ timeout: 10000 });
+
+    // Estimated Monthly Minutes and Retail Rate are the only two <input>
+    // elements in the dialog (Service Type / Language Support are Selects),
+    // in that order.
+    const minutesInput = dialog.locator('input').nth(0);
     await minutesInput.clear();
     await minutesInput.fill('500');
 
-    // Fill retail rate
-    const rateInput = page.getByLabel('Retail Rate ($/min)');
+    const rateInput = dialog.locator('input').nth(1);
     await rateInput.clear();
     await rateInput.fill('0.085');
 
-    await page.getByRole('button', { name: /save configuration/i }).click();
+    await dialog.getByRole('button', { name: /^save$/i }).click();
     await page.waitForTimeout(2000);
 
     await expect(
-      page.getByText('Service config saved').first()
+      page.getByText('Service configuration saved').first()
     ).toBeVisible({ timeout: 10000 });
   });
 
