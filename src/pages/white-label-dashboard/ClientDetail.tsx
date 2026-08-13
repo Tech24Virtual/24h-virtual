@@ -61,7 +61,7 @@ export default function WLClientDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('white_label_clients')
-        .select('id, client_name, contact_name, email, phone, status, partner_id, client_portal_slug, user_id, billing_verified')
+        .select('id, client_name, contact_name, email, phone, status, partner_id, client_portal_slug, user_id, billing_verified, plan_id')
         .eq('id', id!)
         .maybeSingle();
       if (error) throw error;
@@ -75,6 +75,42 @@ export default function WLClientDetail() {
       setSlugInput(client.client_portal_slug ?? '');
     }
   }, [client]);
+
+  // Fetch partner's active pricing plans
+  const { data: plans } = useQuery({
+    queryKey: ['wl-partner-plans', partnerId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wl_partner_plans')
+        .select('id, plan_name, plan_type, monthly_cost, included_minutes, overage_cost_per_minute, free_trial, free_trial_days')
+        .eq('partner_id', partnerId!)
+        .eq('is_active', true)
+        .order('plan_name');
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!partnerId,
+  });
+
+  const selectedPlan = plans?.find((p) => p.id === client?.plan_id) ?? null;
+
+  // Update assigned plan
+  const updatePlanMutation = useMutation({
+    mutationFn: async (planId: string) => {
+      const { error } = await supabase
+        .from('white_label_clients')
+        .update({ plan_id: planId || null })
+        .eq('id', id!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wl-client-detail', id] });
+      toast({ title: 'Plan updated' });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Update failed', description: err.message, variant: 'destructive' });
+    },
+  });
 
   // Fetch service config
   const { data: serviceConfig, isLoading: configLoading } = useQuery({
@@ -378,6 +414,55 @@ export default function WLClientDetail() {
                 <span>{client.phone}</span>
               </div>
             )}
+            <div className="sm:col-span-2 space-y-2">
+              <Label>Pricing Plan</Label>
+              <Select
+                value={client.plan_id ?? undefined}
+                onValueChange={(v) => updatePlanMutation.mutate(v)}
+                disabled={updatePlanMutation.isPending}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="No plan assigned" />
+                </SelectTrigger>
+                <SelectContent>
+                  {plans?.map((plan) => (
+                    <SelectItem key={plan.id} value={plan.id}>
+                      {plan.plan_name} · {plan.plan_type === 'fixed' ? 'Fixed' : 'Custom'} ·{' '}
+                      {plan.plan_type === 'fixed'
+                        ? `$${Number(plan.monthly_cost ?? 0).toFixed(2)}/mo`
+                        : `$${Number(plan.overage_cost_per_minute).toFixed(2)}/min`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {selectedPlan && (
+                <div className="mt-2 rounded-md border bg-muted/30 p-3 text-sm space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Type</span>
+                    <Badge className={selectedPlan.plan_type === 'fixed' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}>
+                      {selectedPlan.plan_type === 'fixed' ? 'Fixed' : 'Custom'}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Monthly Cost</span>
+                    <span>{selectedPlan.plan_type === 'custom' ? '—' : `$${Number(selectedPlan.monthly_cost ?? 0).toFixed(2)}`}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Included Minutes</span>
+                    <span>{selectedPlan.plan_type === 'custom' ? '—' : (selectedPlan.included_minutes ?? 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Overage Rate</span>
+                    <span>${Number(selectedPlan.overage_cost_per_minute).toFixed(2)}/min</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Free Trial</span>
+                    <span>{selectedPlan.free_trial ? `${selectedPlan.free_trial_days ?? 7} days` : 'None'}</span>
+                  </div>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
