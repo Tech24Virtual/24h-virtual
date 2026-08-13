@@ -51,7 +51,7 @@ export default function AdminPartnerDetail() {
   const { data: pricing } = useQuery({
     queryKey: ['admin-partner-pricing', id],
     queryFn: async () => {
-      const { data } = await supabase.from('wl_wholesale_pricing').select('*').eq('partner_id', id!).single();
+      const { data } = await supabase.from('wl_wholesale_pricing').select('*').eq('partner_id', id!).maybeSingle();
       return data;
     },
     enabled: !!id,
@@ -199,6 +199,25 @@ export default function AdminPartnerDetail() {
       toast.success('Pricing saved');
     },
     onError: (e: any) => toast.error(e?.message ?? 'Failed to save pricing'),
+  });
+
+  // Create default pricing mutation
+  const createPricingMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from('wl_wholesale_pricing').insert({
+        partner_id: id!,
+        tier_under_100_rate: 1.25,
+        tier_under_500_rate: 1.25,
+        tier_under_1000_rate: 1.00,
+        tier_over_1000_rate: 1.00,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-partner-pricing', id] });
+      toast.success('Pricing created');
+    },
+    onError: (e: any) => toast.error(e?.message ?? 'Failed to create pricing'),
   });
 
   // Trigger usage calculation
@@ -410,7 +429,14 @@ export default function AdminPartnerDetail() {
           {pricing ? (
             <PricingEditor pricing={pricing} onSave={(updates) => savePricingMutation.mutate(updates)} saving={savePricingMutation.isPending} />
           ) : (
-            <Card><CardContent className="py-8 text-center text-muted-foreground">No pricing configured for this partner.</CardContent></Card>
+            <Card>
+              <CardContent className="py-8 text-center space-y-3">
+                <p className="text-muted-foreground">No pricing configured for this partner.</p>
+                <Button onClick={() => createPricingMutation.mutate()} disabled={createPricingMutation.isPending}>
+                  {createPricingMutation.isPending ? 'Creating...' : 'Create Pricing'}
+                </Button>
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
 
