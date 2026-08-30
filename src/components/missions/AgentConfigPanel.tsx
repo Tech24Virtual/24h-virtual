@@ -11,7 +11,7 @@ import { format } from 'date-fns';
 export function AgentConfigPanel() {
   const queryClient = useQueryClient();
 
-  const { data: configs, isLoading } = useQuery({
+  const { data: configs, isLoading, error } = useQuery({
     queryKey: ['agent-configs'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -53,7 +53,15 @@ export function AgentConfigPanel() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {configs?.map((config: any) => (
+        {error ? (
+          <div className="flex items-center gap-2 text-sm text-destructive">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            Failed to load agent configs: {error instanceof Error ? error.message : 'Unknown error'}
+          </div>
+        ) : !configs || configs.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No agent configs found.</p>
+        ) : (
+          configs.map((config: any) => (
           <div
             key={config.id}
             className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border bg-card"
@@ -95,7 +103,8 @@ export function AgentConfigPanel() {
               />
             </div>
           </div>
-        ))}
+          ))
+        )}
       </CardContent>
     </Card>
   );

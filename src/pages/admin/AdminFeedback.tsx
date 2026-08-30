@@ -286,11 +286,13 @@ export default function AdminFeedback() {
             <>
               <DialogHeader>
                 <DialogTitle>{active.title || 'Feedback detail'}</DialogTitle>
-                <DialogDescription className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="outline">{SOURCE_LABEL[active.source_dashboard || ''] || active.source_dashboard}</Badge>
                   <Badge variant="outline" className="capitalize">{active.type}</Badge>
                   <Badge variant="outline">{active.status}</Badge>
-                  <span className="text-xs">· {active.created_by_email || 'unknown'} · {formatDistanceToNow(new Date(active.created_at), { addSuffix: true })}</span>
+                </div>
+                <DialogDescription className="text-xs">
+                  {active.created_by_email || 'unknown'} · {formatDistanceToNow(new Date(active.created_at), { addSuffix: true })}
                 </DialogDescription>
               </DialogHeader>
 

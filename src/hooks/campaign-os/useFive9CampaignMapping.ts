@@ -25,10 +25,13 @@ export function useFive9Campaigns() {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
       const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Your session has expired — sign in again to load Five9 campaigns');
+      }
       let res: Response;
       try {
         res = await fetch(`${supabaseUrl}/functions/v1/five9-proxy?action=campaigns`, {
-          headers: { apikey: anonKey, Authorization: `Bearer ${session?.access_token}` },
+          headers: { apikey: anonKey, Authorization: `Bearer ${session.access_token}` },
           signal: AbortSignal.timeout(10_000),
         });
       } catch (e: any) {
@@ -37,7 +40,7 @@ export function useFive9Campaigns() {
         }
         throw e;
       }
-      if (!res.ok) throw new Error('Five9 API unavailable');
+      if (!res.ok) throw new Error(`Five9 API unavailable (HTTP ${res.status})`);
       const json = await res.json();
       return (json.data as Five9Campaign[]) ?? [];
     },

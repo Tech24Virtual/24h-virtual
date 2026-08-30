@@ -56,7 +56,23 @@ function EmergencySimulationToggle() {
       toast.error('Failed to update', { description: String(err) });
     },
   });
-  if (isLoading || !settings) return null;
+  if (isLoading) return null;
+
+  if (!settings) {
+    return (
+      <div className="flex items-center gap-3 px-4 py-3 rounded-lg border-2 border-border bg-card opacity-60">
+        <ShieldAlert className="w-5 h-5 text-muted-foreground" />
+        <div className="flex-1">
+          <span className="font-medium text-sm">Emergency Simulation Mode — Not configured</span>
+          <p className="text-xs text-muted-foreground">
+            No platform_settings row exists yet — this kill switch is unavailable.
+          </p>
+        </div>
+        <Switch checked={false} disabled />
+      </div>
+    );
+  }
+
   const isActive = settings.force_simulation_mode;
   return (
     <div className={`flex items-center gap-3 px-4 py-3 rounded-lg border-2 ${isActive ? 'border-destructive bg-destructive/10' : 'border-border bg-card'}`}>

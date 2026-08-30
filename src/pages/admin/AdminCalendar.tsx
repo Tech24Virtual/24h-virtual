@@ -115,7 +115,9 @@ function AdminGoogleCalendar() {
       body: { action: 'get-url' },
     });
     if (error || !data?.url) {
-      toast.error('Failed to start Google Calendar connection.');
+      toast.error('Failed to start Google Calendar connection.', {
+        description: 'Google Calendar integration requires configuration. Contact your administrator.',
+      });
       return;
     }
     window.open(data.url, '_blank');

@@ -146,7 +146,7 @@ export default function AdminAuditLog() {
         <meta name="description" content="Sensitive-action audit trail for the 24H Virtual platform." />
       </Helmet>
 
-      <div className="space-y-6">
+      <div className="space-y-6 pb-24">
         <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border p-6">
           <div className="flex items-start justify-between gap-4">
             <div>

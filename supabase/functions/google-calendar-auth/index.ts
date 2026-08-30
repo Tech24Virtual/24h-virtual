@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
     const { action, code, state } = await req.json();
 
     if (action === "get-url") {
-      const auth = await authenticateAgent(req, ["agent"]);
+      const auth = await authenticateAgent(req, ["agent", "admin"]);
       if (auth.error) return auth.error;
 
       const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID");
