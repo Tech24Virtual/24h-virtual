@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search, Plus, Eye, Flame, Thermometer, Snowflake, Sparkles, AlertTriangle, Users, ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +20,8 @@ import { format } from 'date-fns';
 import { calculateLeadScore, getScoreLabel, getScoreBadgeClasses, type ScoringRules, DEFAULT_SCORING_RULES } from '@/lib/leadScoring';
 import { ConvertLeadToAccountDialog, type ConvertLeadInput } from '@/components/admin/ConvertLeadToAccountDialog';
 import { AddLeadDialog } from '@/components/admin/AddLeadDialog';
+import { applyClientActivationEffects } from '@/lib/client-onboarding/applyClientActivationEffects';
+import { useToast } from '@/hooks/use-toast';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -38,6 +40,7 @@ interface Lead {
   service_type: string | null;
   plan_minutes: number | null;
   assigned_to: string | null;
+  user_id: string | null;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -196,7 +199,9 @@ function LeadDetailSheet({ lead, open, onOpenChange, ownerName, onStageChange }:
 
 export default function AdminLeads() {
   const queryClient = useQueryClient();
-  const [searchQuery, setSearchQuery] = useState('');
+  const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') ?? '');
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [convertLead, setConvertLead] = useState<ConvertLeadInput | null>(null);
@@ -216,7 +221,7 @@ export default function AdminLeads() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('leads')
-        .select('id, name, email, phone, company, notes, source, status, score, created_at, pipeline_stage, service_type, plan_minutes, assigned_to')
+        .select('id, name, email, phone, company, notes, source, status, score, created_at, pipeline_stage, service_type, plan_minutes, assigned_to, user_id')
         .not('pipeline_stage', 'in', '(active,churned,re_engage)')
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -261,11 +266,41 @@ export default function AdminLeads() {
 
   // ── Stage move — optimistic update, auto-revert on DB failure ─────────
   const updateLeadStage = async (id: string, pipeline_stage: string) => {
+    const targetLead = leads.find((l) => l.id === id);
     queryClient.setQueryData<Lead[]>(['admin-leads'], (prev) =>
       (prev ?? []).map((l) => (l.id === id ? { ...l, pipeline_stage } : l))
     );
     const { error } = await supabase.from('leads').update({ pipeline_stage }).eq('id', id);
-    if (error) queryClient.invalidateQueries({ queryKey: ['admin-leads'] });
+    if (error) {
+      queryClient.invalidateQueries({ queryKey: ['admin-leads'] });
+      return;
+    }
+
+    // Mirrors AdminLeadDetail.tsx's handlePipelineChange — activation must
+    // run the same onboarding handoff effects no matter which screen
+    // moved the lead to 'active'.
+    if (pipeline_stage === 'active') {
+      try {
+        const result = await applyClientActivationEffects({
+          leadId: id,
+          leadUserId: targetLead?.user_id ?? null,
+          leadSnapshot: { converted_via: 'admin_leads_stage_change' },
+        });
+        if (!result.alreadyExisted) {
+          toast({
+            title: 'Client account activated',
+            description: 'Onboarding handoff created.',
+          });
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        toast({
+          title: 'Activation warning',
+          description: `Stage updated but handoff creation failed: ${msg}`,
+          variant: 'destructive',
+        });
+      }
+    }
   };
 
   // ── Derived ────────────────────────────────────────────────────────────

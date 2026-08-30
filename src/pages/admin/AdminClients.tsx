@@ -119,7 +119,7 @@ export default function AdminClients() {
   }
 
   // ── Usage query (independent — a 403 here doesn't blank the client list) ─
-  const { data: usage = {} as UsageMap, isLoading: loadingUsage } = useQuery({
+  const { data: usage = {} as UsageMap, isLoading: loadingUsage, error: usageError } = useQuery({
     queryKey: ['admin-clients-usage', monthStart],
     staleTime: 60_000,
     queryFn: async () => {
@@ -218,6 +218,18 @@ export default function AdminClients() {
         </Card>
       )}
 
+      {/* Warning state — usage query failed independently of the client list */}
+      {!clientsError && !!usageError && (
+        <Card className="border-yellow-500/50 bg-yellow-500/5">
+          <CardContent className="p-4 flex items-center gap-3 text-yellow-700 dark:text-yellow-400">
+            <AlertTriangle className="w-5 h-5 shrink-0" />
+            <p className="text-sm">
+              Usage data unavailable. Check grants on <code className="font-mono text-xs">call_logs</code> table.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Filters + Table */}
       <Card>
         <CardHeader>
@@ -268,6 +280,7 @@ export default function AdminClients() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Client</TableHead>
+                    <TableHead>Phone</TableHead>
                     <TableHead>Plan</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Monthly Minutes</TableHead>
@@ -298,6 +311,9 @@ export default function AdminClients() {
                               {client.company || client.email}
                             </p>
                           </div>
+                        </TableCell>
+                        <TableCell className="text-sm truncate">
+                          {client.phone || <span className="text-muted-foreground">—</span>}
                         </TableCell>
                         <TableCell className="text-sm truncate">
                           {client.billing_plans?.name || (limit > 0 ? `${limit} min/mo` : 'No plan')}

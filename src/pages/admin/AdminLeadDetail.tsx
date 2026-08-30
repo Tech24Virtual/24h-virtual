@@ -74,6 +74,11 @@ const serviceLabels: Record<string, string> = {
   'virtual-secretary': 'Virtual Secretary',
 };
 
+const COUNTRY_NAMES: Record<string, string> = {
+  US: 'United States',
+  CA: 'Canada',
+};
+
 const overageRatesUSD: Record<string, number> = {
   'ai-receptionist': 0.75,
   'message-assistant': 1.75,
@@ -105,7 +110,7 @@ export default function AdminLeadDetail() {
       .from('admin_settings')
       .select('value')
       .eq('key', 'lead_scoring_rules')
-      .single();
+      .maybeSingle();
     if (data?.value) setScoringRules(data.value as unknown as ScoringRules);
   };
 
@@ -326,7 +331,7 @@ export default function AdminLeadDetail() {
                   {lead.country && (
                     <div className="flex items-center gap-3">
                       <Globe className="h-4 w-4 text-muted-foreground" />
-                      <span>{lead.country === 'CA' ? 'Canada' : 'United States'}</span>
+                      <span>{COUNTRY_NAMES[lead.country] || lead.country}</span>
                     </div>
                   )}
                   <div className="flex items-center gap-3">
@@ -413,6 +418,15 @@ export default function AdminLeadDetail() {
                   </>
                 ) : (
                   <p className="text-muted-foreground text-sm">No plan selected yet</p>
+                )}
+                {!parsedNotes && lead.notes && (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Notes</p>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{lead.notes}</p>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>

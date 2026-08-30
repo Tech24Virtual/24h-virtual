@@ -113,7 +113,7 @@ export default function AdminOverview() {
 
   // ── Secondary stats (pill row) ─────────────────────────────────────────────
 
-  const { data: totalLeads } = useQuery({
+  const { data: totalLeads, error: totalLeadsError } = useQuery({
     queryKey: ['admin-stat-total-leads'],
     staleTime: 120_000,
     queryFn: async () => {
@@ -125,7 +125,7 @@ export default function AdminOverview() {
     },
   });
 
-  const { data: wlPartnersCount } = useQuery({
+  const { data: wlPartnersCount, error: wlPartnersError } = useQuery({
     queryKey: ['admin-stat-wl-partners'],
     staleTime: 120_000,
     queryFn: async () => {
@@ -137,7 +137,7 @@ export default function AdminOverview() {
     },
   });
 
-  const { data: totalAgents } = useQuery({
+  const { data: totalAgents, error: totalAgentsError } = useQuery({
     queryKey: ['admin-stat-agents'],
     staleTime: 120_000,
     queryFn: async () => {
@@ -150,7 +150,7 @@ export default function AdminOverview() {
     },
   });
 
-  const { data: totalCalls } = useQuery({
+  const { data: totalCalls, error: totalCallsError } = useQuery({
     queryKey: ['admin-stat-calls'],
     staleTime: 120_000,
     queryFn: async () => {
@@ -412,16 +412,18 @@ export default function AdminOverview() {
       {/* ── Section 4: Secondary Stats — pill row ───────────────────────── */}
       <div className="flex flex-wrap gap-3">
         {([
-          { label: 'Total Leads', value: totalLeads, icon: Users, href: '/admin/leads' },
-          { label: 'WL Partners', value: wlPartnersCount, icon: Share2, href: '/admin/partners' },
-          { label: 'Total Agents', value: totalAgents, icon: Headphones, href: '/admin/agents' },
-          { label: 'Total Calls', value: totalCalls, icon: Phone, href: '/admin/analytics' },
+          { label: 'Total Leads', value: totalLeads, error: !!totalLeadsError, icon: Users, href: '/admin/leads' },
+          { label: 'WL Partners', value: wlPartnersCount, error: !!wlPartnersError, icon: Share2, href: '/admin/partners' },
+          { label: 'Total Agents', value: totalAgents, error: !!totalAgentsError, icon: Headphones, href: '/admin/agents' },
+          { label: 'Total Calls', value: totalCalls, error: !!totalCallsError, icon: Phone, href: '/admin/analytics' },
         ] as const).map(stat => (
           <Link key={stat.label} to={stat.href}>
             <div className="flex items-center gap-2 px-4 py-2 rounded-full border bg-card hover:bg-muted/50 transition-colors text-sm cursor-pointer">
               <stat.icon className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-muted-foreground">{stat.label}:</span>
-              <span className="font-semibold tabular-nums">{stat.value ?? '—'}</span>
+              <span className={cn('font-semibold tabular-nums', stat.error && 'text-destructive')}>
+                {stat.error ? 'Error' : stat.value ?? '—'}
+              </span>
             </div>
           </Link>
         ))}
@@ -602,7 +604,7 @@ export default function AdminOverview() {
                   {recentLeads.map(lead => (
                     <Link
                       key={lead.id}
-                      to="/admin/leads"
+                      to={`/admin/leads/${lead.id}`}
                       className="flex items-start gap-3 group"
                     >
                       <div className={cn(

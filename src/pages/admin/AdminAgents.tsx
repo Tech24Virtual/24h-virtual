@@ -376,9 +376,8 @@ export default function AdminAgents() {
       const ids = roleData.map(r => r.user_id);
 
       // 2. Fetch profiles, banking, skills in parallel
-      // profiles.email is a column added via migration; cast needed since types.ts predates it
       const [profilesResult, bankingResult, skillsResult] = await Promise.all([
-        (supabase as any)
+        supabase
           .from('profiles')
           .select('id, full_name, phone, employment_status, email, refresher_interval_months, agent_start_date, trackabi_user_id')
           .in('id', ids),
@@ -468,7 +467,7 @@ export default function AdminAgents() {
       if (error) throw error;
 
       if ('refresher_interval_months' in changes || 'agent_start_date' in changes) {
-        const { error: profileError } = await (supabase as any)
+        const { error: profileError } = await supabase
           .from('profiles')
           .update({
             refresher_interval_months: changes.refresher_interval_months ?? base?.refresher_interval_months ?? 1,
@@ -645,8 +644,16 @@ export default function AdminAgents() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            title="Offboard agent"
-                            disabled={offboardingId === agent.id}
+                            title={
+                              agent.employment_status === 'inactive' || agent.employment_status === 'offboarded'
+                                ? 'Agent already offboarded'
+                                : 'Offboard agent'
+                            }
+                            disabled={
+                              offboardingId === agent.id ||
+                              agent.employment_status === 'inactive' ||
+                              agent.employment_status === 'offboarded'
+                            }
                             onClick={() => setOffboardTarget(agent)}
                           >
                             {offboardingId === agent.id ? (
