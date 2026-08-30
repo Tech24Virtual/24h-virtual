@@ -50,7 +50,7 @@ export const PIPELINE_STAGE_LABELS: Record<PipelineStage, string> =
 
 /** Stages a sales rep should see on the kanban (excludes delivery/terminal noise). */
 export const SALES_BOARD_STAGES: PipelineStage[] = [
-  "new", "contacted", "qualified", "proposal", "won", "lost",
+  "new", "contacted", "qualified", "sales", "proposal", "won", "lost",
 ];
 
 /** Stages eligible to trigger Revenue→Delivery handoff via convert_lead_to_delivery. */
