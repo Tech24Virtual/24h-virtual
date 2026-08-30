@@ -164,7 +164,7 @@ export default function AdminOverview() {
 
   // ── Workflow alerts — all 4 in one query but failure returns 0s not blank ──
 
-  const { data: alertCounts } = useQuery({
+  const { data: alertCounts, isLoading: isLoadingAlerts } = useQuery({
     queryKey: ['admin-workflow-alerts'],
     staleTime: 60_000,
     queryFn: async () => {
@@ -274,10 +274,12 @@ export default function AdminOverview() {
       </div>
 
       {/* ── Section 2: Workflow Alerts — always visible ─────────────────── */}
-      <Card className={cn('border', hasAlerts ? 'border-orange-500/20' : 'border-green-500/20')}>
+      <Card className={cn('border', isLoadingAlerts ? 'border-border' : hasAlerts ? 'border-orange-500/20' : 'border-green-500/20')}>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            {hasAlerts ? (
+            {isLoadingAlerts ? (
+              <>Workflow Alerts</>
+            ) : hasAlerts ? (
               <><AlertTriangle className="w-4 h-4 text-orange-500" /> Workflow Alerts</>
             ) : (
               <><CheckCircle2 className="w-4 h-4 text-green-500" /> System Status</>

@@ -460,12 +460,17 @@ export default function AdminLeads() {
           ) : filteredLeads.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Users className="w-16 h-16 mx-auto mb-4 opacity-30" />
-              <p className="text-lg font-medium mb-2">No leads found</p>
-              <p className="text-sm">
-                {stageFilter !== 'all'
-                  ? `No leads in the "${getStageLabel(stageFilter)}" stage`
-                  : 'Add your first lead to get started'}
-              </p>
+              {searchQuery.trim() || stageFilter !== 'all' || sourceFilter !== 'all' ? (
+                <>
+                  <p className="text-lg font-medium mb-2">No leads match your search</p>
+                  <p className="text-sm">Try adjusting your filters.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-lg font-medium mb-2">No leads found</p>
+                  <p className="text-sm">Add your first lead to get started.</p>
+                </>
+              )}
             </div>
           ) : (
             <div className="w-full">

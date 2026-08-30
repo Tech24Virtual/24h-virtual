@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -25,13 +25,15 @@ export function ManageUserRolesDialog({ user, open, onOpenChange, onSaved }: Man
   const [selectedRoles, setSelectedRoles] = useState<AppRole[]>([]);
   const [saving, setSaving] = useState(false);
 
-  // Sync state when user changes
-  const handleOpenChange = (isOpen: boolean) => {
-    if (isOpen && user) {
+  // The dialog is fully controlled (no DialogTrigger), so Radix's
+  // onOpenChange only fires on close requests (Escape/overlay click), never
+  // when the parent flips `open` true programmatically. Sync here instead,
+  // whenever it opens for a given user.
+  useEffect(() => {
+    if (open && user) {
       setSelectedRoles([...user.roles]);
     }
-    onOpenChange(isOpen);
-  };
+  }, [open, user]);
 
   const toggleRole = (role: AppRole) => {
     setSelectedRoles(prev =>
@@ -108,7 +110,7 @@ export function ManageUserRolesDialog({ user, open, onOpenChange, onSaved }: Man
   if (!user) return null;
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Manage Portal Access</DialogTitle>
