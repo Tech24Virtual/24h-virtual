@@ -51,10 +51,8 @@ export default function AdminUsers() {
     queryKey: ['admin-users'],
     staleTime: 60_000,
     queryFn: async () => {
-      // profiles.email was added in migration 20260629000001; cast needed since types.ts predates it.
-      // Prior code selected only id/full_name/created_at/is_demo_account, so (p as any).email was always null.
       const [profilesResult, rolesResult] = await Promise.all([
-        (supabase as any)
+        supabase
           .from('profiles')
           .select('id, full_name, email, created_at, is_demo_account')
           .order('created_at', { ascending: false }),
@@ -73,7 +71,7 @@ export default function AdminUsers() {
         roleMap.set(r.user_id, existing);
       });
 
-      return (profilesResult.data || []).map((p: any) => ({
+      return (profilesResult.data || []).map((p) => ({
         id: p.id,
         full_name: p.full_name ?? null,
         email: p.email ?? null,

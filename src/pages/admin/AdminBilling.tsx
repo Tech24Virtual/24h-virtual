@@ -1,11 +1,22 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 import {
   CreditCard,
   Users,
@@ -15,8 +26,11 @@ import {
   AlertTriangle,
   UserPlus,
   CheckCircle2,
+  Pencil,
+  Ban,
 } from 'lucide-react';
 import { CustomPlanBuilder } from '@/components/admin/CustomPlanBuilder';
+import { EditCustomPlanDialog, type EditableCustomPlan } from '@/components/admin/EditCustomPlanDialog';
 import { BillingPlanCatalog } from '@/components/admin/BillingPlanCatalog';
 import { ActiveSubscriptionsList } from '@/components/admin/ActiveSubscriptionsList';
 import { AddOnsSummary } from '@/components/admin/AddOnsSummary';
@@ -25,9 +39,13 @@ import { CallImportsTab } from '@/components/admin/CallImportsTab';
 import { CreateClientDialog } from '@/components/admin/CreateClientDialog';
 
 export default function AdminBilling() {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [showCustomPlanDialog, setShowCustomPlanDialog] = useState(false);
   const [showCreateClientDialog, setShowCreateClientDialog] = useState(false);
+  const [editPlan, setEditPlan] = useState<EditableCustomPlan | null>(null);
+  const [deactivateTarget, setDeactivateTarget] = useState<{ id: string; plan_name: string } | null>(null);
+  const [isDeactivating, setIsDeactivating] = useState(false);
 
   // Active clients — NMI clients don't have stripe_subscription_id; filter by pipeline stage
   const { data: subscriptionStats, isLoading: statsLoading, error: statsError } = useQuery({
@@ -112,6 +130,29 @@ export default function AdminBilling() {
   });
 
   const totalAddOnRevenue = addOnsSummary?.reduce((sum, a) => sum + a.revenue, 0) || 0;
+
+  const handleDeactivate = async () => {
+    if (!deactivateTarget) return;
+    setIsDeactivating(true);
+    try {
+      const { error } = await supabase
+        .from('custom_plans')
+        .update({ is_active: false })
+        .eq('id', deactivateTarget.id);
+      if (error) throw error;
+      toast({ title: 'Custom plan deactivated', description: `${deactivateTarget.plan_name} is no longer active.` });
+      queryClient.invalidateQueries({ queryKey: ['custom-plans'] });
+      setDeactivateTarget(null);
+    } catch (error) {
+      toast({
+        title: 'Failed to deactivate plan',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeactivating(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -310,6 +351,26 @@ export default function AdminBilling() {
                             <div className="text-sm font-medium mt-1">${plan.fixed_amount.toFixed(2)}/mo</div>
                           )}
                         </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Edit plan"
+                            data-testid="edit-custom-plan-btn"
+                            onClick={() => setEditPlan(plan)}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Deactivate plan"
+                            data-testid="deactivate-custom-plan-btn"
+                            onClick={() => setDeactivateTarget({ id: plan.id, plan_name: plan.plan_name })}
+                          >
+                            <Ban className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -392,6 +453,37 @@ export default function AdminBilling() {
         open={showCreateClientDialog}
         onOpenChange={setShowCreateClientDialog}
       />
+
+      <EditCustomPlanDialog
+        plan={editPlan}
+        open={!!editPlan}
+        onOpenChange={(v) => !v && setEditPlan(null)}
+      />
+
+      <AlertDialog
+        open={!!deactivateTarget}
+        onOpenChange={(open) => { if (!open) setDeactivateTarget(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deactivate {deactivateTarget?.plan_name ?? 'this plan'}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This custom plan will stop being available for billing. The client will fall back to
+              their standard plan. This can be reversed later by reactivating the plan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeactivating}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeactivating}
+              onClick={handleDeactivate}
+            >
+              {isDeactivating ? 'Deactivating…' : 'Deactivate Plan'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

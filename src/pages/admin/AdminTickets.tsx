@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { TicketList } from '@/components/tickets/TicketList';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AlertTriangle } from 'lucide-react';
 import { useRealtimeTickets } from '@/hooks/useRealtimeTickets';
 
 const SOURCE_BREAKDOWN = [
@@ -18,7 +19,7 @@ export default function AdminTickets() {
   useRealtimeTickets({ showNotifications: true });
 
   // Fetch ticket stats
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats, isLoading, error: statsError } = useQuery({
     queryKey: ['admin-ticket-stats'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -49,6 +50,18 @@ export default function AdminTickets() {
           <p className="text-muted-foreground">Manage all support tickets across all portals</p>
         </div>
       </div>
+
+      {/* Warning state — shown when the stats query fails */}
+      {!!statsError && (
+        <Card className="border-yellow-500/50 bg-yellow-500/5">
+          <CardContent className="p-4 flex items-center gap-3 text-yellow-700 dark:text-yellow-400">
+            <AlertTriangle className="w-5 h-5 shrink-0" />
+            <p className="text-sm">
+              Ticket data unavailable. Check permissions on <code className="font-mono text-xs">support_tickets</code> table.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

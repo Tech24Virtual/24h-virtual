@@ -117,53 +117,81 @@ export default function AdminPartners() {
   };
 
   const fetchAffiliates = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('affiliates')
       .select('*')
       .order('created_at', { ascending: false });
+    if (error) {
+      toast.error('Failed to load affiliates. Check permissions on affiliates table.');
+      return;
+    }
     if (data) setAffiliates(data);
   };
 
   const fetchWhiteLabelPartners = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('white_label_partners')
       .select('*')
       .order('created_at', { ascending: false });
+    if (error) {
+      toast.error('Failed to load white label partners. Check permissions on white_label_partners table.');
+      return;
+    }
     if (data) setWhiteLabelPartners(data);
   };
 
   const fetchReferralPartners = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('referral_partners')
       .select('*')
       .order('created_at', { ascending: false });
+    if (error) {
+      toast.error('Failed to load referral partners. Check permissions on referral_partners table.');
+      return;
+    }
     if (data) setReferralPartners(data);
   };
 
   const updateAffiliateStatus = async (id: string, status: string) => {
-    await supabase.from('affiliates').update({ status }).eq('id', id);
+    const { error } = await supabase.from('affiliates').update({ status }).eq('id', id);
+    if (error) {
+      toast.error(`Failed to update affiliate status: ${error.message}`);
+      return;
+    }
     setAffiliates(prev => prev.map(a => (a.id === id ? { ...a, status } : a)));
     toast.success(`Affiliate ${status === 'active' ? 'approved' : status}`);
   };
 
   const updateWhiteLabelStatus = async (id: string, status: string) => {
-    await supabase.from('white_label_partners').update({ status }).eq('id', id);
+    const { error } = await supabase.from('white_label_partners').update({ status }).eq('id', id);
+    if (error) {
+      toast.error(`Failed to update partner status: ${error.message}`);
+      return;
+    }
     setWhiteLabelPartners(prev => prev.map(p => (p.id === id ? { ...p, status } : p)));
     toast.success(`White Label partner ${status === 'approved' ? 'approved' : status}`);
   };
 
   const updateReferralStatus = async (id: string, status: string) => {
-    await supabase.from('referral_partners').update({ status }).eq('id', id);
+    const { error } = await supabase.from('referral_partners').update({ status }).eq('id', id);
+    if (error) {
+      toast.error(`Failed to update referral status: ${error.message}`);
+      return;
+    }
     setReferralPartners(prev => prev.map(p => (p.id === id ? { ...p, status } : p)));
     toast.success(`Referral ${status}`);
   };
 
   const payReferralReward = async (id: string, amount: number = 150) => {
-    await supabase.from('referral_partners').update({
+    const { error } = await supabase.from('referral_partners').update({
       reward_amount: amount,
       reward_paid_at: new Date().toISOString(),
       status: 'converted',
     }).eq('id', id);
+    if (error) {
+      toast.error(`Failed to mark reward as paid: ${error.message}`);
+      return;
+    }
     setReferralPartners(prev =>
       prev.map(p =>
         p.id === id ? { ...p, reward_amount: amount, reward_paid_at: new Date().toISOString(), status: 'converted' } : p
@@ -377,7 +405,9 @@ export default function AdminPartners() {
                                 <DropdownMenuItem onClick={() => updateAffiliateStatus(affiliate.id, 'suspended')}>
                                   Suspend
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>View Referrals</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => navigate(`/admin/leads?partner=${affiliate.id}`)}>
+                                  View Referrals
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
@@ -475,12 +505,14 @@ export default function AdminPartners() {
                                   Manage Partner
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => updateWhiteLabelStatus(partner.id, 'approved')}>
-                                  Approve & Create Dashboard
+                                  Approve
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => updateWhiteLabelStatus(partner.id, 'suspended')}>
                                   Suspend
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>View Application</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => navigate(`/admin/partners/${partner.id}`)}>
+                                  View Application
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
@@ -566,7 +598,9 @@ export default function AdminPartners() {
                             {partner.reward_paid_at ? (
                               <span className="text-cta font-medium">${(partner.reward_amount || 0).toFixed(2)} Paid</span>
                             ) : (
-                              <span className="text-muted-foreground">$150 Pending</span>
+                              <span className="text-muted-foreground">
+                                ${(partner.reward_amount || 150).toFixed(2)} Pending
+                              </span>
                             )}
                           </TableCell>
                           <TableCell>
@@ -586,7 +620,9 @@ export default function AdminPartners() {
                                 <DropdownMenuItem onClick={() => payReferralReward(partner.id)}>
                                   Pay Reward ($150)
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>Contact Referrer</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => window.open(`mailto:${partner.referrer_email}`)}>
+                                  Contact Referrer
+                                </DropdownMenuItem>
                                 <DropdownMenuItem
                                   className="text-destructive"
                                   onClick={() => updateReferralStatus(partner.id, 'rejected')}
