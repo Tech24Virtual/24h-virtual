@@ -57,18 +57,23 @@ export default function GrowthHub() {
       const { count: newsletterCountRaw, error: newsletterError } = newsletterRes;
       const { count: emailSendsCountRaw, error: emailSendsError } = emailSendsRes;
 
-      const errors = [
-        blogError,
-        keywordError,
-        wpError,
-        snippetsError,
-        reportsError,
-        newsletterError,
-        emailSendsError,
-      ].filter(Boolean);
+      const namedErrors = [
+        ["wl_blog_queue", blogError],
+        ["wl_keyword_tracker", keywordError],
+        ["wl_wordpress_connections", wpError],
+        ["wl_social_snippets", snippetsError],
+        ["wl_seo_reports", reportsError],
+        ["wl_newsletter_drafts", newsletterError],
+        ["wl_email_sends", emailSendsError],
+      ].filter(([, err]) => Boolean(err)) as [string, { message: string }][];
 
-      if (errors.length > 0) {
-        console.error("[GrowthHub] query errors:", errors);
+      const errors = namedErrors.map(([, err]) => err);
+
+      if (namedErrors.length > 0) {
+        console.error(
+          "[GrowthHub] query errors:",
+          namedErrors.map(([table, err]) => `${table}: ${err.message}`),
+        );
       }
 
       if (errors.length === 7) {
