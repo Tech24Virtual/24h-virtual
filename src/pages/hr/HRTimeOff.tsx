@@ -23,10 +23,29 @@ export default function HRTimeOff() {
   const fetchData = async () => {
     if (!user) return;
     setIsLoading(true);
-    const { data } = await (supabase as any).from('time_off_requests')
-      .select('*, profiles:agent_id(full_name)')
+    const { data, error } = await supabase.from('time_off_requests')
+      .select('*')
       .order('created_at', { ascending: false });
-    setRequests(data || []);
+    if (error) {
+      toast.error('Failed to load time off requests');
+      setRequests([]);
+      setIsLoading(false);
+      return;
+    }
+
+    // time_off_requests.agent_id has no FK relationship registered for
+    // PostgREST to embed, so profiles are fetched separately and merged.
+    const agentIds = [...new Set((data ?? []).map(r => r.agent_id))];
+    const profilesById: Record<string, { full_name: string | null }> = {};
+    if (agentIds.length > 0) {
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', agentIds);
+      (profilesData ?? []).forEach(p => { profilesById[p.id] = { full_name: p.full_name }; });
+    }
+
+    setRequests((data ?? []).map(r => ({ ...r, profiles: profilesById[r.agent_id] ?? null })));
     setIsLoading(false);
   };
 

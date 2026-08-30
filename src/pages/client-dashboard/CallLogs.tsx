@@ -34,7 +34,10 @@ interface CallLog {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  completed: 'bg-cta/10 text-cta',
+  // NOTE: --cta and --destructive resolve to the identical HSL value in
+  // index.css, so 'completed' must use an explicit green rather than the
+  // cta token to stay visually distinct from 'missed'.
+  completed: 'bg-green-500/10 text-green-700 dark:text-green-400',
   missed:    'bg-destructive/10 text-destructive',
   voicemail: 'bg-brand-rose text-heading',
 };

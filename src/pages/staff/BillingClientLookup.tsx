@@ -120,6 +120,12 @@ export default function BillingClientLookup() {
 
         {isLoading && <Skeleton className="h-20 w-full" />}
 
+        {!isLoading && !selectedLead && searchTerm.length >= 2 && leads?.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-8">
+            No clients found matching "{searchTerm}"
+          </p>
+        )}
+
         {!selectedLead && leads && leads.length > 0 && (
           <Card>
             <CardContent className="p-0">
