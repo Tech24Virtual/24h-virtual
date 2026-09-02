@@ -216,7 +216,15 @@ export default function AdminProductCatalog() {
         <Label>Slug *</Label>
         <Input
           value={form.slug}
-          onChange={(e) => { setSlugTouched(true); setForm((p) => ({ ...p, slug: slugify(e.target.value) })); }}
+          onChange={(e) => {
+            setSlugTouched(true);
+            // Light live filter only — full slugify() (which trims a trailing
+            // "-") runs on blur, so typing "qa-test-" doesn't eat the hyphen
+            // the user just typed before they can type the next character.
+            const liveValue = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "");
+            setForm((p) => ({ ...p, slug: liveValue }));
+          }}
+          onBlur={(e) => setForm((p) => ({ ...p, slug: slugify(e.target.value) }))}
         />
       </div>
 

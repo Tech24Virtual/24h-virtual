@@ -20,7 +20,7 @@ export interface CampaignMapping {
 export function useFive9Campaigns() {
   return useQuery({
     queryKey: ['five9', 'live-campaigns'],
-    retry: 1,
+    retry: false,
     queryFn: async (): Promise<Five9Campaign[]> => {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
@@ -32,7 +32,7 @@ export function useFive9Campaigns() {
       try {
         res = await fetch(`${supabaseUrl}/functions/v1/five9-proxy?action=campaigns`, {
           headers: { apikey: anonKey, Authorization: `Bearer ${session.access_token}` },
-          signal: AbortSignal.timeout(10_000),
+          signal: AbortSignal.timeout(15_000),
         });
       } catch (e: any) {
         if (e?.name === 'TimeoutError' || e?.name === 'AbortError') {
