@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, User, Building, Mail, Phone, Globe, Calendar, Copy, ExternalLink, UserCheck, Flame, Thermometer, Snowflake, BarChart2 } from 'lucide-react';
+import { ArrowLeft, User, Building, Mail, Phone, Globe, Calendar, Copy, ExternalLink, UserCheck, Flame, Thermometer, Snowflake, BarChart2, Pencil, Check, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -96,6 +96,8 @@ export default function AdminLeadDetail() {
   const [forwardingNumber, setForwardingNumber] = useState('');
   const [accountCode, setAccountCode] = useState('');
   const [showConversion, setShowConversion] = useState(false);
+  const [isEditingCompany, setIsEditingCompany] = useState(false);
+  const [companyDraft, setCompanyDraft] = useState('');
   const [scoringRules, setScoringRules] = useState<ScoringRules>(DEFAULT_SCORING_RULES);
 
   useEffect(() => {
@@ -322,12 +324,64 @@ export default function AdminLeadDetail() {
                       <span>{lead.phone}</span>
                     </div>
                   )}
-                  {lead.company && (
-                    <div className="flex items-center gap-3">
-                      <Building className="h-4 w-4 text-muted-foreground" />
-                      <span>{lead.company}</span>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-3">
+                      <Building className="h-4 w-4 text-muted-foreground shrink-0" />
+                      {isEditingCompany ? (
+                        <div className="flex items-center gap-2 flex-1">
+                          <Input
+                            autoFocus
+                            value={companyDraft}
+                            onChange={(e) => setCompanyDraft(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                updateLead({ company: companyDraft.trim() || null });
+                                setIsEditingCompany(false);
+                              } else if (e.key === 'Escape') {
+                                setIsEditingCompany(false);
+                              }
+                            }}
+                            className="h-8"
+                          />
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 shrink-0"
+                            disabled={isSaving}
+                            onClick={() => {
+                              updateLead({ company: companyDraft.trim() || null });
+                              setIsEditingCompany(false);
+                            }}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 shrink-0"
+                            onClick={() => setIsEditingCompany(false)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 flex-1 justify-between">
+                          <span className={lead.company ? '' : 'text-muted-foreground italic'}>
+                            {lead.company || 'No company'}
+                          </span>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 shrink-0"
+                            onClick={() => {
+                              setCompanyDraft(lead.company || '');
+                              setIsEditingCompany(true);
+                            }}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                  </div>
                   {lead.country && (
                     <div className="flex items-center gap-3">
                       <Globe className="h-4 w-4 text-muted-foreground" />
@@ -486,7 +540,17 @@ export default function AdminLeadDetail() {
                     />
                     <Button
                       variant="secondary"
-                      onClick={() => updateLead({ account_code: accountCode.trim() || null })}
+                      onClick={() => {
+                        if (!accountCode.trim()) {
+                          toast({
+                            title: 'Account code required',
+                            description: 'Please enter an account code before saving.',
+                            variant: 'destructive',
+                          });
+                          return;
+                        }
+                        updateLead({ account_code: accountCode.trim() });
+                      }}
                       disabled={isSaving}
                     >
                       Save

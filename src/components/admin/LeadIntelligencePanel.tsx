@@ -62,12 +62,18 @@ export function LeadIntelligencePanel({ lead }: Props) {
         return;
       }
 
-      if (!resp.ok) throw new Error('Failed to generate insights');
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => null);
+        throw new Error(body?.error || 'Failed to generate insights');
+      }
 
       const data = await resp.json();
       setInsights(data);
-    } catch (err: any) {
-      toast({ title: 'Error generating insights', description: err.message, variant: 'destructive' });
+    } catch (err) {
+      const description = err instanceof TypeError
+        ? 'AI insights are unavailable right now. Please try again later.'
+        : err instanceof Error ? err.message : 'Unknown error';
+      toast({ title: 'Error generating insights', description, variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }

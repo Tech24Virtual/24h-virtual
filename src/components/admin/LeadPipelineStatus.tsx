@@ -10,10 +10,12 @@ interface LeadPipelineStatusProps {
 
 const stages = [
   { id: 'new', label: 'New', color: 'bg-primary' },
+  { id: 'qualified', label: 'Qualified', color: 'bg-indigo-500' },
   { id: 'sales', label: 'Sales', color: 'bg-yellow-500' },
   { id: 'onboarding', label: 'Onboarding', color: 'bg-purple-500' },
   { id: 'ready_for_billing', label: 'Ready for Billing', color: 'bg-cta' },
   { id: 'active', label: 'Active', color: 'bg-secondary' },
+  { id: 'lost', label: 'Lost', color: 'bg-rose-500' },
   { id: 'churned', label: 'Churned', color: 'bg-muted' },
 ];
 
@@ -76,6 +78,11 @@ export function LeadPipelineStatus({ currentStage, onStageChange, disabled }: Le
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-2">
         {currentStage === 'new' && (
+          <Button size="sm" onClick={() => onStageChange('qualified')} disabled={disabled}>
+            Mark Qualified
+          </Button>
+        )}
+        {currentStage === 'qualified' && (
           <Button size="sm" onClick={() => onStageChange('sales')} disabled={disabled}>
             Assign to Sales
           </Button>
@@ -85,7 +92,7 @@ export function LeadPipelineStatus({ currentStage, onStageChange, disabled }: Le
             <Button size="sm" onClick={() => onStageChange('onboarding')} disabled={disabled}>
               Pass to Onboarding
             </Button>
-            <Button size="sm" variant="destructive" onClick={() => onStageChange('churned')} disabled={disabled}>
+            <Button size="sm" variant="destructive" onClick={() => onStageChange('lost')} disabled={disabled}>
               Mark as Lost
             </Button>
           </>

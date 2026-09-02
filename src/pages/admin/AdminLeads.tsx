@@ -406,12 +406,12 @@ export default function AdminLeads() {
       )}
 
       {/* Leads table */}
-      <Card>
+      <Card className="mb-16">
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
             <CardTitle className="text-lg">
               {stageFilter === 'all'
-                ? `All Leads (${leads.length})`
+                ? `All Leads (${filteredLeads.length})`
                 : `${PIPELINE_STAGE_LABELS[stageFilter]} (${filteredLeads.length})`}
             </CardTitle>
             <div className="flex gap-2">

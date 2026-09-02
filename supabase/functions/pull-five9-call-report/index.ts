@@ -456,20 +456,35 @@ Deno.serve(async (req) => {
       message: `Pull ${finalStatus}. ${processedClients.length} clients processed, ${totalNewRows} new rows.`,
     });
 
-    // 5. Cross-dashboard notifications
-    const { data: adminUsers } = await supabase
-      .from("user_roles")
-      .select("user_id")
-      .in("role", ["admin", "billing"]);
+    // 5. Cross-dashboard notifications — only alert on a status *change* from the
+    // previous run so a standing failure doesn't re-notify everyone every day.
+    const { data: previousMission } = await supabase
+      .from("missions")
+      .select("status")
+      .eq("mission_type", "five9_report_pull")
+      .neq("id", mission.id)
+      .not("completed_at", "is", null)
+      .order("completed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    for (const u of (adminUsers || [])) {
-      await supabase.from("notifications").insert({
-        user_id: u.user_id,
-        title: `Five9 Report Pull ${finalStatus === "completed" ? "Complete" : "Has Issues"}`,
-        message: `Pulled Five9 call logs for ${processedClients.length} clients — ${totalNewRows} new records added.`,
-        category: "billing",
-        action_url: "/admin/mission-control",
-      });
+    const statusChanged = (previousMission?.status ?? null) !== finalStatus;
+
+    if (statusChanged) {
+      const { data: adminUsers } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .in("role", ["admin", "billing"]);
+
+      for (const u of (adminUsers || [])) {
+        await supabase.from("notifications").insert({
+          user_id: u.user_id,
+          title: `Five9 Report Pull ${finalStatus === "completed" ? "Complete" : "Has Issues"}`,
+          message: `Pulled Five9 call logs for ${processedClients.length} clients — ${totalNewRows} new records added.`,
+          category: "billing",
+          action_url: "/admin/mission-control",
+        });
+      }
     }
 
     return new Response(
