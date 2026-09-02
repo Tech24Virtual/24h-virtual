@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
@@ -20,9 +19,6 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!supabaseUrl || !supabaseServiceKey) {
@@ -35,7 +31,7 @@ serve(async (req) => {
 
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
     const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? "");
-    
+
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await anonClient.auth.getUser(token);
     if (userError) throw new Error(`Auth error: ${userError.message}`);
@@ -53,9 +49,8 @@ serve(async (req) => {
       overageRate,
       overageGraceMinutes,
       overageCapAmount,
-      createInStripe = true,
     } = await req.json();
-    
+
     logStep("Request parsed", { leadId, planType, planName, minuteRate, fixedAmount });
 
     if (!leadId || !planType || !planName) {
@@ -67,6 +62,16 @@ serve(async (req) => {
       throw new Error("planType must be 'per_minute', 'fixed', or 'hybrid'");
     }
 
+    if (planType === 'per_minute' && !minuteRate) {
+      throw new Error("minuteRate is required for per_minute plan");
+    }
+    if (planType === 'fixed' && !fixedAmount) {
+      throw new Error("fixedAmount is required for fixed plan");
+    }
+    if (planType === 'hybrid' && (!fixedAmount || !minuteRate)) {
+      throw new Error("fixedAmount and minuteRate are required for hybrid plan");
+    }
+
     // Fetch lead details
     const { data: lead, error: leadError } = await supabaseClient
       .from("leads")
@@ -75,91 +80,7 @@ serve(async (req) => {
       .single();
 
     if (leadError) throw new Error(`Lead not found: ${leadError.message}`);
-    logStep("Lead fetched", { name: lead.name, customerId: lead.stripe_customer_id });
-
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-
-    let stripeProductId: string | null = null;
-    let stripePriceId: string | null = null;
-
-    if (createInStripe) {
-      // Create Stripe product for custom plan
-      const product = await stripe.products.create({
-        name: `Custom Plan: ${planName}`,
-        description: `Custom pricing for ${lead.name}`,
-        metadata: {
-          lead_id: leadId,
-          plan_type: planType,
-        },
-      });
-      stripeProductId = product.id;
-      logStep("Created Stripe product", { productId: product.id });
-
-      // Create price based on plan type
-      if (planType === 'per_minute') {
-        if (!minuteRate) throw new Error("minuteRate is required for per_minute plan");
-        
-        // Create metered price for per-minute billing
-        const price = await stripe.prices.create({
-          product: product.id,
-          currency: 'usd',
-          unit_amount: Math.round(minuteRate * 100), // Convert to cents
-          recurring: {
-            interval: 'month',
-            usage_type: 'metered',
-            aggregate_usage: 'sum',
-          },
-          nickname: `${planName} @ $${minuteRate}/min`,
-        });
-        stripePriceId = price.id;
-        logStep("Created metered price", { priceId: price.id });
-      } else if (planType === 'fixed') {
-        if (!fixedAmount) throw new Error("fixedAmount is required for fixed plan");
-        
-        const price = await stripe.prices.create({
-          product: product.id,
-          currency: 'usd',
-          unit_amount: Math.round(fixedAmount * 100),
-          recurring: {
-            interval: 'month',
-          },
-          nickname: `${planName} - $${fixedAmount}/mo`,
-        });
-        stripePriceId = price.id;
-        logStep("Created fixed price", { priceId: price.id });
-      } else if (planType === 'hybrid') {
-        if (!fixedAmount || !minuteRate) {
-          throw new Error("fixedAmount and minuteRate are required for hybrid plan");
-        }
-        
-        // Create fixed base price
-        const basePrice = await stripe.prices.create({
-          product: product.id,
-          currency: 'usd',
-          unit_amount: Math.round(fixedAmount * 100),
-          recurring: {
-            interval: 'month',
-          },
-          nickname: `${planName} - Base $${fixedAmount}/mo`,
-        });
-        stripePriceId = basePrice.id;
-        logStep("Created hybrid base price", { priceId: basePrice.id });
-        
-        // Also create metered price for usage
-        const usagePrice = await stripe.prices.create({
-          product: product.id,
-          currency: 'usd',
-          unit_amount: Math.round(minuteRate * 100),
-          recurring: {
-            interval: 'month',
-            usage_type: 'metered',
-            aggregate_usage: 'sum',
-          },
-          nickname: `${planName} - Usage $${minuteRate}/min`,
-        });
-        logStep("Created hybrid usage price", { priceId: usagePrice.id });
-      }
-    }
+    logStep("Lead fetched", { name: lead.name, paymentProcessor: lead.payment_processor });
 
     // Deactivate any existing custom plans for this lead
     await supabaseClient
@@ -168,7 +89,8 @@ serve(async (req) => {
       .eq("lead_id", leadId)
       .eq("is_active", true);
 
-    // Create custom plan record
+    // Create custom plan record — billed directly via NMI using these stored
+    // rates (see nmi-charge / run-call-billing), no external product/price needed.
     const { data: customPlan, error: planError } = await supabaseClient
       .from("custom_plans")
       .insert({
@@ -178,8 +100,8 @@ serve(async (req) => {
         minute_rate: minuteRate || null,
         fixed_amount: fixedAmount || null,
         minimum_monthly: minimumMonthly || null,
-        stripe_product_id: stripeProductId,
-        stripe_price_id: stripePriceId,
+        stripe_product_id: null,
+        stripe_price_id: null,
         is_active: true,
         notes,
         overage_rate: overageRate || 0,
@@ -215,8 +137,6 @@ serve(async (req) => {
           planName,
           minuteRate,
           fixedAmount,
-          stripeProductId,
-          stripePriceId,
         },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }

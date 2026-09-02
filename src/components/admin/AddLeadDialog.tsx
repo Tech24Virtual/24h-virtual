@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -101,8 +101,8 @@ export function AddLeadDialog({ open, onOpenChange, onSuccess }: AddLeadDialogPr
       onOpenChange(false);
       reset();
       onSuccess?.();
-    } catch (err: any) {
-      toast.error(err?.message ?? 'Failed to create lead');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create lead');
     } finally {
       setBusy(false);
     }
@@ -113,6 +113,7 @@ export function AddLeadDialog({ open, onOpenChange, onSuccess }: AddLeadDialogPr
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Add Lead</DialogTitle>
+          <DialogDescription>Create a new lead and add it to the pipeline.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           <div className="grid grid-cols-2 gap-3">
