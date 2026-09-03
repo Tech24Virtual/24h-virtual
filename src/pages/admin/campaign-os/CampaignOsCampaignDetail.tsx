@@ -32,6 +32,7 @@ import { GoLiveAuditPanel } from '@/components/campaign-os/go-live/GoLiveAuditPa
 import { SaveAsTemplateDialog } from '@/components/campaign-os/SaveAsTemplateDialog';
 import { GitCompare, Layers } from 'lucide-react';
 import { ScenarioEffectivenessTab } from '@/components/campaign-os/effectiveness/ScenarioEffectivenessTab';
+import { MarkdownText } from '@/components/campaign-os/MarkdownText';
 
 function buildPacketFilename(campaign: Pick<Campaign, 'id' | 'display_name'>): string {
   const slug = slugify(campaign.display_name);
@@ -594,7 +595,7 @@ export default function CampaignOsCampaignDetail() {
           {faqsQ.data?.map((f) => (
             <Card key={f.id}>
               <CardHeader className="pb-2"><CardTitle className="text-base">{f.question}</CardTitle></CardHeader>
-              <CardContent className="pt-0"><p className="text-sm whitespace-pre-wrap">{f.answer_md}</p></CardContent>
+              <CardContent className="pt-0"><MarkdownText>{f.answer_md}</MarkdownText></CardContent>
             </Card>
           ))}
         </TabsContent>
@@ -626,7 +627,7 @@ export default function CampaignOsCampaignDetail() {
                   <Badge variant="outline">{p.policy_kind}</Badge>
                 </div>
               </CardHeader>
-              <CardContent className="pt-0"><p className="text-sm whitespace-pre-wrap">{p.body_md}</p></CardContent>
+              <CardContent className="pt-0"><MarkdownText>{p.body_md}</MarkdownText></CardContent>
             </Card>
           ))}
         </TabsContent>
