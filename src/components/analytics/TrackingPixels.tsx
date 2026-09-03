@@ -7,7 +7,9 @@ import { useLocation } from 'react-router-dom';
 const WL_ROUTE_PREFIXES = [
   '/wl-portal',
   '/white-label-dashboard',
+  '/portal',     // authenticated WL client portal
   '/c/',         // public WL client token portal
+  '/p/',         // public WL proposal viewer
 ];
 
 const GA4_ID = 'G-J1TZ6N6MTC';

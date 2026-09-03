@@ -16,6 +16,9 @@
    "/call-advisor",
    "/white-label-dashboard",
    "/staff",
+   "/portal",
+   "/c/",
+   "/p/",
  ];
  
  const STORAGE_KEY = "floating_cta_dismissed";

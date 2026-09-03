@@ -1,6 +1,6 @@
  import { useState, useEffect, useRef } from "react";
  import { Gift, BookOpen, Calendar, CheckCircle, Sparkles, ArrowRight, Clock } from "lucide-react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
  import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -26,6 +26,9 @@ const EXCLUDED_ROUTES = [
   "/get-started",
   "/call-advisor",
   "/white-label-dashboard",
+  "/portal",
+  "/c/",
+  "/p/",
 ];
 
  // A/B Test Variants
@@ -231,6 +234,7 @@ export function ExitIntentPopup() {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="sm:max-w-lg p-0 overflow-hidden border-border/50 bg-background/95 backdrop-blur-xl">
+        <DialogTitle className="sr-only">{activeVariant.headline}</DialogTitle>
         <AnimatePresence>
           {isOpen && (
             <motion.div

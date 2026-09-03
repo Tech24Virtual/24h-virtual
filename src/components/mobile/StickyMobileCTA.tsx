@@ -17,6 +17,9 @@ import { WebCallbackWidget } from "@/components/callback/WebCallbackWidget";
    "/call-advisor",
    "/white-label-dashboard",
    "/staff",
+   "/portal",
+   "/c/",
+   "/p/",
  ];
  
 export function StickyMobileCTA() {

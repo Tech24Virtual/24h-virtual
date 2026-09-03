@@ -28,6 +28,8 @@ const EXCLUDED_ROUTES = [
   "/staff",
   "/white-label-dashboard",
   "/portal",
+  "/c/",
+  "/p/",
 ];
 
 const initialMessages: Message[] = [
