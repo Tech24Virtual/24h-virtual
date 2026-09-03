@@ -23,7 +23,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { CheckCircle2, Circle, Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Circle, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   useWLPartnerTasks,
@@ -87,7 +87,7 @@ function getDueState(dueAt: string | null, status: WLTaskStatus): DueState {
 }
 
 export default function WLTasks() {
-  const { data: tasks, isLoading } = useWLPartnerTasks();
+  const { data: tasks, isLoading, isError, error } = useWLPartnerTasks();
   const { createTask, setStatus, deleteTask } = useWLPartnerTaskMutations();
 
   const initial = loadFilters();
@@ -282,6 +282,14 @@ export default function WLTasks() {
             <Skeleton className="h-16 w-full" />
             <Skeleton className="h-16 w-full" />
           </div>
+        ) : isError ? (
+          <Card className="p-12 text-center">
+            <AlertTriangle className="w-10 h-10 mx-auto text-destructive mb-3" />
+            <p className="font-medium text-destructive">Couldn&apos;t load tasks</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {error instanceof Error ? error.message : 'Something went wrong. Please try again.'}
+            </p>
+          </Card>
         ) : filtered.length === 0 ? (
           <Card className="p-12 text-center">
             <p className="font-medium">No tasks match these filters.</p>

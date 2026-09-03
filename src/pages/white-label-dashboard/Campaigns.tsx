@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Megaphone } from "lucide-react";
+import { Plus, Megaphone, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,7 @@ export default function WLCampaigns() {
   const [clients, setClients] = useState<any[]>([]);
   const [pricing, setPricing] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newCampaign, setNewCampaign] = useState({ wl_client_id: "", campaign_name: "", department: "" });
 
@@ -34,6 +35,7 @@ export default function WLCampaigns() {
 
   const fetchData = async () => {
     if (!user) return;
+    setLoadError(null);
     try {
       const { data: partner } = await supabase.from("white_label_partners").select("id").eq("user_id", user.id).maybeSingle();
       if (!partner) return;
@@ -46,10 +48,15 @@ export default function WLCampaigns() {
         supabase.from("wl_wholesale_pricing").select("campaign_setup_fee, additional_campaign_fee").eq("partner_id", partner.id).maybeSingle(),
       ]);
 
+      if (campaignsRes.error) throw campaignsRes.error;
+
       setCampaigns(campaignsRes.data || []);
       setClients(clientsRes.data || []);
       setPricing(pricingRes.data);
-    } catch (err) { console.error(err); } finally { setIsLoading(false); }
+    } catch (err) {
+      console.error(err);
+      setLoadError(err instanceof Error ? err.message : "Failed to load campaigns.");
+    } finally { setIsLoading(false); }
   };
 
   const handleCreate = async () => {
@@ -164,6 +171,12 @@ export default function WLCampaigns() {
           <CardContent>
             {isLoading ? (
               <p className="text-center py-8 text-muted-foreground">Loading...</p>
+            ) : loadError ? (
+              <div className="text-center py-8">
+                <AlertTriangle className="w-10 h-10 mx-auto text-destructive mb-3" />
+                <p className="font-medium text-destructive">Couldn&apos;t load campaigns</p>
+                <p className="text-sm text-muted-foreground mt-1">{loadError}</p>
+              </div>
             ) : campaigns.length === 0 ? (
               <p className="text-center py-8 text-muted-foreground">No campaigns yet. Add your first campaign.</p>
             ) : (

@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ChevronRight, AlertCircle } from 'lucide-react';
+import { ChevronRight, AlertCircle, AlertTriangle } from 'lucide-react';
 import { useWLPartnerHandoffs, type WLHandoffStatus } from '@/hooks/wl/useWLPartnerHandoffs';
 import {
   SUBMISSION_STATUS_LABEL,
@@ -38,7 +38,7 @@ const STATUS_LABEL: Record<WLHandoffStatus, string> = {
 };
 
 export default function WLOnboarding() {
-  const { data: handoffs, isLoading } = useWLPartnerHandoffs();
+  const { data: handoffs, isLoading, isError, error } = useWLPartnerHandoffs();
   const [submissionFilter, setSubmissionFilter] = useState<WLSubmissionStatus | 'all'>('all');
 
   const handoffIds = useMemo(() => (handoffs ?? []).map((h) => h.id), [handoffs]);
@@ -101,6 +101,14 @@ export default function WLOnboarding() {
             <Skeleton className="h-20 w-full" />
             <Skeleton className="h-20 w-full" />
           </div>
+        ) : isError ? (
+          <Card className="p-12 text-center">
+            <AlertTriangle className="w-10 h-10 mx-auto text-destructive mb-3" />
+            <p className="font-medium text-destructive">Couldn&apos;t load onboarding handoffs</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {error instanceof Error ? error.message : 'Something went wrong. Please try again.'}
+            </p>
+          </Card>
         ) : !filtered?.length ? (
           <Card className="p-12 text-center">
             <p className="font-medium">No handoffs match.</p>

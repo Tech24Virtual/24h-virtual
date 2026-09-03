@@ -11,6 +11,10 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -47,6 +51,7 @@ export default function WLTeam() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("agent");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<Member | null>(null);
 
   useEffect(() => { fetchPartnerAndMembers(); }, [user]);
 
@@ -120,39 +125,56 @@ export default function WLTeam() {
 
   const handleChangeRole = async (memberId: string, newRole: string) => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('wl_partner_members')
         .update({ role: newRole })
-        .eq('id', memberId);
+        .eq('id', memberId)
+        .select()
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) throw new Error("Role change wasn't applied — you may not have permission to manage this member.");
 
+      setMembers(prev => prev.map(m => (m.id === memberId ? { ...m, role: data.role } : m)));
       toast({ title: "Role updated" });
-      fetchPartnerAndMembers();
     } catch (error) {
       console.error("Error updating role:", error);
-      toast({ title: "Error", description: "Failed to update role.", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update role.",
+        variant: "destructive",
+      });
     }
   };
 
   const handleRemoveMember = async (memberId: string) => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('wl_partner_members')
         .delete()
-        .eq('id', memberId);
+        .eq('id', memberId)
+        .select()
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) throw new Error("Member wasn't removed — you may not have permission to manage this member.");
 
+      setMembers(prev => prev.filter(m => m.id !== memberId));
       toast({ title: "Member removed", description: "Team member has been removed." });
-      fetchPartnerAndMembers();
     } catch (error) {
       console.error("Error removing member:", error);
-      toast({ title: "Error", description: "Failed to remove member.", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to remove member.",
+        variant: "destructive",
+      });
+    } finally {
+      setMemberToRemove(null);
     }
   };
 
   return (
+    <>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -265,7 +287,7 @@ export default function WLTeam() {
                                 variant="ghost"
                                 size="icon"
                                 className="text-destructive hover:text-destructive"
-                                onClick={() => handleRemoveMember(member.id)}
+                                onClick={() => setMemberToRemove(member)}
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
@@ -281,5 +303,27 @@ export default function WLTeam() {
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog open={!!memberToRemove} onOpenChange={(o) => !o && setMemberToRemove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove team member?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove {memberToRemove ? displayEmail(memberToRemove) : "this team member"}?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => memberToRemove && handleRemoveMember(memberToRemove.id)}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { FileText, Plus, Search } from 'lucide-react';
+import { AlertTriangle, FileText, Plus, Search } from 'lucide-react';
 import { useWLPartnerProposals } from '@/hooks/wl/useWLPartnerProposals';
 import { WLProposalStatusBadge } from '@/components/white-label/proposals/WLProposalStatusBadge';
 import type { WLProposalStatus } from '@/hooks/wl/wlProposalTransitions';
@@ -40,7 +40,7 @@ type LeadFilter = (typeof LEAD_FILTERS)[number];
 
 export default function WLProposals() {
   const navigate = useNavigate();
-  const { data: proposals, isLoading } = useWLPartnerProposals();
+  const { data: proposals, isLoading, isError, error } = useWLPartnerProposals();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<WLProposalStatus | 'all'>('all');
   const [leadFilter, setLeadFilter] = useState<LeadFilter>('all');
@@ -127,6 +127,14 @@ export default function WLProposals() {
               {Array.from({ length: 5 }).map((_, i) => (
                 <Skeleton key={i} className="h-12 w-full" />
               ))}
+            </div>
+          ) : isError ? (
+            <div className="p-12 text-center">
+              <AlertTriangle className="w-10 h-10 mx-auto text-destructive mb-3" />
+              <p className="font-medium text-destructive">Couldn&apos;t load proposals</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {error instanceof Error ? error.message : 'Something went wrong. Please try again.'}
+              </p>
             </div>
           ) : filtered.length === 0 ? (
             <div className="p-12 text-center">

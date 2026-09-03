@@ -12,7 +12,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Search, Pencil, Trash2, UserPlus, Sparkles } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, UserPlus, Sparkles, AlertTriangle } from 'lucide-react';
 import { useWLPartnerLeads, type WLPartnerLead, type WLPipelineStage, type WLTemperature } from '@/hooks/wl/useWLPartnerLeads';
 import { useWLPartnerLeadMutations } from '@/hooks/wl/useWLPartnerLeadMutations';
 import { WLLeadFormDialog } from '@/components/white-label/leads/WLLeadFormDialog';
@@ -39,7 +39,7 @@ const tempBadge: Record<WLTemperature, string> = {
 };
 
 export default function WLPartnerLeads() {
-  const { data: leads, isLoading } = useWLPartnerLeads();
+  const { data: leads, isLoading, isError, error } = useWLPartnerLeads();
   const { deleteLead } = useWLPartnerLeadMutations();
 
   const [search, setSearch] = useState('');
@@ -122,6 +122,14 @@ export default function WLPartnerLeads() {
               {Array.from({ length: 5 }).map((_, i) => (
                 <Skeleton key={i} className="h-12 w-full" />
               ))}
+            </div>
+          ) : isError ? (
+            <div className="p-12 text-center">
+              <AlertTriangle className="w-10 h-10 mx-auto text-destructive mb-3" />
+              <p className="font-medium text-destructive">Couldn&apos;t load leads</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {error instanceof Error ? error.message : 'Something went wrong. Please try again.'}
+              </p>
             </div>
           ) : filtered.length === 0 ? (
             <div className="p-12 text-center">
