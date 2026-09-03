@@ -28,10 +28,31 @@ export default function HROffboarding() {
     if (!user) return;
     setIsLoading(true);
     const [offRes, empRes] = await Promise.all([
-      (supabase as any).from('offboarding').select('*, profiles:agent_id(full_name)').order('created_at', { ascending: false }),
+      (supabase as any).from('offboarding').select('*').order('created_at', { ascending: false }),
       (supabase as any).from('profiles').select('id, full_name, employment_status').eq('employment_status', 'active').order('full_name'),
     ]);
-    setOffboardings(offRes.data || []);
+    if (offRes.error) {
+      toast.error('Failed to load offboardings');
+      setOffboardings([]);
+      setEmployees(empRes.data || []);
+      setIsLoading(false);
+      return;
+    }
+
+    // offboarding.agent_id has no FK relationship registered for PostgREST to
+    // embed, so profiles are fetched separately and merged.
+    const offData = offRes.data ?? [];
+    const agentIds = [...new Set(offData.map((o: any) => o.agent_id))];
+    const profilesById: Record<string, { full_name: string | null }> = {};
+    if (agentIds.length > 0) {
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', agentIds as string[]);
+      (profilesData ?? []).forEach(p => { profilesById[p.id] = { full_name: p.full_name }; });
+    }
+
+    setOffboardings(offData.map((o: any) => ({ ...o, profiles: profilesById[o.agent_id] ?? null })));
     setEmployees(empRes.data || []);
     setIsLoading(false);
   };

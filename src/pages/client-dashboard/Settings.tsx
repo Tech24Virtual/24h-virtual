@@ -62,11 +62,8 @@ export default function Settings() {
     }
   }, [profileData]);
 
-  const handleChangePassword = async () => {
-    if (!user?.email) return;
-    const { error } = await supabase.auth.resetPasswordForEmail(user.email);
-    if (error) toast.error('Failed to send reset email');
-    else toast.success('Password reset email sent! Check your inbox.');
+  const handleChangePassword = () => {
+    toast('Coming soon', { description: 'Password change will be available shortly.' });
   };
 
   const handleSave = async () => {

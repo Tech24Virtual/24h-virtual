@@ -51,10 +51,12 @@ export default function HRDirectory() {
   useEffect(() => { fetchData(); }, [user, page]);
 
   const handleUpdateField = async (id: string, field: string, value: string) => {
-    const { error } = await supabase.from('profiles').update({ [field]: value || null }).eq('id', id);
+    const { data, error } = await supabase.from('profiles').update({ [field]: value || null }).eq('id', id).select().maybeSingle();
     if (error) { toast.error('Failed to update'); return; }
+    if (!data) { toast.error("Update wasn't applied — you may not have permission to edit this employee."); return; }
     toast.success('Updated successfully');
     setEditField(null);
+    setSelectedEmployee((prev: any) => (prev && prev.id === id ? { ...prev, [field]: value || null } : prev));
     fetchData();
   };
 

@@ -16,7 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { Plus, CheckCircle, Trash2, GripVertical } from 'lucide-react';
+import { Plus, CheckCircle, Trash2, GripVertical, ChevronDown, ChevronRight } from 'lucide-react';
 
 const statusToStep: Record<string, number> = {
   offer_pending: 0, offer_accepted: 1, contract_signed: 2, banking_pending: 3,
@@ -30,6 +30,7 @@ export default function HROnboarding() {
   const [filter, setFilter] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
   const [sendOfferOpen, setSendOfferOpen] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
   const [templateForm, setTemplateForm] = useState({ name: '', description: '', steps: [{ label: '', who: 'HR', required: true }] });
@@ -139,13 +140,23 @@ export default function HROnboarding() {
                   const step = statusToStep[ob.status] ?? 0;
                   const steps = ['Offer Sent', 'Accepted', 'Contract Signed', 'Banking', 'Provisioning', 'Training', 'Live Training', 'Activation', 'Complete'];
                   const progress = ((step + 1) / steps.length) * 100;
+                  const isExpanded = expandedId === ob.id;
                   return (
                     <Card key={ob.id}>
-                      <CardContent className="p-4 space-y-3">
+                      <CardContent
+                        className="p-4 space-y-3 cursor-pointer"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setExpandedId(isExpanded ? null : ob.id)}
+                        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedId(isExpanded ? null : ob.id); } }}
+                      >
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                          <div>
-                            <p className="font-medium">{ob.profiles?.full_name || 'Unknown'}</p>
-                            <p className="text-sm text-muted-foreground">Started {format(new Date(ob.created_at), 'MMM d, yyyy')}</p>
+                          <div className="flex items-center gap-2">
+                            {isExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
+                            <div>
+                              <p className="font-medium">{ob.profiles?.full_name || 'Unknown'}</p>
+                              <p className="text-sm text-muted-foreground">Started {format(new Date(ob.created_at), 'MMM d, yyyy')}</p>
+                            </div>
                           </div>
                           <div className="flex items-center gap-2">
                             <Badge variant={ob.status === 'completed' ? 'default' : 'secondary'} className="capitalize">
@@ -166,8 +177,29 @@ export default function HROnboarding() {
                           {ob.schedule_type && <span className="capitalize">Schedule: {ob.schedule_type?.replace('_', ' ')}</span>}
                           {ob.banking_submitted && <span className="text-primary">Banking ✓</span>}
                         </div>
+
+                        {isExpanded && (
+                          <div className="pt-3 mt-1 border-t grid sm:grid-cols-2 gap-x-6 gap-y-2 text-sm" onClick={e => e.stopPropagation()}>
+                            <div><span className="text-muted-foreground">Google Workspace:</span> {ob.google_email || '—'}</div>
+                            <div><span className="text-muted-foreground">Five9 Username:</span> {ob.five9_username || '—'}</div>
+                            <div><span className="text-muted-foreground">Slack Invited:</span> {ob.slack_invited ? 'Yes' : 'No'}</div>
+                            <div><span className="text-muted-foreground">Slack Channels:</span> {(ob.slack_channels_assigned || []).length > 0 ? ob.slack_channels_assigned.join(', ') : '—'}</div>
+                            <div><span className="text-muted-foreground">Contract Signed:</span> {ob.contract_signed_at ? format(new Date(ob.contract_signed_at), 'MMM d, yyyy') : '—'}</div>
+                            <div><span className="text-muted-foreground">Training Completed:</span> {ob.training_completed_at ? format(new Date(ob.training_completed_at), 'MMM d, yyyy') : '—'}</div>
+                            <div><span className="text-muted-foreground">Live Training Scheduled:</span> {ob.live_training_scheduled_at ? format(new Date(ob.live_training_scheduled_at), 'MMM d, yyyy') : '—'}</div>
+                            <div><span className="text-muted-foreground">Live Training Completed:</span> {ob.live_training_completed_at ? format(new Date(ob.live_training_completed_at), 'MMM d, yyyy') : '—'}</div>
+                            {ob.completed_at && <div><span className="text-muted-foreground">Completed:</span> {format(new Date(ob.completed_at), 'MMM d, yyyy')}</div>}
+                            {Array.isArray(ob.training_checklist) && ob.training_checklist.length > 0 && (
+                              <div className="sm:col-span-2">
+                                <span className="text-muted-foreground">Training Checklist:</span>{' '}
+                                {ob.training_checklist.filter((t: any) => t?.done).length}/{ob.training_checklist.length} complete
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         {ob.status === 'live_training' && !ob.hr_approved_by && (
-                          <Button size="sm" onClick={() => handleHRApproval(ob.id)}>
+                          <Button size="sm" onClick={e => { e.stopPropagation(); handleHRApproval(ob.id); }}>
                             <CheckCircle className="w-4 h-4 mr-2" /> HR Final Sign-off
                           </Button>
                         )}

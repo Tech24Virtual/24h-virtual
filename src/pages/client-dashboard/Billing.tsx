@@ -164,8 +164,10 @@ export default function Billing() {
     enabled: !!leadId,
   });
 
-  // ── TanStack Query: Stripe subscription status ───────────────────────────
-  const { data: subscription = null, isLoading: isLoadingSubscription } = useQuery({
+  // ── TanStack Query: legacy Stripe subscription status ────────────────────
+  // The check-subscription function is Stripe-only and is not deployed to this
+  // project (this app bills via NMI now) — never retry a call that can't succeed.
+  const { data: subscription = null, isLoading: isLoadingSubscription, isError: isSubscriptionError } = useQuery({
     queryKey: ['client-subscription', user?.id],
     queryFn: async (): Promise<SubscriptionInfo> => {
       const { data, error } = await supabase.functions.invoke('check-subscription');
@@ -173,9 +175,19 @@ export default function Billing() {
       return data as SubscriptionInfo;
     },
     enabled: !!user,
+    retry: false,
   });
 
   const isLoading = isLoadingLead || isLoadingUsage || isLoadingSubscription;
+
+  // NMI clients don't have a Stripe subscription — an active plan is signaled by
+  // the lead's own service_type, not by the (undeployed) Stripe status check.
+  const hasNmiPlan = isNmi && !!leadData?.service_type;
+  const hasStripePlan = !!subscription?.subscribed;
+  const hasPlan = hasNmiPlan || hasStripePlan;
+  // True only when we have no way to know the plan status at all (not NMI, and
+  // the Stripe check failed) — as opposed to a client who genuinely has no plan.
+  const subscriptionStatusUnknown = !isNmi && isSubscriptionError && !hasStripePlan;
 
   // ── Derived: dynamic billing (recalculates whenever lead/usage/sub change) ─
   const billingResult = useMemo<DynamicBillingResult | null>(() => {
@@ -260,6 +272,7 @@ export default function Billing() {
   const overageCost = billingResult?.breakdown.overageCost ?? (overageMinutes * overageRate);
   const estimatedTotal = billingResult?.breakdown.totalCost ?? (baseCost + overageCost);
   const dynamicSavings = billingResult?.savings ?? 0;
+  const planName = subscription?.plan_name ?? billingResult?.serviceName ?? 'Active Plan';
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -319,12 +332,16 @@ export default function Billing() {
               <div>
                 <p className="text-sm text-muted-foreground">Estimated Invoice</p>
                 <p className="text-2xl font-bold">
-                  {subscription?.subscribed ? `$${estimatedTotal.toFixed(0)}` : '$0'}
+                  {hasPlan ? `$${estimatedTotal.toFixed(0)}` : subscriptionStatusUnknown ? '—' : '$0'}
                 </p>
               </div>
             </div>
             <p className="text-sm text-muted-foreground mt-4">
-              {subscription?.subscribed ? `Renews ${nextInvoiceDate}` : 'No active subscription'}
+              {hasPlan
+                ? `Renews ${nextInvoiceDate}`
+                : subscriptionStatusUnknown
+                  ? 'Contact support for billing information'
+                  : 'No active subscription'}
             </p>
             {overageMinutes > 0 && (
               <p className="text-xs text-destructive mt-1">
@@ -345,11 +362,11 @@ export default function Billing() {
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
-          ) : subscription?.subscribed ? (
+          ) : hasPlan ? (
             <div className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2">
-                  <p className="text-xl font-semibold">{subscription.plan_name}</p>
+                  <p className="text-xl font-semibold">{planName}</p>
                   <Badge variant="secondary" className="bg-cta/10 text-cta">Active</Badge>
                 </div>
                 <p className="text-muted-foreground">
@@ -382,6 +399,19 @@ export default function Billing() {
                   </Button>
                 )}
               </div>
+            </div>
+          ) : subscriptionStatusUnknown ? (
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xl font-semibold text-muted-foreground">Unable to load plan status</p>
+                <p className="text-muted-foreground">
+                  Contact support for billing information
+                </p>
+              </div>
+              <Button variant="outline" onClick={handleContactBilling}>
+                <Mail className="w-4 h-4 mr-2" />
+                Contact Billing
+              </Button>
             </div>
           ) : (
             <div className="flex items-center justify-between">
@@ -449,7 +479,7 @@ export default function Billing() {
             )}
           </CardContent>
         </Card>
-      ) : subscription?.subscribed ? (
+      ) : hasStripePlan ? (
         <Card className="mb-8">
           <CardHeader>
             <CardTitle className="text-lg">Payment Method</CardTitle>
@@ -525,7 +555,7 @@ export default function Billing() {
                 </Table>
               </div>
             )
-          ) : subscription?.subscribed ? (
+          ) : hasStripePlan ? (
             <div className="text-center py-8 text-muted-foreground">
               <CreditCard className="w-12 h-12 mx-auto mb-4 opacity-30" />
               <p>Invoice history is managed by 24H Virtual</p>

@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Building2, Shield, RefreshCw, Check, X } from 'lucide-react';
+import { Building2, Shield, RefreshCw, Check, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { StaffLayout } from '@/components/staff/StaffLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +12,7 @@ import { toast } from 'sonner';
 
 export default function BillingWLPartners() {
   const queryClient = useQueryClient();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data: partners = [], isLoading } = useQuery({
     queryKey: ['billing-wl-partners'],
@@ -117,21 +119,50 @@ export default function BillingWLPartners() {
             const unverified = partnerConfigs.filter(c => !c.billing_verified).length;
             const latestUsage = usageSummaries.find(u => u.partner_id === partner.id);
 
+            const isExpanded = expandedId === partner.id;
             return (
               <Card key={partner.id}>
                 <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle className="text-lg">{partner.company_name}</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      {partnerClients.length} clients · {unverified > 0 && <span className="text-orange-500 font-medium">{unverified} unverified</span>}
-                      {unverified === 0 && <span className="text-green-600">All verified</span>}
-                      {latestUsage && ` · $${latestUsage.total_wholesale_cost.toFixed(2)} wholesale`}
-                    </p>
-                  </div>
+                  <button
+                    type="button"
+                    className="flex items-start gap-2 text-left"
+                    onClick={() => setExpandedId(isExpanded ? null : partner.id)}
+                  >
+                    {isExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0 mt-1" /> : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 mt-1" />}
+                    <div>
+                      <CardTitle className="text-lg">{partner.company_name}</CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        {partnerClients.length} clients · {unverified > 0 && <span className="text-orange-500 font-medium">{unverified} unverified</span>}
+                        {unverified === 0 && <span className="text-green-600">All verified</span>}
+                        {latestUsage && ` · $${latestUsage.total_wholesale_cost.toFixed(2)} wholesale`}
+                      </p>
+                    </div>
+                  </button>
                   <Button size="sm" variant="outline" onClick={() => triggerUsageCalc(partner.id)}>
                     <RefreshCw className="w-4 h-4 mr-1" /> Calculate Usage
                   </Button>
                 </CardHeader>
+                {isExpanded && (
+                  <CardContent className="pt-0 pb-4">
+                    {latestUsage ? (
+                      <div className="grid sm:grid-cols-3 gap-x-6 gap-y-2 text-sm border rounded-lg p-4 bg-muted/30">
+                        <div><span className="text-muted-foreground">Period:</span> {latestUsage.billing_period_start} – {latestUsage.billing_period_end}</div>
+                        <div><span className="text-muted-foreground">Active Clients:</span> {latestUsage.active_client_count}</div>
+                        <div><span className="text-muted-foreground">Total Calls:</span> {latestUsage.total_calls_all_clients.toLocaleString()}</div>
+                        <div><span className="text-muted-foreground">Total Minutes:</span> {latestUsage.total_minutes_all_clients.toLocaleString()}</div>
+                        <div><span className="text-muted-foreground">Campaign Fees:</span> ${latestUsage.total_campaign_fees.toFixed(2)}</div>
+                        <div><span className="text-muted-foreground">Wholesale Cost:</span> ${latestUsage.total_wholesale_cost.toFixed(2)}</div>
+                        {latestUsage.volume_discount_active && (
+                          <div className="sm:col-span-3 text-green-600">
+                            Volume discount active{latestUsage.volume_discount_rate ? ` (${(latestUsage.volume_discount_rate * 100).toFixed(0)}%)` : ''}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No usage summary calculated yet — use "Calculate Usage" above.</p>
+                    )}
+                  </CardContent>
+                )}
                 {partnerClients.length > 0 && (
                   <CardContent className="p-0">
                     <Table>

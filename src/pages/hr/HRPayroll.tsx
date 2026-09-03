@@ -25,10 +25,29 @@ export default function HRPayroll() {
     const [pendingRes, paidRes, bankRes] = await Promise.all([
       (supabase as any).from('shift_invoices').select('id', { count: 'exact', head: true }).eq('status', 'supervisor_approved'),
       (supabase as any).from('shift_invoices').select('id', { count: 'exact', head: true }).eq('status', 'paid'),
-      (supabase as any).from('agent_banking').select('*, profiles:agent_id(full_name)').order('created_at', { ascending: false }),
+      (supabase as any).from('agent_banking').select('*').order('created_at', { ascending: false }),
     ]);
     setStats({ pending: pendingRes.count || 0, processed: paidRes.count || 0, totalBanking: bankRes.data?.length || 0 });
-    setBankingRecords(bankRes.data || []);
+
+    if (bankRes.error) {
+      setBankingRecords([]);
+      return;
+    }
+
+    // agent_banking.agent_id has no FK relationship registered for PostgREST to
+    // embed, so profiles are fetched separately and merged.
+    const bankData = bankRes.data ?? [];
+    const agentIds = [...new Set(bankData.map((b: any) => b.agent_id))];
+    const profilesById: Record<string, { full_name: string | null }> = {};
+    if (agentIds.length > 0) {
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', agentIds as string[]);
+      (profilesData ?? []).forEach(p => { profilesById[p.id] = { full_name: p.full_name }; });
+    }
+
+    setBankingRecords(bankData.map((b: any) => ({ ...b, profiles: profilesById[b.agent_id] ?? null })));
   };
 
   useEffect(() => {
