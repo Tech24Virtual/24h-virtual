@@ -263,6 +263,72 @@ Admin Dashboard and Client Dashboard fully redesigned and audited. All 16 client
 
 ---
 
+## FULL QA PASS COMPLETED (2026-09-04)
+
+### Admin Dashboard
+- Search box now passes ?q= param to leads, Recent Activity links to correct lead
+- Lead detail: .maybeSingle() on settings, country lookup, notes fallback, activation effects on stage change
+- Agents: offboard guard, type cast cleanup
+- Billing: custom plan edit/deactivate, Stripe removed from create-custom-plan (now NMI/direct DB)
+- Tickets: error banner on permission failure
+- Users: stale casts removed, Manage Roles pre-populates current roles
+- Partners: dead menu items wired, mutations check errors, reward amount from DB
+- Overview: Workflow Alerts flash fixed, stat pills show Error on failure
+- Feedback: handoffs grant, DOM nesting fix
+- Calendar: Google auth allows admin role
+- Audit log: FAB overlap fixed (pagination was unreachable)
+- Mission Control: AI Agents empty state, Emergency toggle placeholder
+- Five9 Routing: session guard for expired tokens
+- pre-launch-checks and wl-leak-audit edge functions deployed
+- Generate AI Insights: rewrote to use Claude API (Anthropic)
+- Pipeline stepper: added Qualified/Lost stages
+- Source filter count header fixed
+- Inline company name edit on lead detail
+- Notifications: Five9 cron deduplication (no more spam)
+- Dialog aria-describedby a11y warnings fixed
+- Radix Select closes parent Dialog bug fixed globally
+- admin_settings + addon_products grants added
+- Campaign OS: markdown rendering, five9_native_variables reseeded, training tab grant, agent_configs grant + all 6 agents reseeded
+
+### Staff Dashboards
+- Sales Pipeline: missing "sales" stage column added
+- Agent Training: \n characters in card preview fixed
+- Agent Scripts: wrong empty state message fixed
+- Agent call count: now consistent with call logs view
+- Supervisor Agent Detail: duplicate client rows deduplicated
+- Tech KB + System Issues: grants added, error states instead of fake empty
+- Tech Five9: department selector added
+
+### HR/Billing/Client
+- Time Off embed bug fixed
+- Billing Client Lookup RLS policy for billing role
+- Call status badges: green=completed, red=missed (was both red)
+- HR Directory edits now persist (was silently no-op due to missing RLS policy)
+- HR Offboarding/Banking: broken joins fixed
+- HR Payroll: Run Payroll edge function deployed, Banking tab fixed
+- HR Onboarding: pipeline cards now clickable
+- HR Jobs: grant for job_postings added
+- Client Change Password: shows "coming soon" toast instead of failing API call
+- Client Billing: no more fake $0 when check-subscription unavailable
+- Billing WL Partners: rows now clickable
+
+### WL Partner Dashboard
+- Grants for 6 tables: wl_partner_leads, tasks, onboarding, proposals, campaigns, knowledge_base
+- Team role change: RLS policies added, verified persists after reload
+- Team remove member: confirmation dialog added
+- Error states instead of fake empty on 403
+
+### WL Client Portal
+- Schedule save fixed (wl_client_schedules grant)
+- 24H branding popup CRITICAL FIX: ExitIntentPopup, FloatingCTA, StickyMobileCTA all blocked from /portal /c/ /p/ routes
+- TrackingPixels: GA4 and Meta Pixel now correctly suppressed on WL client routes
+
+### Security/Branding
+- All 24H marketing components blocked from WL portal routes
+- GA4/Meta tracking suppressed on WL client sessions
+
+---
+
 ## ⏳ WAITING ON EXTERNAL
 
 | Item | Notes |
