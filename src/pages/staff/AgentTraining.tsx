@@ -133,7 +133,7 @@ function ModuleCard({
 }) {
   const cfg = STATUS_CONFIG[status];
   const mod = assignment.module;
-  const excerpt = extractExcerpt(mod?.body_md ?? mod?.summary ?? null);
+  const excerpt = extractExcerpt(unescape(mod?.body_md ?? mod?.summary ?? null));
 
   return (
     <div

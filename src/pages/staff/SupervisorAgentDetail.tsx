@@ -160,15 +160,19 @@ export default function SupervisorAgentDetail() {
         };
       });
 
-      // Build client rows
+      // Build client rows — dedupe by client_id since a client can have
+      // multiple assignment rows (e.g. re-assignment history) for the same agent
       const leadMap = new Map((leadsR.data ?? []).map((l) => [l.id, l]));
-      const clients = (assignmentsR.data ?? []).map((a) => ({
-        clientId:      a.client_id,
-        isPrimary:     a.is_primary ?? false,
-        name:          leadMap.get(a.client_id)?.name ?? null,
-        company:       leadMap.get(a.client_id)?.company ?? null,
-        pipelineStage: leadMap.get(a.client_id)?.pipeline_stage ?? null,
-      }));
+      const clientsById = new Map(
+        (assignmentsR.data ?? []).map((a) => [a.client_id, {
+          clientId:      a.client_id,
+          isPrimary:     a.is_primary ?? false,
+          name:          leadMap.get(a.client_id)?.name ?? null,
+          company:       leadMap.get(a.client_id)?.company ?? null,
+          pipelineStage: leadMap.get(a.client_id)?.pipeline_stage ?? null,
+        }]),
+      );
+      const clients = Array.from(clientsById.values());
 
       return {
         fullName:         profileR.data?.full_name ?? null,

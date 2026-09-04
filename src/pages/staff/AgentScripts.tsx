@@ -197,7 +197,7 @@ export default function AgentScripts() {
             ) : scripts.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center text-muted-foreground">
-                  No scripts available. Scripts will appear here once you are assigned clients.
+                  No scripts assigned yet. Contact your supervisor to get scripts added to your account.
                 </CardContent>
               </Card>
             ) : (

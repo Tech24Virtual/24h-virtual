@@ -26,7 +26,7 @@ export default function TechSystemIssues() {
   const [filterStatus, setFilterStatus] = useState('open');
   const [form, setForm] = useState({ title: '', description: '', category: 'other', priority: 'medium', affected_department: '' });
 
-  const { data: issues, isLoading } = useQuery({
+  const { data: issues, isLoading, isError, error: issuesError } = useQuery({
     queryKey: ['tech-issues', filterStatus],
     queryFn: async () => {
       let query = supabase.from('tech_issues').select('*').order('created_at', { ascending: false });
@@ -51,6 +51,9 @@ export default function TechSystemIssues() {
       toast({ title: 'Issue created' });
       setCreateOpen(false);
       setForm({ title: '', description: '', category: 'other', priority: 'medium', affected_department: '' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to create issue', description: error.message, variant: 'destructive' });
     },
   });
 
@@ -177,6 +180,11 @@ export default function TechSystemIssues() {
           <CardContent className="p-0">
             {isLoading ? (
               <div className="p-6 space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
+            ) : isError ? (
+              <div className="text-center py-8 text-destructive flex flex-col items-center gap-2">
+                <AlertTriangle className="h-5 w-5" />
+                <span>Failed to load issues: {issuesError instanceof Error ? issuesError.message : 'Unknown error'}</span>
+              </div>
             ) : !issues?.length ? (
               <div className="text-center py-8 text-muted-foreground">No issues found</div>
             ) : (

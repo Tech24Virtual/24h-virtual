@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
@@ -22,6 +23,7 @@ interface DriftJson {
 
 export default function TechFive9() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDeptId, setSelectedDeptId] = useState<string>('all');
 
   const { data: departments } = useQuery({
     queryKey: ['tech-five9-departments'],
@@ -66,12 +68,20 @@ export default function TechFive9() {
     },
   });
 
+  const filteredDriftSnapshots = useMemo(() => {
+    if (!driftSnapshots) return driftSnapshots;
+    if (selectedDeptId === 'all') return driftSnapshots;
+    return driftSnapshots.filter(s => s.client_department_id === selectedDeptId);
+  }, [driftSnapshots, selectedDeptId]);
+
   const filteredMappings = useMemo(() => {
     if (!mappings) return mappings;
+    let result = mappings;
+    if (selectedDeptId !== 'all') result = result.filter(m => m.client_department_id === selectedDeptId);
     const term = searchTerm.trim().toLowerCase();
-    if (!term) return mappings;
-    return mappings.filter(m => m.five9_variable_name.toLowerCase().includes(term));
-  }, [mappings, searchTerm]);
+    if (term) result = result.filter(m => m.five9_variable_name.toLowerCase().includes(term));
+    return result;
+  }, [mappings, searchTerm, selectedDeptId]);
 
   const driftCounts = (drift: DriftJson | null | undefined) => ({
     missingInFive9: drift?.missing_in_five9?.length || 0,
@@ -83,9 +93,20 @@ export default function TechFive9() {
   return (
     <StaffLayout role="tech">
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">Five9 Management</h1>
-          <p className="text-muted-foreground">Monitor variable drift and manage Five9 variable mappings</p>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold">Five9 Management</h1>
+            <p className="text-muted-foreground">Monitor variable drift and manage Five9 variable mappings</p>
+          </div>
+          <Select value={selectedDeptId} onValueChange={setSelectedDeptId}>
+            <SelectTrigger className="w-64"><SelectValue placeholder="Department" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Departments</SelectItem>
+              {(departments || []).map(d => (
+                <SelectItem key={d.id} value={d.id}>{d.display_name || d.department_name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <Tabs defaultValue="drift">
@@ -120,7 +141,7 @@ export default function TechFive9() {
               <CardContent className="p-0">
                 {driftLoading ? (
                   <div className="p-6 space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
-                ) : !driftSnapshots?.length ? (
+                ) : !filteredDriftSnapshots?.length ? (
                   <div className="text-center py-8 text-muted-foreground">No drift snapshots yet</div>
                 ) : (
                   <Table>
@@ -135,7 +156,7 @@ export default function TechFive9() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {driftSnapshots.map(snap => {
+                      {filteredDriftSnapshots.map(snap => {
                         const counts = driftCounts(snap.drift as DriftJson);
                         const total = counts.missingInFive9 + counts.missingInOs + counts.typeMismatches + counts.kindMismatches;
                         return (

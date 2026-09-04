@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { InlineTaskForm } from './InlineTaskForm';
 import { InlineTicketForm } from './InlineTicketForm';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { Phone, Building2, Calendar, PhoneCall, ClipboardList, Mail, Ticket } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -37,6 +38,7 @@ type DialogMode = 'details' | 'task' | 'ticket';
 
 export function ClientDetailDialog({ client, open, onOpenChange }: ClientDetailDialogProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [mode, setMode] = useState<DialogMode>('details');
 
   // Reset mode when dialog closes
@@ -47,25 +49,44 @@ export function ClientDetailDialog({ client, open, onOpenChange }: ClientDetailD
     onOpenChange(newOpen);
   };
 
-  const { data: callStats, isLoading } = useQuery({
-    queryKey: ['client-call-stats', client?.id],
+  // Same five9_username lookup AgentCallLogs.tsx uses — keeps "Total calls" here
+  // consistent with what /staff/agent/calls actually shows for this agent.
+  const { data: onboarding, isLoading: onboardingLoading } = useQuery({
+    queryKey: ['agent-onboarding-username', user?.id],
     queryFn: async () => {
-      if (!client?.id) return null;
-      
+      const { data, error } = await supabase
+        .from('agent_onboarding')
+        .select('five9_username')
+        .eq('applicant_user_id', user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id && open,
+    staleTime: 5 * 60_000,
+  });
+  const five9Username = onboarding?.five9_username ?? null;
+
+  const { data: callStats, isLoading: callStatsLoading } = useQuery({
+    queryKey: ['client-call-stats', client?.id, five9Username],
+    queryFn: async () => {
+      if (!client?.id || !five9Username) return null;
+
       const { data, error } = await supabase
         .from('call_logs')
         .select('id, created_at')
         .eq('client_id', client.id)
+        .eq('agent_name', five9Username)
         .order('created_at', { ascending: false });
-      
+
       if (error) throw error;
-      
+
       const totalCalls = data?.length || 0;
       const lastCall = data?.[0]?.created_at;
-      
+
       return { totalCalls, lastCall };
     },
-    enabled: !!client?.id && open,
+    enabled: !!client?.id && !!five9Username && open,
   });
 
   // Fetch email and lead_id from leads table if client is a lead
@@ -179,16 +200,20 @@ export function ClientDetailDialog({ client, open, onOpenChange }: ClientDetailD
             {/* Activity Stats */}
             <div className="border-t pt-4">
               <h4 className="text-sm font-medium mb-3">Recent Activity</h4>
-              {isLoading ? (
+              {onboardingLoading || callStatsLoading ? (
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-32" />
                   <Skeleton className="h-4 w-24" />
                 </div>
+              ) : !five9Username ? (
+                <p className="text-sm text-muted-foreground">
+                  Your Five9 account hasn't been provisioned yet. Contact your supervisor.
+                </p>
               ) : (
                 <div className="space-y-2 text-sm text-muted-foreground">
                   <p>Total calls: <span className="font-medium text-foreground">{callStats?.totalCalls || 0}</span></p>
                   <p>Last call: <span className="font-medium text-foreground">
-                    {callStats?.lastCall 
+                    {callStats?.lastCall
                       ? format(new Date(callStats.lastCall), 'MMM d, yyyy')
                       : 'Never'}
                   </span></p>
