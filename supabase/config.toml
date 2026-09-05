@@ -392,6 +392,9 @@ verify_jwt = false
 [functions.nmi-webhook]
 verify_jwt = false
 
+[functions.five9-connector-webhook]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
