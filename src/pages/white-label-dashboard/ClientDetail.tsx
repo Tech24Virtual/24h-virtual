@@ -271,7 +271,7 @@ export default function WLClientDetail() {
     );
 
   const portalUrl = client.client_portal_slug
-    ? `${window.location.origin}/c/${client.client_portal_slug}`
+    ? `${window.location.origin}/portal/${client.client_portal_slug}/login`
     : null;
 
   const outboundStatusBadge = (status: string) => {
