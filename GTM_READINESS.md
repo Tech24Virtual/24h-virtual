@@ -138,6 +138,7 @@ Admin Dashboard and Client Dashboard fully redesigned and audited. All 16 client
 | NMI test page | /admin/nmi-test sandbox demo page | deployed |
 | Client call reports | /client-dashboard/reports with CSV/XLSX/PDF exports, leadId fix, RLS fix | deployed |
 | Bookii.io integration | Iframe embed in Admin/Client/Agent/Sales portals, Calendly replaced, webhook handler deployed | bookii-webhook deployed |
+| Bookii embed URL configured (2026-09-07) | VITE_BOOKII_URL set in .env and Vercel production; verified live in SalesMeetings "Book a Meeting" tab — real calendar, meeting types (Quick Intro 15min, Discovery 30min), host Paul Joseph | https://bookii-one.vercel.app/book/pauljjoseph?embed=true |
 | Five9 report retrieval working | runReport + isReportRunning + getReportResultCsv all working, real data confirmed | Shared Reports/Call Log - Sales |
 | Five9 username fix | Changed from "Tech Team" (space) to "TechTeam" (no space) per Five9 support | FIVE9_USERNAME secret updated |
 | Support requests grants fix | GRANT SELECT,INSERT,UPDATE on support_requests TO authenticated | migration 20260623000005 |
