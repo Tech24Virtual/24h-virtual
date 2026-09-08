@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, User, Building, Mail, Phone, Globe, Calendar, Copy, ExternalLink, UserCheck, Flame, Thermometer, Snowflake, BarChart2, Pencil, Check, X } from 'lucide-react';
+import { ArrowLeft, User, Building, Mail, Phone, Globe, Calendar, Copy, ExternalLink, UserCheck, Flame, Thermometer, Snowflake, BarChart2, Pencil, Check, X, CalendarClock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +21,7 @@ import { NmiPaymentSection } from '@/components/admin/NmiPaymentSection';
 import { BillingPlanCard } from '@/components/admin/BillingPlanCard';
 import { applyClientActivationEffects } from '@/lib/client-onboarding/applyClientActivationEffects';
 import { calculateLeadScore, getScoreLabel, getScoreBadgeClasses, type ScoringRules, DEFAULT_SCORING_RULES } from '@/lib/leadScoring';
+import { SendBookingLinkDialog } from '@/components/bookii/SendBookingLinkDialog';
 import {
   Select,
   SelectContent,
@@ -96,6 +97,7 @@ export default function AdminLeadDetail() {
   const [forwardingNumber, setForwardingNumber] = useState('');
   const [accountCode, setAccountCode] = useState('');
   const [showConversion, setShowConversion] = useState(false);
+  const [showBookingLink, setShowBookingLink] = useState(false);
   const [isEditingCompany, setIsEditingCompany] = useState(false);
   const [companyDraft, setCompanyDraft] = useState('');
   const [scoringRules, setScoringRules] = useState<ScoringRules>(DEFAULT_SCORING_RULES);
@@ -283,6 +285,10 @@ export default function AdminLeadDetail() {
               View Call Report
             </Link>
           </Button>
+          <Button variant="outline" onClick={() => setShowBookingLink(true)}>
+            <CalendarClock className="w-4 h-4 mr-2" />
+            Send Booking Link
+          </Button>
           {lead.pipeline_stage !== 'active' && lead.pipeline_stage !== 'ready_for_billing' && (
             <Button onClick={() => setShowConversion(true)}>
               <UserCheck className="w-4 h-4 mr-2" />
@@ -291,6 +297,14 @@ export default function AdminLeadDetail() {
           )}
         </div>
       </div>
+
+      <SendBookingLinkDialog
+        open={showBookingLink}
+        onClose={() => setShowBookingLink(false)}
+        recipientEmail={lead.email}
+        recipientName={lead.name}
+        leadId={lead.id}
+      />
 
       {/* Pipeline Status */}
       <LeadPipelineStatus 

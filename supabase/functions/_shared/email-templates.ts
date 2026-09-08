@@ -347,6 +347,39 @@ export function renderApplicationEmail(args: {
   };
 }
 
+export function renderBookingLinkEmail(args: {
+  branding: Branding;
+  recipientName: string;
+  hostName: string;
+  bookingUrl: string;
+  meetingType: string;
+  durationMinutes?: number;
+  message?: string;
+}): RenderedEmail {
+  const { branding, recipientName, hostName, bookingUrl, meetingType, durationMinutes, message } = args;
+  const durationLabel = durationMinutes ? `${meetingType} · ${durationMinutes} min` : meetingType;
+
+  const body = `
+    <h1 style="margin:0 0 12px;font-size:22px;font-weight:700;">You're invited to book a meeting</h1>
+    <p style="margin:0 0 16px;color:#374151;">Hi ${escapeHtml(recipientName)}, ${escapeHtml(hostName)} would like to schedule time with you.</p>
+    ${message ? `<blockquote style="margin:0 0 20px;padding:14px 16px;border-left:3px solid ${branding.brandColor};background-color:#f9fafb;border-radius:6px;color:#374151;white-space:pre-wrap;">${escapeHtml(message)}</blockquote>` : ""}
+    ${detailBox(branding, [
+      { label: "Host", value: hostName },
+      { label: "Meeting", value: durationLabel },
+    ])}
+    ${ctaButton(branding, bookingUrl, "Book Your Meeting")}
+    <p style="margin:24px 0 0;color:#6b7280;font-size:13px;">Pick a time that works for you — the calendar shows real-time availability.</p>
+  `;
+  return {
+    subject: `You're invited to book a meeting with ${hostName}`,
+    html: renderEmailLayout({
+      branding,
+      preheader: `${hostName} invited you to book a ${durationLabel} meeting.`,
+      bodyHtml: body,
+    }),
+  };
+}
+
 // ============================================================================
 // Template registry — used by preview harness to enumerate options.
 // ============================================================================

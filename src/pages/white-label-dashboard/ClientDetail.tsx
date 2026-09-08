@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, CheckCircle2, Circle, ExternalLink, Star } from 'lucide-react';
+import { ArrowLeft, CalendarClock, CheckCircle2, Circle, ExternalLink, Star } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useWLPartnerId } from '@/hooks/wl/useWLPartnerId';
 import { ClientCoverageCard } from '@/components/coverage/ClientCoverageCard';
+import { SendBookingLinkDialog } from '@/components/bookii/SendBookingLinkDialog';
 
 export default function WLClientDetail() {
   const { id } = useParams<{ id: string }>();
@@ -30,6 +31,7 @@ export default function WLClientDetail() {
 
   const [slugInput, setSlugInput] = useState('');
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [bookingLinkOpen, setBookingLinkOpen] = useState(false);
 
   const { data: partnerId } = useWLPartnerId();
 
@@ -443,7 +445,13 @@ export default function WLClientDetail() {
         {/* Portal access */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Portal Access</CardTitle>
+            <div className="flex items-center justify-between gap-4">
+              <CardTitle className="text-base">Portal Access</CardTitle>
+              <Button variant="outline" size="sm" onClick={() => setBookingLinkOpen(true)}>
+                <CalendarClock className="w-4 h-4 mr-2" />
+                Send Booking Link
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Slug */}
@@ -659,6 +667,14 @@ export default function WLClientDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SendBookingLinkDialog
+        open={bookingLinkOpen}
+        onClose={() => setBookingLinkOpen(false)}
+        recipientEmail={client.email}
+        recipientName={client.contact_name || client.client_name}
+        wlClientId={client.id}
+      />
     </>
   );
 }
