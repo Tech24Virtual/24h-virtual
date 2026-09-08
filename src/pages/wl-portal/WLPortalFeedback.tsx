@@ -15,6 +15,17 @@ import { toast } from 'sonner';
 import { clientSafeStatusLabel } from '@/lib/feedback/clientSafeStatus';
 import { WLFeedbackThread } from '@/components/feedback/WLFeedbackThread';
 
+function clientSafeStatusClassName(status: string): string {
+  switch (status) {
+    case 'new': return 'bg-blue-500/10 text-blue-600 border-blue-200';
+    case 'triaged':
+    case 'in_progress':
+    case 'escalated': return 'bg-amber-500/10 text-amber-700 border-amber-200';
+    case 'resolved': return 'bg-green-500/10 text-green-700 border-green-200';
+    default: return 'bg-blue-500/10 text-blue-600 border-blue-200';
+  }
+}
+
 type Row = {
   id: string;
   partner_id: string;
@@ -128,7 +139,7 @@ export default function WLPortalFeedback() {
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant="outline" className="capitalize">{r.type}</Badge>
-                  <Badge variant="secondary">{clientSafeStatusLabel(r.status)}</Badge>
+                  <Badge variant="outline" className={clientSafeStatusClassName(r.status)}>{clientSafeStatusLabel(r.status)}</Badge>
                 </div>
                 <CardTitle className="text-base mt-1">{r.title || r.description.slice(0, 80)}</CardTitle>
                 <CardDescription className="text-xs">
@@ -149,7 +160,7 @@ export default function WLPortalFeedback() {
               <DialogHeader>
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant="outline" className="capitalize">{open.type}</Badge>
-                  <Badge variant="secondary">{clientSafeStatusLabel(open.status)}</Badge>
+                  <Badge variant="outline" className={clientSafeStatusClassName(open.status)}>{clientSafeStatusLabel(open.status)}</Badge>
                 </div>
                 <DialogTitle className="text-left mt-1">{open.title || open.description.slice(0, 80)}</DialogTitle>
               </DialogHeader>

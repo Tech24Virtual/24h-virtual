@@ -11,12 +11,12 @@ import { useWLPortal } from '@/contexts/WLPortalContext';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 
-const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: typeof Clock }> = {
-  pending: { label: 'Pending', variant: 'secondary', icon: Clock },
+const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; className?: string; icon: typeof Clock }> = {
+  pending: { label: 'Pending', variant: 'outline', className: 'bg-amber-500/10 text-amber-700 border-amber-200', icon: Clock },
   claimed: { label: 'Claimed', variant: 'outline', icon: PhoneOutgoing },
   in_progress: { label: 'In Progress', variant: 'default', icon: PhoneOutgoing },
   retry_pending: { label: 'Retry Scheduled', variant: 'outline', icon: RotateCcw },
-  completed: { label: 'Completed', variant: 'default', icon: CheckCircle },
+  completed: { label: 'Completed', variant: 'outline', className: 'bg-green-500/10 text-green-700 border-green-200', icon: CheckCircle },
   failed: { label: 'Failed', variant: 'destructive', icon: XCircle },
   cancelled: { label: 'Cancelled', variant: 'secondary', icon: XCircle },
 };
@@ -102,7 +102,7 @@ export default function WLPortalOutboundRequests() {
                     <div className="flex-1 space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-semibold text-foreground">{req.contact_name}</h3>
-                        <Badge variant={config.variant} className="gap-1">
+                        <Badge variant={config.variant} className={`gap-1 ${config.className || ''}`}>
                           <StatusIcon className="w-3 h-3" />
                           {config.label}
                         </Badge>

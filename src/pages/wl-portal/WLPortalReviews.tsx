@@ -147,7 +147,7 @@ export default function WLPortalReviews() {
                     <div>
                       <div className="flex items-center gap-2">
                         <StarRow value={r.rating} size="sm" />
-                        {r.is_public && <Badge variant="secondary" className="text-xs">Public</Badge>}
+                        {r.is_public && <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-200">Public</Badge>}
                       </div>
                       {r.title && <p className="font-medium text-heading mt-1">{r.title}</p>}
                       <p className="text-sm text-muted-foreground mt-1">

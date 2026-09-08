@@ -37,7 +37,10 @@ export function WLClientServiceStatusCard({ wlClientId }: Props) {
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">Service Status</CardTitle>
           {row && (
-            <Badge variant={row.any_receptionist_enabled ? "default" : "secondary"}>
+            <Badge
+              variant={row.any_receptionist_enabled ? "default" : "outline"}
+              className={row.any_receptionist_enabled ? undefined : "bg-amber-500/10 text-amber-700 border-amber-200"}
+            >
               {row.any_receptionist_enabled ? "Receptionist Live" : "Receptionist Pending"}
             </Badge>
           )}

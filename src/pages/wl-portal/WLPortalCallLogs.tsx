@@ -5,6 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet';
 import { WLPortalLayout } from '@/components/wl-portal/WLPortalLayout';
 import { useWLPortal } from '@/contexts/WLPortalContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,6 +31,7 @@ export default function WLPortalCallLogs() {
   const [calls, setCalls] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCall, setSelectedCall] = useState<any | null>(null);
 
   useEffect(() => {
     if (!clientInfo) return;
@@ -59,7 +67,7 @@ export default function WLPortalCallLogs() {
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
-            <CardTitle className="text-lg">All Calls ({calls.length})</CardTitle>
+            <CardTitle className="text-lg">All Calls ({filtered.length})</CardTitle>
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input placeholder="Search calls..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
@@ -90,7 +98,11 @@ export default function WLPortalCallLogs() {
                 </TableHeader>
                 <TableBody>
                   {filtered.map((call) => (
-                    <TableRow key={call.id}>
+                    <TableRow
+                      key={call.id}
+                      onClick={() => setSelectedCall(call)}
+                      className="cursor-pointer"
+                    >
                       <TableCell><span className="font-medium">{call.caller_name || 'Unknown'}</span></TableCell>
                       <TableCell>{call.caller_phone || '-'}</TableCell>
                       <TableCell>{formatDuration(call.handle_time_seconds)}</TableCell>
@@ -109,6 +121,61 @@ export default function WLPortalCallLogs() {
           )}
         </CardContent>
       </Card>
+
+      <Sheet open={!!selectedCall} onOpenChange={(o) => !o && setSelectedCall(null)}>
+        <SheetContent className="overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{selectedCall?.caller_name || 'Unknown caller'}</SheetTitle>
+            <SheetDescription>
+              {selectedCall && format(new Date(selectedCall.created_at), 'MMM d, yyyy h:mm a')}
+            </SheetDescription>
+          </SheetHeader>
+          {selectedCall && (
+            <div className="mt-6 space-y-4 text-sm">
+              <div>
+                <Badge variant="secondary" className={statusColors[selectedCall.status || 'completed']}>
+                  {selectedCall.status || 'completed'}
+                </Badge>
+                {selectedCall.disposition && (
+                  <Badge variant="outline" className="ml-2">{selectedCall.disposition}</Badge>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Phone</p>
+                  <p className="font-medium">{selectedCall.caller_phone || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Email</p>
+                  <p className="font-medium">{selectedCall.caller_email || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Duration</p>
+                  <p className="font-medium">{formatDuration(selectedCall.handle_time_seconds)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Direction</p>
+                  <p className="font-medium capitalize">{selectedCall.call_direction || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Agent</p>
+                  <p className="font-medium">{selectedCall.agent_name || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Campaign</p>
+                  <p className="font-medium">{selectedCall.campaign_name || '-'}</p>
+                </div>
+              </div>
+              {selectedCall.notes && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Notes</p>
+                  <p className="p-3 bg-muted rounded-md whitespace-pre-wrap">{selectedCall.notes}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </WLPortalLayout>
   );
 }

@@ -10,6 +10,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+const PHONE_RE = /^[0-9 ()+-]*$/;
+
 export default function WLPortalSettings() {
   const { user } = useAuth();
   const { clientInfo } = useWLPortal();
@@ -28,8 +30,15 @@ export default function WLPortalSettings() {
     }
   }, [clientInfo]);
 
+  const phoneError = formData.phone && !PHONE_RE.test(formData.phone)
+    ? 'Only digits, spaces, hyphens, parentheses, and + are allowed.' : null;
+
   const handleSave = async () => {
     if (!clientInfo) return;
+    if (phoneError) {
+      toast.error('Fix the phone number before saving.');
+      return;
+    }
     setIsSaving(true);
     try {
       const { error } = await supabase
@@ -64,6 +73,7 @@ export default function WLPortalSettings() {
             <div className="space-y-2">
               <Label>Company Name</Label>
               <Input value={clientInfo?.client_name || ''} disabled />
+              <p className="text-xs text-muted-foreground">To update your company name, contact your portal administrator.</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="contactName">Contact Name</Label>
@@ -85,9 +95,12 @@ export default function WLPortalSettings() {
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData(p => ({ ...p, phone: e.target.value }))}
+                aria-invalid={!!phoneError}
+                aria-describedby="phone-error"
               />
+              {phoneError && <p id="phone-error" className="text-xs text-destructive">{phoneError}</p>}
             </div>
-            <Button onClick={handleSave} disabled={isSaving}>
+            <Button onClick={handleSave} disabled={isSaving || !!phoneError}>
               {isSaving ? 'Saving...' : 'Save Changes'}
             </Button>
           </CardContent>
