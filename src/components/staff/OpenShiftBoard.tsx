@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import {
@@ -301,9 +302,10 @@ export function OpenShiftBoard({ role }: Props) {
                         <h3 className="font-semibold">
                           {format(new Date(shift.shift_date), 'EEE, MMM d')}
                         </h3>
-                        <Badge variant={shift.status === 'claimed' ? 'default' : 'secondary'}>
-                          {shift.status === 'claimed' ? '✓ Claimed' : 'Open'}
-                        </Badge>
+                        <StatusBadge
+                          status={shift.status === 'claimed' ? 'active' : 'pending'}
+                          label={shift.status === 'claimed' ? '✓ Claimed' : 'Open'}
+                        />
                         {isSplitShift && (
                           <Badge variant="outline" className="text-xs gap-1">
                             <Layers className="h-3 w-3" />

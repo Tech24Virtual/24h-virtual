@@ -27,6 +27,25 @@ export default function StaffSettings({ role }: StaffSettingsProps) {
   const { toast: showToast } = useToast();
   const { user, profile, refreshProfile } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
+  const [isSendingReset, setIsSendingReset] = useState(false);
+
+  const handleChangePassword = async () => {
+    if (!user?.email) return;
+    setIsSendingReset(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email);
+      if (error) throw error;
+      showToast({ title: 'Password reset email sent', description: 'Check your inbox.' });
+    } catch (err) {
+      showToast({
+        title: 'Error',
+        description: err instanceof Error ? err.message : 'Failed to send password reset email.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSendingReset(false);
+    }
+  };
   const [formData, setFormData] = useState({
     full_name: '',
     company_name: '',
@@ -176,14 +195,15 @@ export default function StaffSettings({ role }: StaffSettingsProps) {
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => showToast({ title: 'Coming soon', description: 'Password change will be available shortly.' })}
+                  onClick={handleChangePassword}
+                  disabled={isSendingReset}
                 >
-                  Change Password
+                  {isSendingReset ? 'Sending...' : 'Change Password'}
                 </Button>
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => showToast({ title: 'Coming soon', description: 'Two-factor authentication will be available shortly.' })}
+                  onClick={() => showToast({ title: 'Coming soon', description: '2FA isn’t implemented yet.' })}
                 >
                   Enable Two-Factor Authentication
                 </Button>

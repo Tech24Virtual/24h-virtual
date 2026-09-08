@@ -36,7 +36,7 @@ export default function AgentSchedule() {
             <h1 className="text-2xl font-bold">My Schedule</h1>
             <p className="text-muted-foreground">View shifts, available coverage, and time off</p>
           </div>
-          <Button variant="outline" onClick={() => setShowTimeOff(true)}>
+          <Button onClick={() => setShowTimeOff(true)}>
             <CalendarOff className="h-4 w-4 mr-2" /> Request Time Off
           </Button>
         </div>

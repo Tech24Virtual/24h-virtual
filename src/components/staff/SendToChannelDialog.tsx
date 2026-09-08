@@ -3,12 +3,13 @@ import { useQuery } from '@tanstack/react-query';
 import { Send, Hash, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 
 interface ClientChannel {
@@ -100,6 +101,7 @@ export function SendToChannelDialog({ open, onOpenChange, prefillMessage, prefil
             <Send className="h-4 w-4" />
             Send to Channel
           </DialogTitle>
+          <DialogDescription>Send a message to a client's linked Slack channel.</DialogDescription>
         </DialogHeader>
 
         {!isLoading && clientChannels.length === 0 ? (
@@ -148,14 +150,23 @@ export function SendToChannelDialog({ open, onOpenChange, prefillMessage, prefil
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button
-            onClick={handleSend}
-            disabled={sending || !selectedChannelId || !message.trim() || clientChannels.length === 0}
-            className="gap-2"
-          >
-            <Send className="h-4 w-4" />
-            {sending ? 'Sending...' : 'Send to Slack'}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span tabIndex={clientChannels.length === 0 ? 0 : undefined}>
+                <Button
+                  onClick={handleSend}
+                  disabled={sending || !selectedChannelId || !message.trim() || clientChannels.length === 0}
+                  className="gap-2"
+                >
+                  <Send className="h-4 w-4" />
+                  {sending ? 'Sending...' : 'Send to Slack'}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            {!isLoading && clientChannels.length === 0 && (
+              <TooltipContent>No Slack channel connected</TooltipContent>
+            )}
+          </Tooltip>
         </DialogFooter>
       </DialogContent>
     </Dialog>

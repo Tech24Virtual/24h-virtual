@@ -702,8 +702,9 @@ export default function AgentDashboard() {
               ) : (
                 <div className="space-y-0.5">
                   {assignedClients.map((client) => (
-                    <div
+                    <Link
                       key={client.id}
+                      to="/staff/agent/clients"
                       className="flex items-center justify-between px-2 py-2.5 rounded-lg hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex items-center gap-3 min-w-0">
@@ -729,7 +730,7 @@ export default function AgentDashboard() {
                           ? formatDistanceToNow(new Date(client.lastCall), { addSuffix: true })
                           : 'No calls yet'}
                       </p>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}

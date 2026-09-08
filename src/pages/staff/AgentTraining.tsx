@@ -9,6 +9,7 @@ import { StaffLayout } from '@/components/staff/StaffLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   useMyAssignedModules,
   useMySignoffsWithExpiry,
@@ -558,13 +559,22 @@ function TrainingDialog({
               <p className="text-xs text-slate-400">
                 Submission requires supervisor approval before being marked complete.
               </p>
-              <Button
-                onClick={handleComplete}
-                disabled={!canComplete || markComplete.isPending}
-                className="shrink-0 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl"
-              >
-                {markComplete.isPending ? 'Submitting…' : 'Mark as Complete'}
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="shrink-0" tabIndex={allQuizzesPassed ? undefined : 0}>
+                    <Button
+                      onClick={handleComplete}
+                      disabled={!canComplete || markComplete.isPending}
+                      className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl"
+                    >
+                      {markComplete.isPending ? 'Submitting…' : 'Mark as Complete'}
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {!allQuizzesPassed && (
+                  <TooltipContent>Complete the quiz first to mark this module as done.</TooltipContent>
+                )}
+              </Tooltip>
             </div>
           </div>
         )}

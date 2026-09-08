@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
+import { humanizeStatus } from '@/components/ui/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -169,7 +170,7 @@ export function OutboundCallDetailDrawer({ open, onClose, requestId, role }: Out
                     {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
                   </span>
                   <span>{req.attempt_count} of {req.max_attempts} attempts</span>
-                  {req.source && <Badge variant="outline" className="text-xs h-5">{req.source}</Badge>}
+                  {req.source && <Badge variant="outline" className="text-xs h-5">{humanizeStatus(req.source)}</Badge>}
                   {req.urgency === 'urgent' && (
                     <Badge variant="destructive" className="text-xs h-5">Urgent</Badge>
                   )}

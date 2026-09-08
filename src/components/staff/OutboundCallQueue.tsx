@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PhoneOutgoing, Clock, Copy, User, AlertTriangle, RotateCcw, Check, X, PhoneCall, Phone } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { humanizeStatus } from '@/components/ui/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
@@ -363,7 +364,7 @@ export function OutboundCallQueue({ role }: OutboundCallQueueProps) {
                       <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                         <span>{formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}</span>
                         <span>{Math.max(attemptsRemaining, 0)} of {req.max_attempts ?? 3} follow-ups remaining</span>
-                        <Badge variant="outline" className="text-xs">{req.source}</Badge>
+                        <Badge variant="outline" className="text-xs">{humanizeStatus(req.source)}</Badge>
                       </div>
 
                       {/* Outcome notes */}
