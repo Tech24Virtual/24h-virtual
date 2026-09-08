@@ -1,13 +1,25 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Wand2, Play, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function AutoBlogQueue() {
   const queryClient = useQueryClient();
+  const [itemToDelete, setItemToDelete] = useState<{ id: string; keyword_text: string } | null>(null);
 
   const { data: queue, isLoading } = useQuery({
     queryKey: ['autoblog-queue'],
@@ -56,6 +68,7 @@ export function AutoBlogQueue() {
       queryClient.invalidateQueries({ queryKey: ['autoblog-queue'] });
       toast.success('Removed from queue');
     },
+    onSettled: () => setItemToDelete(null),
   });
 
   const batchMutation = useMutation({
@@ -120,7 +133,7 @@ export function AutoBlogQueue() {
                       <Play className="w-4 h-4" />
                     </Button>
                   )}
-                  <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(item.id)}>
+                  <Button variant="ghost" size="icon" onClick={() => setItemToDelete({ id: item.id, keyword_text: item.keyword_text })}>
                     <Trash2 className="w-4 h-4 text-destructive" />
                   </Button>
                 </TableCell>
@@ -132,6 +145,26 @@ export function AutoBlogQueue() {
           </TableBody>
         </Table>
       </div>
+
+      <AlertDialog open={!!itemToDelete} onOpenChange={(o) => !o && setItemToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this item from the queue?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove &quot;{itemToDelete?.keyword_text}&quot; from the generation queue. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => itemToDelete && deleteMutation.mutate(itemToDelete.id)}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

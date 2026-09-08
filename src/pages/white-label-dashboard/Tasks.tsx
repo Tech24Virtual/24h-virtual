@@ -23,6 +23,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { AlertTriangle, CheckCircle2, Circle, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -115,6 +125,7 @@ export default function WLTasks() {
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<WLTaskPriority>('medium');
   const [dueAt, setDueAt] = useState('');
+  const [taskToDelete, setTaskToDelete] = useState<{ id: string; title: string } | null>(null);
 
   const filtered = useMemo(() => {
     if (!tasks) return [];
@@ -156,7 +167,7 @@ export default function WLTasks() {
             <DialogTrigger asChild>
               <Button size="sm">
                 <Plus className="w-4 h-4 mr-2" />
-                New task
+                New Task
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -384,7 +395,7 @@ export default function WLTasks() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => deleteTask.mutate(task.id)}
+                      onClick={() => setTaskToDelete({ id: task.id, title: task.title })}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -395,6 +406,29 @@ export default function WLTasks() {
           </div>
         )}
       </div>
+
+      <AlertDialog open={!!taskToDelete} onOpenChange={(o) => !o && setTaskToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this task?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete &quot;{taskToDelete?.title}&quot;. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (taskToDelete) deleteTask.mutate(taskToDelete.id);
+                setTaskToDelete(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

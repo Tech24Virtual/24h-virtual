@@ -36,7 +36,7 @@ const roleColors: Record<string, string> = {
 };
 
 const statusColors: Record<string, string> = {
-  active: 'bg-cta/10 text-cta',
+  active: 'bg-green-500/10 text-green-700',
   pending: 'bg-yellow-100 text-yellow-800',
   inactive: 'bg-destructive/10 text-destructive',
 };
@@ -52,6 +52,7 @@ export default function WLTeam() {
   const [inviteRole, setInviteRole] = useState("agent");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<Member | null>(null);
+  const [resolvedEmails, setResolvedEmails] = useState<Record<string, string>>({});
 
   useEffect(() => { fetchPartnerAndMembers(); }, [user]);
 
@@ -73,6 +74,22 @@ export default function WLTeam() {
           .order('invited_at', { ascending: false });
 
         if (membersData) setMembers(membersData as Member[]);
+
+        // invited_email is only null for accounts that were never invited through
+        // this form (e.g. the owner's own account) — resolve those via profiles.
+        const unresolvedUserIds = (membersData || [])
+          .filter(m => !m.invited_email && m.user_id)
+          .map(m => m.user_id as string);
+        if (unresolvedUserIds.length > 0) {
+          const { data: profileRows } = await supabase
+            .from('profiles')
+            .select('id, email')
+            .in('id', unresolvedUserIds);
+          const map: Record<string, string> = {};
+          (profileRows || []).forEach(p => { if (p.email) map[p.id] = p.email; });
+          if (user.email && unresolvedUserIds.includes(user.id)) map[user.id] = user.email;
+          setResolvedEmails(map);
+        }
       }
     } catch (error) {
       console.error("Error fetching team members:", error);
@@ -121,7 +138,10 @@ export default function WLTeam() {
     }
   };
 
-  const displayEmail = (member: Member) => member.invited_email ?? `user:${member.user_id?.slice(0, 8)}`;
+  const displayEmail = (member: Member) =>
+    member.invited_email
+    ?? (member.user_id && resolvedEmails[member.user_id])
+    ?? "Email unavailable";
 
   const handleChangeRole = async (memberId: string, newRole: string) => {
     try {

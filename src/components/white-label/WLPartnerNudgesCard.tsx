@@ -44,9 +44,12 @@ export function WLPartnerNudgesCard({ partnerId }: Props) {
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">What's Next</CardTitle>
-          {!loading && nudges.length > 0 && (
-            <Badge variant="secondary">{nudges.filter((n) => n.tone === "action").length} action items</Badge>
-          )}
+          {!loading && nudges.length > 0 && (() => {
+            const actionCount = nudges.filter((n) => n.tone === "action").length;
+            return actionCount > 0 ? (
+              <Badge variant="secondary">{actionCount} action item{actionCount === 1 ? "" : "s"}</Badge>
+            ) : null;
+          })()}
         </div>
       </CardHeader>
       <CardContent>

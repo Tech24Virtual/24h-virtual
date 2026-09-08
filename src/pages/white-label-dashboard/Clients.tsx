@@ -41,7 +41,7 @@ interface Client {
 }
 
 const statusColors: Record<string, string> = {
-  active: 'bg-cta/10 text-cta',
+  active: 'bg-green-500/10 text-green-700',
   pending: 'bg-primary/10 text-primary',
   pending_setup: 'bg-primary/10 text-primary',
   suspended: 'bg-destructive/10 text-destructive',

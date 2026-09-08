@@ -228,6 +228,7 @@ export default function WLPartnerLeads() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={async () => {
                 if (deleting) {
                   await deleteLead.mutateAsync(deleting.id);

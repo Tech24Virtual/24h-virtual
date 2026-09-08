@@ -265,7 +265,7 @@ export default function WLClientDetail() {
 
   const statusBadge =
     client.status === 'active' ? (
-      <Badge className="bg-cta/10 text-cta">Active</Badge>
+      <Badge className="bg-green-500/10 text-green-700">Active</Badge>
     ) : (
       <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
         Setup Incomplete

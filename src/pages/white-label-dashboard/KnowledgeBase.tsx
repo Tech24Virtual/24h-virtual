@@ -79,7 +79,11 @@ export default function WLKnowledgeBase() {
   };
 
   const handleSave = async () => {
-    if (!partnerId || !form.title || !form.content) return;
+    if (!partnerId) return;
+    if (!form.title || !form.content) {
+      toast({ title: "Missing required fields", description: "Title and Content are required.", variant: "destructive" });
+      return;
+    }
     const tags = form.tags.split(",").map(t => t.trim()).filter(Boolean);
     const payload = {
       title: form.title,

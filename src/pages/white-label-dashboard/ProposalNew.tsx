@@ -28,7 +28,7 @@ export default function WLProposalNew() {
           </Button>
           <h1 className="text-2xl font-bold">New Proposal</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Saved as a draft. You can edit freely before sending.
+            Fill out the details below and create the proposal. It starts as a draft you can edit freely before sending.
           </p>
         </div>
 

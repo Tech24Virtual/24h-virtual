@@ -36,6 +36,8 @@ interface BrandingData {
   cname_status: string;
 }
 
+const HEX_COLOR_RE = /^#[0-9A-Fa-f]{6}$/;
+
 const GOOGLE_FONTS = [
   "", "Inter", "Poppins", "Roboto", "Open Sans", "Montserrat", "Lato", "Raleway",
   "Playfair Display", "Merriweather", "Source Sans Pro", "Nunito", "Work Sans",
@@ -94,8 +96,17 @@ export default function WhiteLabelBranding() {
     } catch (error) { console.error(error); } finally { setIsLoading(false); }
   };
 
+  const secondaryColorError = branding.secondary_color && !HEX_COLOR_RE.test(branding.secondary_color)
+    ? "Enter a valid hex color, e.g. #40A578" : null;
+  const accentColorError = branding.accent_color && !HEX_COLOR_RE.test(branding.accent_color)
+    ? "Enter a valid hex color, e.g. #FF6B35" : null;
+
   const handleSave = async () => {
     if (!partnerId) return;
+    if (secondaryColorError || accentColorError) {
+      toast({ title: "Invalid color", description: "Fix the highlighted color fields before saving.", variant: "destructive" });
+      return;
+    }
     setIsSaving(true);
     try {
       const payload = { ...branding } as any;
@@ -188,7 +199,7 @@ export default function WhiteLabelBranding() {
             <h1 className="text-2xl lg:text-3xl font-bold text-heading">Branding</h1>
             <p className="text-muted-foreground mt-1">Customize your white label experience. Your clients will never see our branding</p>
           </div>
-          <Button onClick={handleSave} disabled={isSaving}>
+          <Button onClick={handleSave} disabled={isSaving || !!secondaryColorError || !!accentColorError}>
             <Save className="w-4 h-4 mr-2" />{isSaving ? "Saving..." : "Save Changes"}
           </Button>
         </div>
@@ -340,16 +351,31 @@ export default function WhiteLabelBranding() {
                   <div className="space-y-2">
                     <Label>Secondary Color</Label>
                     <div className="flex gap-2">
-                      <Input type="color" value={branding.secondary_color} onChange={e => handleChange("secondary_color", e.target.value)} className="w-12 h-10 p-1 cursor-pointer" />
-                      <Input value={branding.secondary_color} onChange={e => handleChange("secondary_color", e.target.value)} className="flex-1" />
+                      <Input type="color" value={HEX_COLOR_RE.test(branding.secondary_color) ? branding.secondary_color : "#40A578"} onChange={e => handleChange("secondary_color", e.target.value)} className="w-12 h-10 p-1 cursor-pointer" />
+                      <Input
+                        value={branding.secondary_color}
+                        onChange={e => handleChange("secondary_color", e.target.value)}
+                        className="flex-1"
+                        aria-invalid={!!secondaryColorError}
+                        aria-describedby="secondary-color-error"
+                      />
                     </div>
+                    {secondaryColorError && <p id="secondary-color-error" className="text-xs text-destructive">{secondaryColorError}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label>Accent Color</Label>
                     <div className="flex gap-2">
-                      <Input type="color" value={branding.accent_color || "#FF6B35"} onChange={e => handleChange("accent_color", e.target.value)} className="w-12 h-10 p-1 cursor-pointer" />
-                      <Input value={branding.accent_color} onChange={e => handleChange("accent_color", e.target.value)} className="flex-1" placeholder="#FF6B35" />
+                      <Input type="color" value={HEX_COLOR_RE.test(branding.accent_color) ? branding.accent_color : "#FF6B35"} onChange={e => handleChange("accent_color", e.target.value)} className="w-12 h-10 p-1 cursor-pointer" />
+                      <Input
+                        value={branding.accent_color}
+                        onChange={e => handleChange("accent_color", e.target.value)}
+                        className="flex-1"
+                        placeholder="#FF6B35"
+                        aria-invalid={!!accentColorError}
+                        aria-describedby="accent-color-error"
+                      />
                     </div>
+                    {accentColorError && <p id="accent-color-error" className="text-xs text-destructive">{accentColorError}</p>}
                   </div>
                 </div>
 
@@ -581,7 +607,7 @@ export default function WhiteLabelBranding() {
                           {/* Footer */}
                           {branding.powered_by_visible && (
                             <div className="px-6 py-2 text-[10px] text-muted-foreground border-t">
-                              Powered by 24H Virtual
+                              Powered by {branding.company_name || 'Your Company'}
                             </div>
                           )}
                         </div>
