@@ -5,14 +5,16 @@ import { Button } from '@/components/ui/button';
 interface BookiiEmbedProps {
   title: string;
   height?: string;
+  url?: string | null;
 }
 
 // Tenant-specific Bookii workspace URL, e.g. https://app.bookii.io/embed/<workspace-id>
 // Set VITE_BOOKII_URL in .env to enable the embed.
-const BOOKII_URL = (import.meta.env.VITE_BOOKII_URL as string | undefined) || '';
+const DEFAULT_BOOKII_URL = (import.meta.env.VITE_BOOKII_URL as string | undefined) || '';
 
-export function BookiiEmbed({ title, height = 'calc(100vh - 200px)' }: BookiiEmbedProps) {
+export function BookiiEmbed({ title, height = 'calc(100vh - 200px)', url }: BookiiEmbedProps) {
   const [loaded, setLoaded] = useState(false);
+  const BOOKII_URL = url || DEFAULT_BOOKII_URL;
 
   if (!BOOKII_URL) {
     return (

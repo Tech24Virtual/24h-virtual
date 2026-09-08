@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search,
@@ -10,6 +10,7 @@ import {
   Loader2,
   Link2,
   Pencil,
+  CalendarClock,
 } from 'lucide-react';
 import { AgentSkillsManager } from '@/components/staff/AgentSkillsManager';
 import { TrackabiLinkDialog, trackabiMemberLabel, type TrackabiMember } from '@/components/admin/TrackabiLinkDialog';
@@ -47,9 +48,133 @@ import {
 } from '@/components/ui/table';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+
+const BOOKII_BASE_URL = 'https://bookii-one.vercel.app/book';
+
+function bookiiEmbedUrlFor(username: string): string {
+  return username ? `${BOOKII_BASE_URL}/${username}?embed=true` : '';
+}
+
+// ── Bookii integration section ──────────────────────────────────────────────
+
+interface BookiiIntegrationSectionProps {
+  agentId: string;
+  agentName: string;
+}
+
+function BookiiIntegrationSection({ agentId, agentName }: BookiiIntegrationSectionProps) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [username, setUsername] = useState('');
+  const [embedUrl, setEmbedUrl] = useState('');
+  const [isActive, setIsActive] = useState(true);
+  const [embedUrlTouched, setEmbedUrlTouched] = useState(false);
+
+  const { data: assignment, isLoading } = useQuery({
+    queryKey: ['agent-bookii-assignment', agentId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('agent_bookii_assignments')
+        .select('bookii_username, bookii_embed_url, is_active')
+        .eq('agent_id', agentId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  useEffect(() => {
+    setUsername(assignment?.bookii_username ?? '');
+    setEmbedUrl(assignment?.bookii_embed_url ?? '');
+    setIsActive(assignment?.is_active ?? true);
+    setEmbedUrlTouched(false);
+  }, [assignment, agentId]);
+
+  function handleUsernameChange(value: string) {
+    setUsername(value);
+    if (!embedUrlTouched) setEmbedUrl(bookiiEmbedUrlFor(value.trim()));
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from('agent_bookii_assignments').upsert(
+        {
+          agent_id: agentId,
+          bookii_username: username.trim(),
+          bookii_embed_url: embedUrl.trim(),
+          is_active: isActive,
+          assigned_by: user?.id ?? null,
+        },
+        { onConflict: 'agent_id' }
+      );
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agent-bookii-assignment', agentId] });
+      toast({ title: 'Saved', description: `Bookii assignment updated for ${agentName}.` });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Error', description: err?.message ?? 'Failed to save Bookii assignment.', variant: 'destructive' });
+    },
+  });
+
+  return (
+    <div className="space-y-3 rounded-lg border p-3">
+      <div className="flex items-center justify-between">
+        <Label className="text-sm font-medium flex items-center gap-1.5">
+          <CalendarClock className="h-3.5 w-3.5" />
+          Bookii Integration
+        </Label>
+        <Switch checked={isActive} onCheckedChange={setIsActive} disabled={isLoading} />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="bookii-username" className="text-xs text-muted-foreground">
+          Bookii Username
+        </Label>
+        <Input
+          id="bookii-username"
+          value={username}
+          onChange={e => handleUsernameChange(e.target.value)}
+          placeholder="jane-smith"
+          disabled={isLoading}
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="bookii-embed-url" className="text-xs text-muted-foreground">
+          Bookii Embed URL
+        </Label>
+        <Input
+          id="bookii-embed-url"
+          value={embedUrl}
+          onChange={e => {
+            setEmbedUrl(e.target.value);
+            setEmbedUrlTouched(true);
+          }}
+          placeholder={`${BOOKII_BASE_URL}/jane-smith?embed=true`}
+          disabled={isLoading}
+        />
+      </div>
+
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="w-full"
+        disabled={saveMutation.isPending || isLoading || !username.trim() || !embedUrl.trim()}
+        onClick={() => saveMutation.mutate()}
+      >
+        {saveMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+        Save Bookii Assignment
+      </Button>
+    </div>
+  );
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -327,6 +452,8 @@ function AgentEditSheet({
               {trackabiLabel}
             </Button>
           </div>
+
+          <BookiiIntegrationSection agentId={agent.id} agentName={agent.full_name || 'Agent'} />
         </div>
 
         <SheetFooter>
