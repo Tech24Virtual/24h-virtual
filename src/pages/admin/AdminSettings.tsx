@@ -14,12 +14,31 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { PabblySettings } from '@/components/admin/PabblySettings';
 import { LeadScoringConfig } from '@/components/admin/LeadScoringConfig';
+import type { Json } from '@/integrations/supabase/types';
 
 interface AdminSettings {
   companyName: string;
   supportEmail: string;
   enableEmailNotifications: boolean;
   defaultCommissionRate: number;
+}
+
+// admin_settings.value is jsonb — supabase-js already encodes/decodes it as JSON,
+// so a plain string must be stored as-is. Some rows were previously written with
+// value: JSON.stringify(value), which double-encodes strings (stores '"foo"'
+// instead of 'foo'), surfacing as literal quote characters in the UI. This
+// unwraps any such already-corrupted rows on read so they self-heal.
+function unwrapDoubleEncodedString(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
+    try {
+      const parsed = JSON.parse(value);
+      if (typeof parsed === 'string') return parsed;
+    } catch {
+      // not actually double-encoded JSON — fall through and use as-is
+    }
+  }
+  return value;
 }
 
 export default function AdminSettings() {
@@ -48,8 +67,8 @@ export default function AdminSettings() {
         });
 
         setSettings({
-          companyName: (settingsMap.company_name as string) || '24H Virtual',
-          supportEmail: (settingsMap.support_email as string) || 'support@24hvirtual.com',
+          companyName: unwrapDoubleEncodedString(settingsMap.company_name) || '24H Virtual',
+          supportEmail: unwrapDoubleEncodedString(settingsMap.support_email) || 'support@24hvirtual.com',
           enableEmailNotifications: settingsMap.enable_email_notifications as boolean ?? true,
           defaultCommissionRate: (settingsMap.default_commission_rate as number) || 10,
         });
@@ -62,11 +81,14 @@ export default function AdminSettings() {
   }, []);
 
   const saveSetting = async (key: string, value: unknown) => {
+    // admin_settings.value is jsonb — pass the value as-is and let supabase-js
+    // encode it. Do NOT JSON.stringify() a string here; that double-encodes it
+    // (stores '"foo"' instead of 'foo') and it comes back with literal quotes.
     const { error } = await supabase
       .from('admin_settings')
       .upsert({
         key,
-        value: JSON.stringify(value),
+        value: value as Json,
         updated_by: user?.id,
         updated_at: new Date().toISOString(),
       }, {
@@ -551,7 +573,7 @@ function AirwallexSettings() {
       if (data) {
         const map: Record<string, string> = {};
         data.forEach(row => {
-          map[row.key] = (row.value as string) || '';
+          map[row.key] = unwrapDoubleEncodedString(row.value) || '';
         });
         setClientId(map.airwallex_client_id || '');
         setApiKey(map.airwallex_api_key || '');
@@ -569,13 +591,13 @@ function AirwallexSettings() {
     const results = await Promise.all([
       supabase.from('admin_settings').upsert({
         key: 'airwallex_client_id',
-        value: JSON.stringify(clientId),
+        value: clientId as Json,
         updated_by: user?.id || null,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'key' }),
       supabase.from('admin_settings').upsert({
         key: 'airwallex_api_key',
-        value: JSON.stringify(apiKey),
+        value: apiKey as Json,
         updated_by: user?.id || null,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'key' }),

@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { humanizeStatus } from '@/components/ui/StatusBadge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
@@ -342,7 +343,7 @@ export default function AdminBilling() {
                       <div className="flex items-center gap-4">
                         <div className="text-right">
                           <Badge variant={plan.plan_type === 'per_minute' ? 'default' : 'secondary'}>
-                            {plan.plan_type}
+                            {humanizeStatus(plan.plan_type)}
                           </Badge>
                           {plan.minute_rate && (
                             <div className="text-sm font-medium mt-1">${plan.minute_rate.toFixed(2)}/min</div>
@@ -398,7 +399,7 @@ export default function AdminBilling() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className="h-4 w-4 text-cta flex-shrink-0" />
+                  <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
                   <span className="font-medium">NMI is the active payment processor</span>
                 </div>
                 <p className="text-sm text-muted-foreground">

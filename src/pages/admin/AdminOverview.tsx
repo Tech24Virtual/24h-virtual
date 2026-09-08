@@ -10,6 +10,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
@@ -624,9 +625,10 @@ export default function AdminOverview() {
                         </p>
                         <p className="text-xs text-muted-foreground truncate">{lead.email}</p>
                         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                            {(lead.pipeline_stage ?? lead.status ?? '').replace(/_/g, ' ')}
-                          </Badge>
+                          <StatusBadge
+                            status={lead.pipeline_stage ?? lead.status}
+                            className="text-[10px] px-1.5 py-0"
+                          />
                           <span className="text-[10px] text-muted-foreground">
                             {formatSource(lead.source)}
                           </span>

@@ -21,6 +21,18 @@ import { NmiPaymentSection } from '@/components/admin/NmiPaymentSection';
 import { BillingPlanCard } from '@/components/admin/BillingPlanCard';
 import { applyClientActivationEffects } from '@/lib/client-onboarding/applyClientActivationEffects';
 import { calculateLeadScore, getScoreLabel, getScoreBadgeClasses, type ScoringRules, DEFAULT_SCORING_RULES } from '@/lib/leadScoring';
+import { humanizeStatus } from '@/components/ui/StatusBadge';
+
+// Keep labels in sync with SOURCE_FILTERS in AdminLeads.tsx.
+const LEAD_SOURCE_LABELS: Record<string, string> = {
+  website: 'Website',
+  wl_partner_request: 'WL Partner Request',
+  affiliate_request: 'Affiliate',
+  referral_request: 'Referral',
+  manual: 'Manual',
+  admin_manual: 'Admin Manual',
+  api: 'API / Zapier',
+};
 import { SendBookingLinkDialog } from '@/components/bookii/SendBookingLinkDialog';
 import {
   Select,
@@ -253,6 +265,12 @@ export default function AdminLeadDetail() {
 
   const overageRate = lead.service_type ? overageRatesUSD[lead.service_type] || 0 : 0;
 
+  // Single source of truth for this lead's score — computed the same way as
+  // the Leads list, rather than reading the (often stale) stored score
+  // column, so this page can't disagree with itself or the list.
+  const leadScore = calculateLeadScore(lead, scoringRules);
+  const leadScoreLabel = getScoreLabel(leadScore, scoringRules.labels);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -264,16 +282,10 @@ export default function AdminLeadDetail() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl lg:text-3xl font-bold text-heading">{lead.name}</h1>
-              {(() => {
-                const score = calculateLeadScore(lead, scoringRules);
-                const label = getScoreLabel(score, scoringRules.labels);
-                return (
-                  <Badge variant="secondary" className={getScoreBadgeClasses(label)}>
-                    {label === 'hot' ? <Flame className="w-3 h-3 mr-1" /> : label === 'warm' ? <Thermometer className="w-3 h-3 mr-1" /> : <Snowflake className="w-3 h-3 mr-1" />}
-                    {score} · {label.charAt(0).toUpperCase() + label.slice(1)}
-                  </Badge>
-                );
-              })()}
+              <Badge variant="secondary" className={getScoreBadgeClasses(leadScoreLabel)}>
+                {leadScoreLabel === 'hot' ? <Flame className="w-3 h-3 mr-1" /> : leadScoreLabel === 'warm' ? <Thermometer className="w-3 h-3 mr-1" /> : <Snowflake className="w-3 h-3 mr-1" />}
+                {leadScore} · {leadScoreLabel.charAt(0).toUpperCase() + leadScoreLabel.slice(1)}
+              </Badge>
             </div>
             <p className="text-muted-foreground">{lead.company || 'No company'}</p>
           </div>
@@ -413,11 +425,13 @@ export default function AdminLeadDetail() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Source</span>
-                    <Badge variant="secondary">{lead.source || 'Unknown'}</Badge>
+                    <Badge variant="secondary">
+                      {lead.source ? (LEAD_SOURCE_LABELS[lead.source] || humanizeStatus(lead.source)) : 'Unknown'}
+                    </Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Score</span>
-                    <span className="font-medium">{lead.score || 0}</span>
+                    <span className="font-medium">{leadScore} · {leadScoreLabel.charAt(0).toUpperCase() + leadScoreLabel.slice(1)}</span>
                   </div>
                 </div>
               </CardContent>

@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { statusBadgeClassName } from '@/components/ui/StatusBadge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Label } from '@/components/ui/label';
 import {
@@ -315,11 +316,11 @@ function InviteAgentDialog({ open, onOpenChange }: InviteAgentDialogProps) {
 
 // ── Status badge ──────────────────────────────────────────────────────────
 
-function StatusBadge({ status }: { status: string | null }) {
+function AgentStatusBadge({ status }: { status: string | null }) {
   switch (status) {
     case 'active':
     case null:
-      return <Badge variant="secondary" className="bg-cta/10 text-cta">Active</Badge>;
+      return <Badge variant="outline" className={statusBadgeClassName('active')}>Active</Badge>;
     case 'inactive':
       return <Badge variant="outline">Inactive</Badge>;
     case 'suspended':
@@ -746,7 +747,7 @@ export default function AdminAgents() {
                         <div className="text-xs text-muted-foreground truncate">{agent.email || '-'}</div>
                       </TableCell>
                       <TableCell>
-                        <StatusBadge status={agent.employment_status} />
+                        <AgentStatusBadge status={agent.employment_status} />
                         <div className="text-xs text-muted-foreground capitalize mt-0.5">
                           {agent.employment_type}
                         </div>

@@ -266,7 +266,7 @@ export default function AdminUsers() {
                       <div>
                         <p className="font-medium">{user.full_name || 'Unnamed'}</p>
                         <p className="text-xs text-muted-foreground truncate max-w-[200px]">
-                          {user.email ?? user.id}
+                          {user.email ?? <span className="italic">No email on file</span>}
                         </p>
                       </div>
                       {user.is_demo_account && (

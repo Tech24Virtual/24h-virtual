@@ -486,7 +486,12 @@ export default function WLPlans() {
                         {addonProducts.map((product) => (
                           <TableRow key={product.id}>
                             <TableCell className="font-medium">{product.name}</TableCell>
-                            <TableCell className="max-w-[240px] truncate text-muted-foreground">{product.description || "—"}</TableCell>
+                            <TableCell
+                              className="max-w-[240px] truncate text-muted-foreground"
+                              title={product.description || undefined}
+                            >
+                              {product.description || "—"}
+                            </TableCell>
                             <TableCell>{formatWholesaleCost(product)}</TableCell>
                             <TableCell>
                               <Input

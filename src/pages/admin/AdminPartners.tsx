@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
@@ -78,15 +79,6 @@ interface ReferralPartner {
   reward_paid_at: string | null;
   created_at: string | null;
 }
-
-const statusColors: Record<string, string> = {
-  pending: 'bg-brand-rose text-heading',
-  active: 'bg-cta/10 text-cta',
-  approved: 'bg-cta/10 text-cta',
-  suspended: 'bg-destructive/10 text-destructive',
-  rejected: 'bg-destructive/10 text-destructive',
-  converted: 'bg-primary/10 text-primary',
-};
 
 export default function AdminPartners() {
   const navigate = useNavigate();
@@ -386,9 +378,7 @@ export default function AdminPartners() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="secondary" className={statusColors[affiliate.status || 'pending']}>
-                              {affiliate.status || 'pending'}
-                            </Badge>
+                            <StatusBadge status={affiliate.status || 'pending'} />
                           </TableCell>
                           <TableCell>{format(new Date(affiliate.created_at), 'MMM d, yyyy')}</TableCell>
                           <TableCell>
@@ -486,9 +476,7 @@ export default function AdminPartners() {
                           </TableCell>
                           <TableCell>${partner.monthly_fee || 0}/mo</TableCell>
                           <TableCell>
-                            <Badge variant="secondary" className={statusColors[partner.status || 'pending']}>
-                              {partner.status || 'pending'}
-                            </Badge>
+                            <StatusBadge status={partner.status || 'pending'} />
                           </TableCell>
                           <TableCell>
                             {partner.created_at ? format(new Date(partner.created_at), 'MMM d, yyyy') : '-'}
@@ -590,9 +578,7 @@ export default function AdminPartners() {
                           <TableCell>{partner.referred_contact_name}</TableCell>
                           <TableCell>{partner.relationship || '-'}</TableCell>
                           <TableCell>
-                            <Badge variant="secondary" className={statusColors[partner.status || 'pending']}>
-                              {partner.status || 'pending'}
-                            </Badge>
+                            <StatusBadge status={partner.status || 'pending'} />
                           </TableCell>
                           <TableCell>
                             {partner.reward_paid_at ? (

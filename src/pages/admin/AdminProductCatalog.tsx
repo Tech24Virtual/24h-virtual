@@ -318,7 +318,12 @@ export default function AdminProductCatalog() {
                     <TableRow key={product.id}>
                       <TableCell className="font-medium">{product.name}</TableCell>
                       <TableCell><code className="text-xs text-muted-foreground">{product.slug}</code></TableCell>
-                      <TableCell className="max-w-[280px] truncate text-muted-foreground">{product.description || "—"}</TableCell>
+                      <TableCell
+                        className="max-w-[280px] truncate text-muted-foreground"
+                        title={product.description || undefined}
+                      >
+                        {product.description || "—"}
+                      </TableCell>
                       <TableCell>{formatCost(product)}</TableCell>
                       <TableCell>
                         <Badge className={billingTypeBadgeClass[product.billing_type] ?? "bg-muted text-muted-foreground"}>
