@@ -81,6 +81,15 @@ export function LeadPipelineBoard({ adminMode = false }: LeadPipelineBoardProps)
 
   const getLeadsByStage = (stage: string) => filteredLeads.filter((lead) => (lead.pipeline_stage || 'new') === stage);
 
+  // Board-visible leads: only those in a stage the kanban actually renders a
+  // column for. Leads in delivery/terminal stages (onboarding, active,
+  // churned, etc.) are intentionally excluded from the board, so header
+  // stats should be scoped the same way — otherwise "Total" can disagree
+  // with what's shown in the columns.
+  const boardVisibleLeads = filteredLeads.filter((lead) =>
+    (SALES_BOARD_STAGES as string[]).includes(lead.pipeline_stage || 'new'),
+  );
+
   const handleDragStart = (e: React.DragEvent, lead: Lead) => {
     setDraggedLead(lead);
     e.dataTransfer.effectAllowed = 'move';
@@ -104,7 +113,7 @@ export function LeadPipelineBoard({ adminMode = false }: LeadPipelineBoardProps)
   };
   const handleDragEnd = () => setDraggedLead(null);
 
-  const totalLeads = filteredLeads.length;
+  const totalLeads = boardVisibleLeads.length;
   const wonLeads = getLeadsByStage('won').length;
   const conversionRate = totalLeads > 0 ? ((wonLeads / totalLeads) * 100).toFixed(1) : '0';
 
@@ -141,24 +150,24 @@ export function LeadPipelineBoard({ adminMode = false }: LeadPipelineBoardProps)
       </div>
 
       {isLoading ? (
-        <div className="flex gap-3 overflow-x-auto pb-4 w-full">
-          {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-[500px] flex-shrink-0 w-[220px]" />)}
+        <div className="grid gap-3 pb-4 w-full" style={{ gridTemplateColumns: `repeat(${PIPELINE_STAGES.length}, minmax(0, 1fr))` }}>
+          {PIPELINE_STAGES.map((stage) => <Skeleton key={stage.key} className="h-[500px] min-w-0" />)}
         </div>
       ) : (
-        <div className="flex gap-3 overflow-x-auto pb-4 w-full">
+        <div className="grid gap-3 pb-4 w-full" style={{ gridTemplateColumns: `repeat(${PIPELINE_STAGES.length}, minmax(0, 1fr))` }}>
           {PIPELINE_STAGES.map((stage) => {
             const stageLeads = getLeadsByStage(stage.key);
             const value = stageValue(stage.key);
             return (
-              <div key={stage.key} className="flex-shrink-0 w-[220px]" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, stage.key)}>
+              <div key={stage.key} className="min-w-0" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, stage.key)}>
                 <Card className="h-full">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-3 h-3 rounded-full ${stage.color}`} />
-                        <CardTitle className="text-sm font-medium">{stage.label}</CardTitle>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className={`w-3 h-3 rounded-full flex-shrink-0 ${stage.color}`} />
+                        <CardTitle className="text-sm font-medium truncate" title={stage.label}>{stage.label}</CardTitle>
                       </div>
-                      <Badge variant="secondary" className="text-xs">{stageLeads.length}</Badge>
+                      <Badge variant="secondary" className="text-xs flex-shrink-0">{stageLeads.length}</Badge>
                     </div>
                     {value > 0 && (
                       <p className="text-xs text-muted-foreground mt-1">${value.toLocaleString()} est. value</p>

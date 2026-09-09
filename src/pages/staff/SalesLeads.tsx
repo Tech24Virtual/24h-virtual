@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Search, Calendar, UserPlus, Users, User as UserIcon, Flame } from 'lucide-react';
+import { Search, Calendar, UserPlus, Users, User as UserIcon, Flame, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { SALES_BOARD_STAGES, PIPELINE_STAGE_LABELS } from '@/lib/revenue/pipeline';
+import { AddLeadDialog } from '@/components/admin/AddLeadDialog';
 
 const statusColors: Record<string, string> = {
   new: 'bg-blue-100 text-blue-800',
@@ -51,6 +52,7 @@ export default function SalesLeads() {
   const [viewMode, setViewMode] = useState<'my' | 'all'>('all');
   const [followUpFilter, setFollowUpFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
+  const [addLeadOpen, setAddLeadOpen] = useState(false);
 
   const { data: leads, isLoading } = useQuery({
     queryKey: ['sales-leads', stageFilter, sourceFilter, dateRange],
@@ -108,12 +110,17 @@ export default function SalesLeads() {
             <h1 className="text-2xl font-bold">Leads</h1>
             <p className="text-muted-foreground">View and manage all sales leads</p>
           </div>
-          <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-            <Button variant={viewMode === 'my' ? 'secondary' : 'ghost'} size="sm" onClick={() => setViewMode('my')}>
-              <UserIcon className="h-4 w-4 mr-1" />My Leads
-            </Button>
-            <Button variant={viewMode === 'all' ? 'secondary' : 'ghost'} size="sm" onClick={() => setViewMode('all')}>
-              <Users className="h-4 w-4 mr-1" />All Leads
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+              <Button variant={viewMode === 'my' ? 'secondary' : 'ghost'} size="sm" onClick={() => setViewMode('my')}>
+                <UserIcon className="h-4 w-4 mr-1" />My Leads
+              </Button>
+              <Button variant={viewMode === 'all' ? 'secondary' : 'ghost'} size="sm" onClick={() => setViewMode('all')}>
+                <Users className="h-4 w-4 mr-1" />All Leads
+              </Button>
+            </div>
+            <Button size="sm" onClick={() => setAddLeadOpen(true)}>
+              <Plus className="h-4 w-4 mr-1" />Add Lead
             </Button>
           </div>
         </div>
@@ -246,6 +253,12 @@ export default function SalesLeads() {
           </CardContent>
         </Card>
       </div>
+
+      <AddLeadDialog
+        open={addLeadOpen}
+        onOpenChange={setAddLeadOpen}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ['sales-leads'] })}
+      />
     </StaffLayout>
   );
 }

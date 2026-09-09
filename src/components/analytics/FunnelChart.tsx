@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { SALES_BOARD_STAGES, PIPELINE_STAGES, type PipelineStage } from '@/lib/revenue/pipeline';
 
 interface Lead {
   id: string;
@@ -13,62 +14,58 @@ interface FunnelChartProps {
   leads: Lead[];
 }
 
-const STAGE_ORDER = ['new', 'contacted', 'qualified', 'proposal', 'negotiating', 'closed_won', 'closed_lost'];
-
-const STAGE_LABELS: Record<string, string> = {
-  new: 'New',
-  contacted: 'Contacted',
-  qualified: 'Qualified',
-  proposal: 'Proposal',
-  negotiating: 'Negotiating',
-  closed_won: 'Won',
-  closed_lost: 'Lost',
-};
-
-const STAGE_COLORS: Record<string, string> = {
+// Tailwind bg-* classes (from the canonical stage model) don't work as SVG
+// fill colors, so map each stage to an actual color value for the chart.
+const STAGE_FILL: Record<PipelineStage, string> = {
   new: 'hsl(var(--chart-1))',
   contacted: 'hsl(var(--chart-2))',
   qualified: 'hsl(var(--chart-3))',
   proposal: 'hsl(var(--chart-4))',
-  negotiating: 'hsl(var(--chart-5))',
-  closed_won: 'hsl(142 71% 45%)', // Green
-  closed_lost: 'hsl(var(--destructive))',
+  sales: 'hsl(var(--chart-5))',
+  won: 'hsl(142 71% 45%)', // Green
+  onboarding: 'hsl(var(--chart-1))',
+  ready_for_billing: 'hsl(var(--chart-2))',
+  active: 'hsl(var(--chart-3))',
+  lost: 'hsl(var(--destructive))',
+  churned: 'hsl(var(--muted-foreground))',
 };
 
 export function FunnelChart({ title = 'Lead Pipeline', leads }: FunnelChartProps) {
   const stageData = useMemo(() => {
     const stageCounts: Record<string, number> = {};
-    
-    // Initialize all stages with 0
-    STAGE_ORDER.forEach(stage => {
-      stageCounts[stage] = 0;
-    });
+    SALES_BOARD_STAGES.forEach(stage => { stageCounts[stage] = 0; });
 
-    // Count leads per stage
     leads.forEach(lead => {
-      const stage = lead.pipeline_stage || lead.status || 'new';
+      const stage = lead.pipeline_stage || 'new';
       if (stageCounts[stage] !== undefined) {
         stageCounts[stage]++;
-      } else {
-        // Map unknown statuses to 'new'
-        stageCounts['new']++;
       }
+      // Leads in a non-board stage (onboarding, active, churned, etc.) are
+      // intentionally left out of this working-pipeline chart, matching what
+      // the Sales Pipeline board itself shows.
     });
 
-    return STAGE_ORDER.map(stage => ({
-      stage,
-      label: STAGE_LABELS[stage] || stage,
-      count: stageCounts[stage],
-      color: STAGE_COLORS[stage] || 'hsl(var(--muted-foreground))',
-    }));
+    return SALES_BOARD_STAGES.map(stage => {
+      const meta = PIPELINE_STAGES.find(s => s.key === stage)!;
+      return {
+        stage,
+        label: meta.label,
+        count: stageCounts[stage],
+        color: STAGE_FILL[stage],
+      };
+    });
   }, [leads]);
 
+  const boardLeadCount = useMemo(
+    () => stageData.reduce((sum, s) => sum + s.count, 0),
+    [stageData],
+  );
+
   const conversionRate = useMemo(() => {
-    const newLeads = stageData.find(s => s.stage === 'new')?.count || 0;
-    const closedWon = stageData.find(s => s.stage === 'closed_won')?.count || 0;
-    if (newLeads === 0) return 0;
-    return Math.round((closedWon / leads.length) * 100);
-  }, [stageData, leads.length]);
+    const won = stageData.find(s => s.stage === 'won')?.count || 0;
+    if (boardLeadCount === 0) return 0;
+    return Math.round((won / boardLeadCount) * 100);
+  }, [stageData, boardLeadCount]);
 
   return (
     <Card>
@@ -86,9 +83,9 @@ export function FunnelChart({ title = 'Lead Pipeline', leads }: FunnelChartProps
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={stageData} layout="vertical">
               <XAxis type="number" hide />
-              <YAxis 
-                type="category" 
-                dataKey="label" 
+              <YAxis
+                type="category"
+                dataKey="label"
                 width={70}
                 axisLine={false}
                 tickLine={false}
@@ -104,8 +101,8 @@ export function FunnelChart({ title = 'Lead Pipeline', leads }: FunnelChartProps
                 }}
                 formatter={(value: number) => [value, 'Leads']}
               />
-              <Bar 
-                dataKey="count" 
+              <Bar
+                dataKey="count"
                 radius={[0, 4, 4, 0]}
                 maxBarSize={20}
               >
@@ -118,18 +115,18 @@ export function FunnelChart({ title = 'Lead Pipeline', leads }: FunnelChartProps
         </div>
         <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
           <div>
-            <p className="font-semibold">{leads.length}</p>
+            <p className="font-semibold">{boardLeadCount}</p>
             <p className="text-muted-foreground">Total</p>
           </div>
           <div>
             <p className="font-semibold text-green-600">
-              {stageData.find(s => s.stage === 'closed_won')?.count || 0}
+              {stageData.find(s => s.stage === 'won')?.count || 0}
             </p>
             <p className="text-muted-foreground">Won</p>
           </div>
           <div>
             <p className="font-semibold text-destructive">
-              {stageData.find(s => s.stage === 'closed_lost')?.count || 0}
+              {stageData.find(s => s.stage === 'lost')?.count || 0}
             </p>
             <p className="text-muted-foreground">Lost</p>
           </div>

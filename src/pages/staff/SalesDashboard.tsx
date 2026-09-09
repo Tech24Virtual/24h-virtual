@@ -46,7 +46,7 @@ interface MyLeadRow {
   company: string | null;
   source: string | null;
   pipeline_stage: string | null;
-  assigned_to: string | null;
+  assigned_sales_rep: string | null;
   intake_submitted_at: string | null;
   created_at: string;
   updated_at: string | null;
@@ -83,7 +83,7 @@ function MyLeadCard({
           {days === 0 ? 'Today' : `${days} day${days === 1 ? '' : 's'} ago`}
         </span>
         <div className="flex items-center gap-1">
-          {!lead.assigned_to && (
+          {!lead.assigned_sales_rep && (
             <Button variant="outline" size="sm" disabled={assigning} onClick={() => onAssignToMe(lead.id)}>
               <UserPlus className="h-3.5 w-3.5 mr-1" />
               Assign to me
@@ -204,8 +204,8 @@ export default function SalesDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('leads')
-        .select('id, name, email, company, source, pipeline_stage, assigned_to, intake_submitted_at, created_at, updated_at')
-        .or(`assigned_to.eq.${user!.id},source.in.(website,sales_team)`)
+        .select('id, name, email, company, source, pipeline_stage, assigned_sales_rep, intake_submitted_at, created_at, updated_at')
+        .or(`assigned_sales_rep.eq.${user!.id},source.in.(website,sales_team)`)
         .not('pipeline_stage', 'in', '(active,churned,lost,re_engage)')
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -215,7 +215,7 @@ export default function SalesDashboard() {
 
   const assignToMe = useMutation({
     mutationFn: async (leadId: string) => {
-      const { error } = await supabase.from('leads').update({ assigned_to: user!.id }).eq('id', leadId);
+      const { error } = await supabase.from('leads').update({ assigned_sales_rep: user!.id }).eq('id', leadId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -464,7 +464,12 @@ export default function SalesDashboard() {
         </div>
 
         {/* Recent Leads Missions */}
-        <MissionsList title="Recent Leads Missions" missionTypeFilter="leads_agent" limit={5} />
+        <MissionsList
+          title="Recent Leads Missions"
+          missionTypeFilter="leads_agent"
+          limit={5}
+          emptyMessage="No missions yet. Run the Leads Agent to score and assign leads."
+        />
 
         {/* Sales Tickets */}
         <TicketList
