@@ -92,6 +92,8 @@ export function NotificationBell() {
   }, [user]);
 
   const markAsRead = async (id: string) => {
+    const wasUnread = notifications.find(n => n.id === id)?.is_read === false;
+
     await supabase
       .from('notifications')
       .update({ is_read: true })
@@ -101,6 +103,7 @@ export function NotificationBell() {
       prev.map(n => (n.id === id ? { ...n, is_read: true } : n))
     );
     setUnreadCount(prev => Math.max(0, prev - 1));
+    if (wasUnread) setTotalUnread(prev => Math.max(0, prev - 1));
   };
 
   const markAllAsRead = async () => {
@@ -114,6 +117,7 @@ export function NotificationBell() {
 
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
     setUnreadCount(0);
+    setTotalUnread(0);
   };
 
   const clearAll = async () => {

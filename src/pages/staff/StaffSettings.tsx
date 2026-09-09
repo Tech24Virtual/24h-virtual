@@ -12,6 +12,8 @@ import { toast } from 'sonner';
 import { useToast } from '@/hooks/use-toast';
 import type { Json } from '@/integrations/supabase/types';
 import { AgentBankingForm } from '@/components/staff/AgentBankingForm';
+import { SITE_URL } from '@/lib/siteUrl';
+import { is24HHost } from '@/lib/wlHostResolver';
 
 interface NotificationPreferences {
   email_notifications: boolean;
@@ -33,13 +35,23 @@ export default function StaffSettings({ role }: StaffSettingsProps) {
     if (!user?.email) return;
     setIsSendingReset(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(user.email);
+      // Match the redirectTo convention used by signUp() in AuthContext so the
+      // recovery link lands back on this host instead of relying on the
+      // project's default Site URL.
+      const hostname = window.location.hostname;
+      const redirectTo = is24HHost(hostname) ? SITE_URL : window.location.origin;
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, { redirectTo });
       if (error) throw error;
       showToast({ title: 'Password reset email sent', description: 'Check your inbox.' });
     } catch (err) {
+      const code = (err as { code?: string; status?: number })?.code;
+      const status = (err as { code?: string; status?: number })?.status;
+      const isRateLimited = code === 'over_email_send_rate_limit' || status === 429;
       showToast({
         title: 'Error',
-        description: err instanceof Error ? err.message : 'Failed to send password reset email.',
+        description: isRateLimited
+          ? 'Too many requests. Please wait a few minutes and try again.'
+          : err instanceof Error ? err.message : 'Failed to send password reset email.',
         variant: 'destructive',
       });
     } finally {

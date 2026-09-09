@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { StaffLayout } from '@/components/staff/StaffLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -260,9 +261,7 @@ export default function SupervisorAgentDetail() {
               <h1 className="text-2xl font-bold">{d?.fullName ?? 'Unknown agent'}</h1>
               {d?.phone && <p className="text-sm text-muted-foreground mt-0.5">{d.phone}</p>}
               <div className="flex flex-wrap gap-2 mt-3">
-                {d?.role && (
-                  <Badge variant="secondary" className="capitalize">{d.role}</Badge>
-                )}
+                {d?.role && <StatusBadge status={d.role} />}
                 {d?.onboardingStatus && (
                   <span
                     className={`inline-block text-xs px-2 py-0.5 rounded-full capitalize ${ONBOARDING_STYLES[d.onboardingStatus] ?? 'bg-muted text-muted-foreground'}`}
@@ -350,9 +349,7 @@ export default function SupervisorAgentDetail() {
                     <div className="flex items-center gap-2">
                       {c.isPrimary && <Badge variant="outline" className="text-xs">Primary</Badge>}
                       {c.pipelineStage && (
-                        <Badge variant="secondary" className="text-xs capitalize">
-                          {c.pipelineStage.replace(/_/g, ' ')}
-                        </Badge>
+                        <StatusBadge status={c.pipelineStage} className="text-xs" />
                       )}
                     </div>
                   </div>
@@ -498,9 +495,7 @@ export default function SupervisorAgentDetail() {
                     {format(new Date(d.performance.period_end), 'MMM d, yyyy')}
                   </p>
                   {d.performance.status && (
-                    <Badge variant="secondary" className="capitalize text-xs">
-                      {d.performance.status}
-                    </Badge>
+                    <StatusBadge status={d.performance.status} className="text-xs" />
                   )}
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -512,7 +507,7 @@ export default function SupervisorAgentDetail() {
                   ].map(({ label, score }) => (
                     <div key={label} className="text-center">
                       <p className={`text-2xl font-bold ${scoreColor(score)}`}>
-                        {score !== null && score !== undefined ? score : '—'}
+                        {score !== null && score !== undefined ? score.toFixed(1) : '—'}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
                     </div>

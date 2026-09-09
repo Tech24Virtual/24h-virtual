@@ -127,6 +127,29 @@ export function OpenShiftBoard({ role }: Props) {
     full_name: profiles.find(p => p.id === r.user_id)?.full_name || 'Unknown agent',
   }));
 
+  // Approved time off, so the assign dialog can exclude agents who are away
+  // on the shift's date — including the agent whose own absence created it.
+  const { data: approvedTimeOff = [] } = useQuery({
+    queryKey: ['approved-time-off-for-assignment'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('time_off_requests')
+        .select('agent_id, start_date, end_date')
+        .eq('status', 'approved');
+      return data ?? [];
+    },
+    enabled: role === 'supervisor',
+  });
+
+  const assignDialogShift = shifts.find(s => s.id === assignDialog.shiftId);
+  const availableAgentsForAssignDialog = assignDialogShift
+    ? agents.filter(a => !approvedTimeOff.some(t =>
+        t.agent_id === a.id &&
+        t.start_date <= assignDialogShift.shift_date &&
+        t.end_date >= assignDialogShift.shift_date
+      ))
+    : agents;
+
   // Synchronous eligibility check using cached schedules — avoids async race before insert
   const getClaimError = (shift: OpenShift): string | null => {
     // Overlap: any existing schedule overlaps with this shift's time
@@ -436,9 +459,15 @@ export function OpenShiftBoard({ role }: Props) {
             <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
               <SelectTrigger><SelectValue placeholder="Select an agent" /></SelectTrigger>
               <SelectContent>
-                {agents.map(a => (
-                  <SelectItem key={a.id} value={a.id}>{a.full_name}</SelectItem>
-                ))}
+                {availableAgentsForAssignDialog.length === 0 ? (
+                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                    No agents available — everyone eligible has approved time off that day.
+                  </div>
+                ) : (
+                  availableAgentsForAssignDialog.map(a => (
+                    <SelectItem key={a.id} value={a.id}>{a.full_name}</SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>

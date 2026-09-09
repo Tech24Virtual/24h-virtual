@@ -34,7 +34,9 @@ function FulfillmentSupervisorPulse() {
   const { data } = useFulfillmentCounters({ audience: 'supervisor' });
   const aging = data?.aging_over_48h ?? 0;
   const resubs = data?.recent_resubmissions ?? 0;
-  if (!aging && !resubs) return null;
+  if (!aging && !resubs) {
+    return <p className="text-sm text-muted-foreground">No active fulfillment alerts.</p>;
+  }
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
       {aging > 0 && (

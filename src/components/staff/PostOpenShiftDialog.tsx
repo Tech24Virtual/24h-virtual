@@ -116,6 +116,7 @@ export function PostOpenShiftDialog({ open, onOpenChange, prefill }: Props) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['open-shifts'] });
+      queryClient.invalidateQueries({ queryKey: ['open-shift-count'] });
       toast({ title: 'Shift posted', description: 'Eligible agents will be notified.' });
       onOpenChange(false);
     },

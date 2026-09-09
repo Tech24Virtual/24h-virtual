@@ -32,6 +32,15 @@ const STATUS_CLASSNAMES: Record<string, string> = {
   open: "bg-blue-500/10 text-blue-600 border-blue-200",
   new: "bg-blue-500/10 text-blue-600 border-blue-200",
   public: "bg-blue-500/10 text-blue-600 border-blue-200",
+  contacted: "bg-blue-500/10 text-blue-600 border-blue-200",
+  qualified: "bg-blue-500/10 text-blue-600 border-blue-200",
+  proposal: "bg-blue-500/10 text-blue-600 border-blue-200",
+
+  // green — won/positive outcomes
+  won: "bg-green-500/10 text-green-700 border-green-200",
+
+  // red — lost outcomes
+  lost: "bg-destructive/10 text-destructive border-destructive/20",
 
   // gray — inert / not currently relevant, not an error
   inactive: "bg-muted text-muted-foreground border-transparent",
@@ -57,13 +66,22 @@ export function statusBadgeClassName(status: string | null | undefined): string 
   return STATUS_CLASSNAMES[key] || FALLBACK_CLASSNAME;
 }
 
-/** Turns a raw enum/status string ("wl_partner_request") into a label ("Wl Partner Request"). */
+// Words that should stay fully uppercase rather than title-cased (acronyms).
+// "wl" title-cases to "Wl", which in this app's font is easy to misread as
+// "WI" — see humanizeStatus's callers for the real-world case this fixed.
+const KNOWN_ACRONYMS = new Set(["wl", "ai", "sms", "url", "api", "faq", "id"]);
+
+/** Turns a raw enum/status string ("wl_partner_request") into a label ("WL Partner Request"). */
 export function humanizeStatus(status: string | null | undefined): string {
   if (!status) return "Unknown";
   return status
     .split(/[_\s-]+/)
     .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .map((word) =>
+      KNOWN_ACRONYMS.has(word.toLowerCase())
+        ? word.toUpperCase()
+        : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    )
     .join(" ");
 }
 
