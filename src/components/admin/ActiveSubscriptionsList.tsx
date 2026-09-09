@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Search, Eye, AlertTriangle, Lock, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { servicePricingMap } from '@/lib/pricingData';
+import { humanizeStatus } from '@/components/ui/StatusBadge';
 import { useAuth } from '@/contexts/AuthContext';
 import { ClientBillingSheet } from '@/components/admin/ClientBillingSheet';
 import type { Tables } from '@/integrations/supabase/types';
@@ -65,7 +66,7 @@ export function ActiveSubscriptionsList({ searchTerm, onSearchChange }: ActiveSu
 
   const changePlan = useMutation({
     mutationFn: async ({ leadId, planId }: { leadId: string; planId: string | null }) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('leads')
         .update({
           current_plan_id: planId,
@@ -73,8 +74,17 @@ export function ActiveSubscriptionsList({ searchTerm, onSearchChange }: ActiveSu
           plan_override_by: user?.id ?? null,
           plan_override_at: new Date().toISOString(),
         })
-        .eq('id', leadId);
+        .eq('id', leadId)
+        .select('id');
       if (error) throw error;
+      // RLS can silently filter the row out of the UPDATE's WHERE clause,
+      // in which case PostgREST still reports success (no `error`) with
+      // zero rows affected — without .select() here that would show as a
+      // false "Plan updated" toast. Requesting the row back lets us tell
+      // "updated" apart from "matched no row I'm allowed to touch".
+      if (!data || data.length === 0) {
+        throw new Error("Update wasn't applied — you may not have permission to change this client's plan.");
+      }
     },
     onSuccess: () => {
       toast.success('Plan updated', { description: 'Locked — the monthly auto-adjust cron will skip this client.' });
@@ -86,9 +96,13 @@ export function ActiveSubscriptionsList({ searchTerm, onSearchChange }: ActiveSu
   });
 
   const getServiceName = (slug: string | null): string => {
-    if (!slug) return 'Unknown Service';
+    // "Unknown Service" reads as an error state, but a lead simply not
+    // having picked a service yet is normal and expected — say so plainly.
+    if (!slug) return 'No Service Selected';
     const service = servicePricingMap[slug];
-    return service?.name || slug;
+    // Fall back to a humanized version of the raw slug (rather than the
+    // raw kebab-case string) for any value not in servicePricingMap.
+    return service?.name || humanizeStatus(slug);
   };
 
   const getEstimatedPrice = (serviceType: string | null, minutes: number | null): string => {

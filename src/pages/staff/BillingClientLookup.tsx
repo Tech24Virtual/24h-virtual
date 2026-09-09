@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Search, Plus, StickyNote, CreditCard, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
+import { StatusBadge, humanizeStatus } from '@/components/ui/StatusBadge';
 
 export default function BillingClientLookup() {
   const { user } = useAuth();
@@ -139,7 +140,7 @@ export default function BillingClientLookup() {
                     <div className="font-medium">{lead.name}</div>
                     <div className="text-sm text-muted-foreground">{lead.email} {lead.company && `• ${lead.company}`}</div>
                   </div>
-                  <Badge variant={lead.status === 'active' ? 'default' : 'secondary'} className="capitalize">{lead.status}</Badge>
+                  <StatusBadge status={lead.status} />
                 </button>
               ))}
             </CardContent>
@@ -153,16 +154,16 @@ export default function BillingClientLookup() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>{selectedLead.name}</CardTitle>
-                  <Badge variant={selectedLead.status === 'active' ? 'default' : 'secondary'} className="capitalize">{selectedLead.status}</Badge>
+                  <StatusBadge status={selectedLead.status} />
                 </div>
                 <CardDescription>{selectedLead.email} {selectedLead.company && `• ${selectedLead.company}`}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><span className="text-muted-foreground">Service:</span> <span className="font-medium">{selectedLead.service_type || '-'}</span></div>
+                  <div><span className="text-muted-foreground">Service:</span> <span className="font-medium">{selectedLead.service_type ? humanizeStatus(selectedLead.service_type) : '-'}</span></div>
                   <div><span className="text-muted-foreground">Plan:</span> <span className="font-medium">{selectedLead.plan_minutes ? `${selectedLead.plan_minutes} min` : '-'}</span></div>
-                  <div><span className="text-muted-foreground">Billing Period:</span> <span className="font-medium">{selectedLead.billing_period || '-'}</span></div>
-                  <div><span className="text-muted-foreground">Currency:</span> <span className="font-medium">{selectedLead.billing_currency || 'USD'}</span></div>
+                  <div><span className="text-muted-foreground">Billing Period:</span> <span className="font-medium">{selectedLead.billing_period ? humanizeStatus(selectedLead.billing_period) : '-'}</span></div>
+                  <div><span className="text-muted-foreground">Currency:</span> <span className="font-medium">{(selectedLead.billing_currency || 'USD').toUpperCase()}</span></div>
                   <div><span className="text-muted-foreground">Payment Method:</span> <span className="font-medium">{selectedLead.payment_method_on_file ? 'On File' : 'None'}</span></div>
                   <div><span className="text-muted-foreground">Last Payment:</span> <span className="font-medium">{selectedLead.last_payment_status || '-'}</span></div>
                 </div>

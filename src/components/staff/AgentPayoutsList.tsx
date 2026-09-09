@@ -63,7 +63,10 @@ export function AgentPayoutsList({ statusFilter }: AgentPayoutsListProps) {
 
       return invoiceData.map(inv => ({
         ...inv,
-        agent_name: profileMap.get(inv.agent_id)?.full_name || inv.agent_id.slice(0, 8),
+        // A raw truncated UUID gives billing staff nothing to identify who
+        // they'd be paying — show a clear placeholder instead when the
+        // agent's profile has no name on file (or the profile is missing).
+        agent_name: profileMap.get(inv.agent_id)?.full_name || 'Unknown Agent',
         hourly_rate: bankingMap.get(inv.agent_id)?.hourly_rate || null,
         has_banking: bankingMap.has(inv.agent_id),
       })) as InvoiceWithBanking[];
