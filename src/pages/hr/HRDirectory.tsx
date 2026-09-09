@@ -112,6 +112,7 @@ export default function HRDirectory() {
               <SelectItem value="tech">Tech</SelectItem>
               <SelectItem value="hr">HR</SelectItem>
               <SelectItem value="admin">Admin</SelectItem>
+              <SelectItem value="client">Client</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -123,7 +124,14 @@ export default function HRDirectory() {
         ) : (
           <div className="grid gap-3">
             {filtered.map(emp => (
-              <Card key={emp.id}>
+              <Card
+                key={emp.id}
+                className="cursor-pointer hover:bg-accent/50 transition-colors"
+                role="button"
+                tabIndex={0}
+                onClick={() => { setSelectedEmployee(emp); setDetailOpen(true); }}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedEmployee(emp); setDetailOpen(true); } }}
+              >
                 <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -136,7 +144,7 @@ export default function HRDirectory() {
                       {emp.job_title || 'No title'} {emp.department ? `• ${emp.department}` : ''}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
                     {emp.roles.map((r: string) => (
                       <Badge key={r} variant="secondary" className="capitalize">{r}</Badge>
                     ))}
@@ -168,7 +176,9 @@ export default function HRDirectory() {
         {!isLoading && totalCount > 0 && (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">
-              Showing {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, totalCount)} of {totalCount} staff members
+              {search || roleFilter !== 'all'
+                ? `Showing ${filtered.length} of ${totalCount} staff members`
+                : `Showing ${page * PAGE_SIZE + 1}-${Math.min((page + 1) * PAGE_SIZE, totalCount)} of ${totalCount} staff members`}
             </p>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))}>Prev</Button>

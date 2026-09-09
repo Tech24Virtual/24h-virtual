@@ -65,8 +65,9 @@ export function RunPayrollButton({ onSuccess }: RunPayrollButtonProps = {}) {
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              This will run the PayrollAgent to compute pay for all agents with approved shifts in the selected period.
-              The agent will use its current mode (simulation, sandbox, or live).
+              {loading
+                ? 'Processing payroll for the selected period...'
+                : 'This will run the PayrollAgent to compute pay for all agents with approved shifts in the selected period. The agent will use its current mode (simulation, sandbox, or live).'}
             </p>
             <div className="grid grid-cols-2 gap-4">
               <div>

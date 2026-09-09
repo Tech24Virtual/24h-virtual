@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Send, Plus, Mail, MailOpen } from 'lucide-react';
+import { STAFF_ROLES } from '@/config/staffRoles';
 
 const categoryColors: Record<string, string> = {
   announcement: 'bg-blue-100 text-blue-800',
@@ -34,34 +35,37 @@ export default function HRCommunications() {
   const fetchData = async () => {
     if (!user) return;
     setIsLoading(true);
-    const [sentRes, inboxRes, empRes] = await Promise.all([
+    const [sentRes, inboxRes, empRes, rolesRes] = await Promise.all([
       (supabase as any).from('hr_communications').select('*, to_profile:to_user_id(full_name)').eq('from_user_id', user.id).order('created_at', { ascending: false }),
       (supabase as any).from('hr_communications').select('*, from_profile:from_user_id(full_name)').eq('to_user_id', user.id).order('created_at', { ascending: false }),
       (supabase as any).from('profiles').select('id, full_name').order('full_name'),
+      supabase.from('user_roles').select('user_id, role'),
     ]);
+    const roleMap: Record<string, string[]> = {};
+    (rolesRes.data || []).forEach((r: any) => {
+      if (!roleMap[r.user_id]) roleMap[r.user_id] = [];
+      roleMap[r.user_id].push(r.role);
+    });
+    // Comms recipients (including "All Staff" broadcast) should be staff
+    // only — clients share the profiles table but shouldn't receive
+    // internal HR announcements.
+    const staffEmployees = (empRes.data || []).filter((e: any) =>
+      (roleMap[e.id] || []).some((r: string) => STAFF_ROLES.has(r)),
+    );
     setMessages(sentRes.data || []);
     setInbox(inboxRes.data || []);
-    setEmployees(empRes.data || []);
+    setEmployees(staffEmployees);
     setIsLoading(false);
   };
 
   useEffect(() => { fetchData(); }, [user]);
 
   const handleSend = async () => {
+    if (!form.to_user_id) { toast.error('Select a recipient'); return; }
     if (!form.subject.trim() || !form.message.trim()) { toast.error('Subject and message required'); return; }
-    
-    if (form.to_user_id) {
-      // Direct message
-      const { error } = await supabase.from('hr_communications').insert({
-        from_user_id: user!.id,
-        to_user_id: form.to_user_id,
-        subject: form.subject,
-        message: form.message,
-        category: form.category,
-      });
-      if (error) { toast.error('Failed to send'); return; }
-    } else {
-      // Broadcast to all
+
+    if (form.to_user_id === 'broadcast') {
+      // Broadcast to all staff
       const inserts = employees.filter(e => e.id !== user!.id).map(e => ({
         from_user_id: user!.id,
         to_user_id: e.id,
@@ -73,9 +77,19 @@ export default function HRCommunications() {
         const { error } = await supabase.from('hr_communications').insert(inserts);
         if (error) { toast.error('Failed to broadcast'); return; }
       }
+    } else {
+      // Direct message
+      const { error } = await supabase.from('hr_communications').insert({
+        from_user_id: user!.id,
+        to_user_id: form.to_user_id,
+        subject: form.subject,
+        message: form.message,
+        category: form.category,
+      });
+      if (error) { toast.error('Failed to send'); return; }
     }
-    
-    toast.success(form.to_user_id ? 'Message sent' : 'Announcement broadcast');
+
+    toast.success(form.to_user_id === 'broadcast' ? 'Announcement broadcast' : 'Message sent');
     setComposeOpen(false);
     setForm({ to_user_id: '', subject: '', message: '', category: 'general' });
     fetchData();
@@ -162,8 +176,8 @@ export default function HRCommunications() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>To</Label>
-              <Select value={form.to_user_id || 'broadcast'} onValueChange={v => setForm(p => ({ ...p, to_user_id: v === 'broadcast' ? '' : v }))}>
-                <SelectTrigger><SelectValue placeholder="All Staff (Broadcast)" /></SelectTrigger>
+              <Select value={form.to_user_id} onValueChange={v => setForm(p => ({ ...p, to_user_id: v }))}>
+                <SelectTrigger><SelectValue placeholder="Select recipient..." /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="broadcast">All Staff (Broadcast)</SelectItem>
                   {employees.filter(e => e.id !== user?.id).map(e => (
@@ -192,7 +206,9 @@ export default function HRCommunications() {
               <Label>Message</Label>
               <Textarea value={form.message} onChange={e => setForm(p => ({ ...p, message: e.target.value }))} placeholder="Write your message..." rows={5} />
             </div>
-            <Button className="w-full" onClick={handleSend}><Send className="w-4 h-4 mr-2" /> Send</Button>
+            <Button className="w-full" onClick={handleSend} disabled={!form.to_user_id || !form.subject.trim() || !form.message.trim()}>
+              <Send className="w-4 h-4 mr-2" /> Send
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

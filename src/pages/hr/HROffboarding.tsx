@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Plus, UserMinus } from 'lucide-react';
+import { STAFF_ROLES } from '@/config/staffRoles';
 
 export default function HROffboarding() {
   const { user } = useAuth();
@@ -27,14 +28,25 @@ export default function HROffboarding() {
   const fetchData = async () => {
     if (!user) return;
     setIsLoading(true);
-    const [offRes, empRes] = await Promise.all([
+    const [offRes, empRes, rolesRes] = await Promise.all([
       (supabase as any).from('offboarding').select('*').order('created_at', { ascending: false }),
       (supabase as any).from('profiles').select('id, full_name, employment_status').eq('employment_status', 'active').order('full_name'),
+      supabase.from('user_roles').select('user_id, role'),
     ]);
+    const roleMap: Record<string, string[]> = {};
+    (rolesRes.data || []).forEach((r: any) => {
+      if (!roleMap[r.user_id]) roleMap[r.user_id] = [];
+      roleMap[r.user_id].push(r.role);
+    });
+    // Offboarding is a staff-employment concept — exclude client/wl_client
+    // accounts even though they may share employment_status = 'active'.
+    const staffEmployees = (empRes.data || []).filter((e: any) =>
+      (roleMap[e.id] || []).some((r: string) => STAFF_ROLES.has(r)),
+    );
     if (offRes.error) {
       toast.error('Failed to load offboardings');
       setOffboardings([]);
-      setEmployees(empRes.data || []);
+      setEmployees(staffEmployees);
       setIsLoading(false);
       return;
     }
@@ -53,7 +65,7 @@ export default function HROffboarding() {
     }
 
     setOffboardings(offData.map((o: any) => ({ ...o, profiles: profilesById[o.agent_id] ?? null })));
-    setEmployees(empRes.data || []);
+    setEmployees(staffEmployees);
     setIsLoading(false);
   };
 
