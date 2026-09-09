@@ -10,6 +10,16 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 const CONTENT_TYPES = ['feature', 'procedure', 'onboarding', 'faq', 'troubleshooting'];
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -26,6 +36,7 @@ export default function TechKnowledgeBase() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [filterContentType, setFilterContentType] = useState('all');
   const [form, setForm] = useState({ title: '', description: '', dashboard: 'admin', is_active: true, content_type: 'feature', sort_order: 0, onboarding_step: null as number | null });
+  const [deleteEntry, setDeleteEntry] = useState<{ id: string; title: string } | null>(null);
 
   const { data: entries, isLoading } = useQuery({
     queryKey: ['platform-knowledge', filterDashboard],
@@ -53,8 +64,20 @@ export default function TechKnowledgeBase() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (editingId) {
-        const { error } = await supabase.from('platform_knowledge').update({ ...form, updated_at: new Date().toISOString() }).eq('id', editingId);
+        const { data, error } = await supabase
+          .from('platform_knowledge')
+          .update({ ...form, updated_at: new Date().toISOString() })
+          .eq('id', editingId)
+          .select('id');
         if (error) throw error;
+        // RLS can silently filter the row out of the UPDATE's WHERE clause,
+        // in which case PostgREST still reports success with zero rows
+        // affected — .select() lets us tell "updated" apart from "matched
+        // no row I'm allowed to touch" instead of showing a false success
+        // toast (see 20260909000002_tech_role_rls_policies.sql).
+        if (!data || data.length === 0) {
+          throw new Error("Update wasn't applied — you may not have permission to edit this entry.");
+        }
       } else {
         const { error } = await supabase.from('platform_knowledge').insert(form);
         if (error) throw error;
@@ -72,12 +95,16 @@ export default function TechKnowledgeBase() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('platform_knowledge').delete().eq('id', id);
+      const { data, error } = await supabase.from('platform_knowledge').delete().eq('id', id).select('id');
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("Delete wasn't applied — you may not have permission to delete this entry.");
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['platform-knowledge'] });
       toast({ title: 'Entry deleted' });
+      setDeleteEntry(null);
     },
     onError: (error: Error) => {
       toast({ title: 'Failed to delete entry', description: error.message, variant: 'destructive' });
@@ -197,7 +224,7 @@ export default function TechKnowledgeBase() {
                     </div>
                     <div className="flex gap-1 ml-4">
                       <Button size="icon" variant="ghost" onClick={() => startEdit(entry)}><Edit className="h-4 w-4" /></Button>
-                      <Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteMutation.mutate(entry.id)}><Trash2 className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" className="text-destructive" onClick={() => setDeleteEntry({ id: entry.id, title: entry.title })}><Trash2 className="h-4 w-4" /></Button>
                     </div>
                   </div>
                 ))}
@@ -206,6 +233,27 @@ export default function TechKnowledgeBase() {
           ))
         )}
       </div>
+
+      <AlertDialog open={!!deleteEntry} onOpenChange={open => !open && setDeleteEntry(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this knowledge entry?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete &quot;{deleteEntry?.title}&quot;. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteMutation.isPending}
+              onClick={() => deleteEntry && deleteMutation.mutate(deleteEntry.id)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </StaffLayout>
   );
 }

@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { MessageSquare, CheckCircle2, AlertTriangle, Clock, Percent, Wrench, BookOpen, CalendarClock, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
+import { humanizeStatus } from '@/components/ui/StatusBadge';
 
 const ISSUE_STATUS_COLORS: Record<string, string> = {
   open: 'bg-yellow-100 text-yellow-800',
@@ -197,7 +198,7 @@ export default function TechDashboard() {
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <Badge className={ISSUE_STATUS_COLORS[issue.status] || 'bg-muted text-muted-foreground'}>
-                        {issue.status.replace('_', ' ')}
+                        {humanizeStatus(issue.status)}
                       </Badge>
                       <span className="font-medium truncate">{issue.title}</span>
                     </div>

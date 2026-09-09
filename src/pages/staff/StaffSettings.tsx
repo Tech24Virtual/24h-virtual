@@ -46,12 +46,20 @@ export default function StaffSettings({ role }: StaffSettingsProps) {
     } catch (err) {
       const code = (err as { code?: string; status?: number })?.code;
       const status = (err as { code?: string; status?: number })?.status;
+      const message = err instanceof Error ? err.message : '';
       const isRateLimited = code === 'over_email_send_rate_limit' || status === 429;
+      // GoTrue returns this when the account's email fails its deliverability
+      // validation (e.g. a domain with no real MX records, as with the
+      // qa-*@24hv-test.com fixtures) — surface a support-facing explanation
+      // instead of the raw "Email address "..." is invalid" API message.
+      const isInvalidEmail = code === 'email_address_invalid' || /email address .*is invalid/i.test(message);
       showToast({
         title: 'Error',
         description: isRateLimited
           ? 'Too many requests. Please wait a few minutes and try again.'
-          : err instanceof Error ? err.message : 'Failed to send password reset email.',
+          : isInvalidEmail
+          ? "This account's email address can't receive a password reset email. Contact an admin to update it or reset your password another way."
+          : message || 'Failed to send password reset email.',
         variant: 'destructive',
       });
     } finally {

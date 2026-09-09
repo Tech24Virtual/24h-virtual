@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, AlertTriangle, CheckCircle, UserCheck, Filter, Archive } from 'lucide-react';
+import { Plus, AlertTriangle, CheckCircle, UserCheck, Filter, Archive, Edit, RotateCcw, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function TechSystemIssues() {
@@ -25,6 +25,8 @@ export default function TechSystemIssues() {
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [filterStatus, setFilterStatus] = useState('open');
   const [form, setForm] = useState({ title: '', description: '', category: 'other', priority: 'medium', affected_department: '' });
+  const [editingIssue, setEditingIssue] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({ title: '', description: '', category: 'other', priority: 'medium', affected_department: '' });
 
   const { data: issues, isLoading, isError, error: issuesError } = useQuery({
     queryKey: ['tech-issues', filterStatus],
@@ -100,6 +102,54 @@ export default function TechSystemIssues() {
     },
   });
 
+  const reopenMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('tech_issues').update({
+        status: 'open', resolved_at: null, resolution_notes: null,
+      }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tech-issues'] });
+      toast({ title: 'Issue reopened' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to reopen issue', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('tech_issues').update({
+        title: editForm.title,
+        description: editForm.description,
+        category: editForm.category,
+        priority: editForm.priority,
+        affected_department: editForm.affected_department || null,
+      }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tech-issues'] });
+      toast({ title: 'Issue updated' });
+      setEditingIssue(null);
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to update issue', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const startEdit = (issue: any) => {
+    setEditForm({
+      title: issue.title,
+      description: issue.description,
+      category: issue.category,
+      priority: issue.priority,
+      affected_department: issue.affected_department || '',
+    });
+    setEditingIssue(issue);
+  };
+
   const priorityBadge = (p: string) => {
     const v: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = { low: 'secondary', medium: 'outline', high: 'default', critical: 'destructive' };
     return <Badge variant={v[p] || 'outline'} className="capitalize">{p}</Badge>;
@@ -161,7 +211,8 @@ export default function TechSystemIssues() {
                   </SelectContent>
                 </Select>
                 <Button className="w-full" onClick={() => createMutation.mutate()} disabled={!form.title || !form.description || createMutation.isPending}>
-                  Create Issue
+                  {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  {createMutation.isPending ? 'Creating...' : 'Create Issue'}
                 </Button>
               </div>
             </DialogContent>
@@ -212,6 +263,9 @@ export default function TechSystemIssues() {
                       <TableCell className="text-sm">{formatDistanceToNow(new Date(issue.created_at), { addSuffix: true })}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          <Button size="sm" variant="ghost" onClick={() => startEdit(issue)}>
+                            <Edit className="h-4 w-4 mr-1" />Edit
+                          </Button>
                           {!issue.assigned_to && issue.status === 'open' && (
                             <Button size="sm" variant="outline" onClick={() => claimMutation.mutate(issue.id)} disabled={claimMutation.isPending}>
                               <UserCheck className="h-4 w-4 mr-1" />Claim
@@ -230,9 +284,14 @@ export default function TechSystemIssues() {
                             </Dialog>
                           )}
                           {issue.status === 'resolved' && (
-                            <Button size="sm" variant="ghost" onClick={() => closeMutation.mutate(issue.id)} disabled={closeMutation.isPending}>
-                              <Archive className="h-4 w-4 mr-1" />Close
-                            </Button>
+                            <>
+                              <Button size="sm" variant="ghost" onClick={() => reopenMutation.mutate(issue.id)} disabled={reopenMutation.isPending}>
+                                <RotateCcw className="h-4 w-4 mr-1" />Reopen
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => closeMutation.mutate(issue.id)} disabled={closeMutation.isPending}>
+                                <Archive className="h-4 w-4 mr-1" />Close
+                              </Button>
+                            </>
                           )}
                         </div>
                       </TableCell>
@@ -244,6 +303,57 @@ export default function TechSystemIssues() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={!!editingIssue} onOpenChange={open => !open && setEditingIssue(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit System Issue</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <Input placeholder="Title" value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} />
+            <Textarea placeholder="Description" value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} rows={3} />
+            <div className="grid grid-cols-2 gap-4">
+              <Select value={editForm.category} onValueChange={v => setEditForm(f => ({ ...f, category: v }))}>
+                <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="system_outage">System Outage</SelectItem>
+                  <SelectItem value="access_request">Access Request</SelectItem>
+                  <SelectItem value="equipment">Equipment</SelectItem>
+                  <SelectItem value="software">Software</SelectItem>
+                  <SelectItem value="network">Network</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={editForm.priority} onValueChange={v => setEditForm(f => ({ ...f, priority: v }))}>
+                <SelectTrigger><SelectValue placeholder="Priority" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Select value={editForm.affected_department} onValueChange={v => setEditForm(f => ({ ...f, affected_department: v }))}>
+              <SelectTrigger><SelectValue placeholder="Affected Department (optional)" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Departments</SelectItem>
+                <SelectItem value="sales">Sales</SelectItem>
+                <SelectItem value="billing">Billing</SelectItem>
+                <SelectItem value="hr">HR</SelectItem>
+                <SelectItem value="supervisor">Operations</SelectItem>
+                <SelectItem value="agent">Agents</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              className="w-full"
+              onClick={() => editingIssue && updateMutation.mutate(editingIssue.id)}
+              disabled={!editForm.title || !editForm.description || updateMutation.isPending}
+            >
+              {updateMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </StaffLayout>
   );
 }
