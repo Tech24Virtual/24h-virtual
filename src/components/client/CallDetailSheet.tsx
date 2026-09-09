@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Phone, Clock, Hash, User, FileText, Mic, X } from 'lucide-react';
+import { Phone, Clock, Hash, User, FileText, Mic } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
+import { humanizeStatus } from '@/components/ui/StatusBadge';
 
 interface CallDetail {
   id: string;
@@ -104,17 +105,7 @@ export function CallDetailSheet({ callId, leadId, onClose }: CallDetailSheetProp
     <Sheet open={!!callId} onOpenChange={(open) => { if (!open) onClose(); }}>
       <SheetContent className="w-full sm:max-w-md overflow-y-auto">
         <SheetHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <SheetTitle className="text-lg">Call Details</SheetTitle>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-sm opacity-70 hover:opacity-100 transition-opacity"
-              aria-label="Close"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
+          <SheetTitle className="text-lg">Call Details</SheetTitle>
         </SheetHeader>
 
         {isLoading ? (
@@ -143,7 +134,7 @@ export function CallDetailSheet({ callId, leadId, onClose }: CallDetailSheetProp
                   variant="secondary"
                   className={STATUS_COLORS[call.status ?? ''] ?? ''}
                 >
-                  {call.status || 'unknown'}
+                  {call.status ? humanizeStatus(call.status) : 'Unknown'}
                 </Badge>
                 {call.disposition && (
                   <Badge variant="outline" className="text-xs">{call.disposition}</Badge>
@@ -242,7 +233,7 @@ export function CallDetailSheet({ callId, leadId, onClose }: CallDetailSheetProp
                             variant="secondary"
                             className={`text-xs ${STATUS_COLORS[rc.status ?? ''] ?? ''}`}
                           >
-                            {rc.status || 'unknown'}
+                            {rc.status ? humanizeStatus(rc.status) : 'Unknown'}
                           </Badge>
                         </div>
                       ))}

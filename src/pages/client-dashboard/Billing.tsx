@@ -249,7 +249,10 @@ export default function Billing() {
   };
 
   const handleUpgrade = () => {
-    window.open('mailto:support@24hvirtual.com?subject=Plan Upgrade Request', '_blank');
+    // A plain window.open('mailto:...', '_blank') leaves a blank dead tab
+    // behind in the browser instead of showing any plan info — there's no
+    // in-app plan-selection UI yet, so point the client at support directly.
+    toast.info('To upgrade your plan, contact support at support@24hvirtual.com');
   };
 
   // ── Derived display values ────────────────────────────────────────────────

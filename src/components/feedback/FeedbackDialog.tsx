@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Send, Bug, HelpCircle, Lightbulb, MessageSquare } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,7 @@ type FeedbackType = 'bug' | 'help' | 'idea' | 'feedback';
 export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
   const ctx = useFeedbackContext();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const [type, setType] = useState<FeedbackType>('feedback');
   const [title, setTitle] = useState('');
@@ -72,6 +74,11 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
           ? `Your message was sent to ${partnerName}.`
           : 'Your feedback was submitted.',
       });
+      // Belt-and-suspenders alongside the realtime subscription in
+      // Feedback.tsx: this submits via an edge function rather than a
+      // direct client insert, so this is the one place that reliably knows
+      // "a new row was just created for this user" the instant it happens.
+      queryClient.invalidateQueries({ queryKey: ['client-feedback'] });
       setTitle(''); setDescription(''); setType('feedback'); setIntent('product');
       onOpenChange(false);
     } catch (e: any) {

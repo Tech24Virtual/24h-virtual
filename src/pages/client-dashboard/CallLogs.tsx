@@ -16,6 +16,7 @@ import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { humanizeStatus } from '@/components/ui/StatusBadge';
 
 interface CallLog {
   id: string;
@@ -251,7 +252,7 @@ export default function CallLogs() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary" className={STATUS_COLORS[call.status || 'completed']}>
-                          {call.status || 'completed'}
+                          {humanizeStatus(call.status || 'completed')}
                         </Badge>
                       </TableCell>
                       <TableCell>

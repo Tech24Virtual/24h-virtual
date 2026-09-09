@@ -17,6 +17,7 @@ import { format } from 'date-fns';
 import { OutboundCallRequestDialog } from '@/components/client-dashboard/OutboundCallRequestDialog';
 import { CallDetailSheet } from '@/components/client/CallDetailSheet';
 import { usePageView, track } from '@/lib/analytics';
+import { humanizeStatus, statusBadgeClassName } from '@/components/ui/StatusBadge';
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -152,7 +153,7 @@ export default function ClientDashboard() {
     ? { label: 'Active',      cls: 'bg-green-100 text-green-700 border-green-200' }
     : isSetupNeeded
     ? { label: 'Setting Up',  cls: 'bg-yellow-100 text-yellow-700 border-yellow-200' }
-    : { label: pipelineStage ?? 'Inactive', cls: 'bg-muted text-muted-foreground' };
+    : { label: pipelineStage ? humanizeStatus(pipelineStage) : 'Inactive', cls: statusBadgeClassName(pipelineStage) };
 
   const statCards = [
     { label: 'Calls This Month', value: callsThisMonth, icon: Phone,         iconBg: 'bg-primary/10',      iconColor: 'text-primary' },
@@ -250,7 +251,7 @@ export default function ClientDashboard() {
                         <td className="py-3 pr-4 text-muted-foreground">{fmtDuration(call.handle_time_seconds)}</td>
                         <td className="py-3 pr-4">
                           <Badge variant="secondary" className={cn('text-xs', STATUS_COLORS[call.status ?? ''])}>
-                            {call.status ?? 'unknown'}
+                            {call.status ? humanizeStatus(call.status) : 'Unknown'}
                           </Badge>
                         </td>
                         <td className="py-3 text-muted-foreground whitespace-nowrap">
