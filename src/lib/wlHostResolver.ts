@@ -4,6 +4,8 @@ const TWENTY_FOUR_H_HOSTS = [
   'lovable.app',
   '24hv.io',
   'www.24hv.io',
+  '24hvirtual.com',
+  'www.24hvirtual.com',
   'localhost',
 ];
 
@@ -42,6 +44,8 @@ export function is24HHost(hostname: string): boolean {
   if (TWENTY_FOUR_H_HOSTS.includes(hostname)) return true;
   // *.lovable.app subdomains
   if (hostname.endsWith('.lovable.app')) return true;
+  // *.vercel.app deployment/preview URLs (our own hosting, never a partner's custom domain)
+  if (hostname.endsWith('.vercel.app')) return true;
   // local dev with ports
   if (hostname === '127.0.0.1') return true;
   return false;

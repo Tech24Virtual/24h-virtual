@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
  import { Input } from "@/components/ui/input";
  import { Label } from "@/components/ui/label";
  import { useIsMobile } from "@/hooks/use-mobile";
+ import { useWLHostResolver } from "@/contexts/WLHostContext";
  import { supabase } from "@/integrations/supabase/client";
  import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -109,9 +110,14 @@ export function ExitIntentPopup() {
      return OFFER_VARIANTS[index];
    });
 
-  const isExcludedRoute = EXCLUDED_ROUTES.some((route) =>
-    location.pathname.startsWith(route)
-  );
+  // isPartnerHostname is a second, host-based guard: EXCLUDED_ROUTES only
+  // catches 24H-hosted WL portal paths (/portal/*). On a partner's own
+  // custom domain, HostnameRouter swaps in a bare /:slug route tree that
+  // this path check can't recognize, so we must also gate on hostname.
+  const { isPartnerHostname } = useWLHostResolver();
+  const isExcludedRoute =
+    isPartnerHostname ||
+    EXCLUDED_ROUTES.some((route) => location.pathname.startsWith(route));
 
    // Check cooldown
    const checkCooldown = () => {

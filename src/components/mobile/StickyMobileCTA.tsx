@@ -4,8 +4,9 @@ import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useWLHostResolver } from "@/contexts/WLHostContext";
 import { WebCallbackWidget } from "@/components/callback/WebCallbackWidget";
- 
+
  const EXCLUDED_ROUTES = [
    "/login",
    "/signup",
@@ -30,9 +31,14 @@ export function StickyMobileCTA() {
    const location = useLocation();
    const isMobile = useIsMobile();
  
-   const isExcludedRoute = EXCLUDED_ROUTES.some((route) =>
-     location.pathname.startsWith(route)
-   );
+   // isPartnerHostname is a second, host-based guard: EXCLUDED_ROUTES only
+   // catches 24H-hosted WL portal paths (/portal/*). On a partner's own
+   // custom domain, HostnameRouter swaps in a bare /:slug route tree that
+   // this path check can't recognize, so we must also gate on hostname.
+   const { isPartnerHostname } = useWLHostResolver();
+   const isExcludedRoute =
+     isPartnerHostname ||
+     EXCLUDED_ROUTES.some((route) => location.pathname.startsWith(route));
  
    useEffect(() => {
      // Only show on mobile
