@@ -39,6 +39,16 @@ export interface WLHostBranding {
   custom_domain: string | null;
 }
 
+export function getSubdomainType(hostname: string): 'dashboard' | 'client' | 'main' {
+  if (hostname.startsWith('dashboard.')) return 'dashboard';
+  if (hostname.startsWith('clients.')) return 'client';
+  return 'main';
+}
+
+export function getBaseDomain(hostname: string): string {
+  return hostname.replace(/^(dashboard\.|clients\.)/, '');
+}
+
 /** Check if hostname belongs to a 24H / development host */
 export function is24HHost(hostname: string): boolean {
   if (TWENTY_FOUR_H_HOSTS.includes(hostname)) return true;

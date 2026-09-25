@@ -3,8 +3,8 @@
  * for the WL custom domain feature.
  */
 
-export const LOVABLE_A_RECORD_TARGET = "185.158.133.1";
-export const LOVABLE_CNAME_TARGET = "virtual-rep.lovable.app";
+export const VERCEL_A_RECORD_TARGET = "76.76.21.21";
+export const VERCEL_CNAME_TARGET = "cname.vercel-dns.com";
 
 export interface DnsRecord {
   type: "CNAME" | "A" | "TXT";
@@ -36,8 +36,8 @@ export function isApexDomain(hostname: string): boolean {
 
 /**
  * Build the DNS records a partner needs to add for a given hostname.
- * Subdomains use CNAME → virtual-rep.lovable.app
- * Apex domains use A → 185.158.133.1
+ * Subdomains use CNAME → cname.vercel-dns.com
+ * Apex domains use A → 76.76.21.21
  */
 export function buildDnsInstructions(hostname: string): DnsInstructionPayload {
   const apex = isApexDomain(hostname);
@@ -48,7 +48,7 @@ export function buildDnsInstructions(hostname: string): DnsInstructionPayload {
         {
           type: "A",
           host: "@",
-          value: LOVABLE_A_RECORD_TARGET,
+          value: VERCEL_A_RECORD_TARGET,
           note: "Required for apex (root) domains",
         },
       ]
@@ -56,7 +56,7 @@ export function buildDnsInstructions(hostname: string): DnsInstructionPayload {
         {
           type: "CNAME",
           host,
-          value: LOVABLE_CNAME_TARGET,
+          value: VERCEL_CNAME_TARGET,
           note: "Points your subdomain to our edge",
         },
       ];

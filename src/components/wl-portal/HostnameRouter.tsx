@@ -7,6 +7,7 @@ import { WLPortalIdentity } from '@/components/wl-portal/WLPortalIdentity';
 import { WLPortalRoute } from '@/components/wl-portal/WLPortalRoute';
 import { PageLoader } from '@/components/ui/PageLoader';
 import { supabase } from '@/integrations/supabase/client';
+import { WhiteLabelRoutes } from '@/routes/WhiteLabelRoutes';
 
 // Lazy load WL portal pages (same imports as App.tsx)
 const WLPortalLogin = lazy(() => import('@/pages/wl-portal/WLPortalLogin'));
@@ -85,14 +86,29 @@ interface HostnameRouterProps {
 }
 
 export function HostnameRouter({ children }: HostnameRouterProps) {
-  const { isPartnerHostname, loading, partnerId } = useWLHostResolver();
+  const { isPartnerHostname, loading, partnerId, subdomainType } = useWLHostResolver();
 
   if (loading) return <PageLoader />;
 
   // On 24H host — render the normal app route tree
   if (!isPartnerHostname) return <>{children}</>;
 
-  // On partner hostname — mount the WL portal route tree with clean URLs
+  // dashboard.<partner-domain> — the WL partner's own staff dashboard, not
+  // the end-client portal. WhiteLabelRoutes already carries its own
+  // ProtectedRoute(requiredRole="white_label") guard, so no extra wrapping
+  // is needed here.
+  if (subdomainType === 'dashboard') {
+    return (
+      <Routes>
+        <Route path="/" element={<Navigate to="/white-label-dashboard" replace />} />
+        {WhiteLabelRoutes}
+        <Route path="*" element={<Navigate to="/white-label-dashboard" replace />} />
+      </Routes>
+    );
+  }
+
+  // clients.<partner-domain> (and bare custom domains) — mount the WL portal
+  // route tree with clean URLs
   return (
     <>
       <WLPortalIdentity />

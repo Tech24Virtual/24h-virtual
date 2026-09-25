@@ -1,8 +1,10 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { resolveHostname, is24HHost, type WLHostResolution } from '@/lib/wlHostResolver';
+import { resolveHostname, is24HHost, getSubdomainType, getBaseDomain, type WLHostResolution } from '@/lib/wlHostResolver';
 
 interface WLHostContextType extends WLHostResolution {
   loading: boolean;
+  subdomainType: 'dashboard' | 'client' | 'main';
+  baseDomain: string | null;
 }
 
 const defaultValue: WLHostContextType = {
@@ -13,6 +15,8 @@ const defaultValue: WLHostContextType = {
   isAlias: false,
   branding: null,
   loading: true,
+  subdomainType: 'main',
+  baseDomain: null,
 };
 
 const WLHostContext = createContext<WLHostContextType>(defaultValue);
@@ -24,10 +28,16 @@ export function WLHostProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const hostname = window.location.hostname;
+    const subdomainType = getSubdomainType(hostname);
+    const baseDomain = getBaseDomain(hostname);
+    // dashboard./clients. are intentional, permanent entry points for two
+    // different app areas on the same domain — never bounce them to the
+    // bare canonical domain the way a legacy/migrated alias should be.
+    const isSubdomainAlias = subdomainType !== 'main';
 
     // Fast path: 24H host — no query needed
     if (is24HHost(hostname)) {
-      setState({ ...defaultValue, loading: false });
+      setState({ ...defaultValue, loading: false, subdomainType, baseDomain });
       return;
     }
 
@@ -37,9 +47,9 @@ export function WLHostProvider({ children }: { children: ReactNode }) {
     if (cached) {
       try {
         const parsed = JSON.parse(cached) as WLHostResolution;
-        setState({ ...parsed, loading: false });
+        setState({ ...parsed, loading: false, subdomainType, baseDomain });
         // Handle alias redirect from cache
-        if (parsed.isAlias && parsed.canonicalHostname) {
+        if (parsed.isAlias && parsed.canonicalHostname && !isSubdomainAlias) {
           redirectToCanonical(parsed.canonicalHostname);
         }
         return;
@@ -50,17 +60,17 @@ export function WLHostProvider({ children }: { children: ReactNode }) {
 
     // Resolve hostname
     resolveHostname(hostname).then((result) => {
-      // Handle alias → canonical redirect
-      if (result.isAlias && result.canonicalHostname) {
+      // Handle alias → canonical redirect (skip for dashboard./clients. subdomains)
+      if (result.isAlias && result.canonicalHostname && !isSubdomainAlias) {
         sessionStorage.setItem(cacheKey, JSON.stringify(result));
         redirectToCanonical(result.canonicalHostname);
         return;
       }
 
       sessionStorage.setItem(cacheKey, JSON.stringify(result));
-      setState({ ...result, loading: false });
+      setState({ ...result, loading: false, subdomainType, baseDomain });
     }).catch(() => {
-      setState({ ...defaultValue, isPartnerHostname: false, loading: false });
+      setState({ ...defaultValue, isPartnerHostname: false, loading: false, subdomainType, baseDomain });
     });
   }, []);
 

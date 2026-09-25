@@ -565,7 +565,8 @@ export default function WLCustomDomain() {
                   <div>
                     <CardTitle>Domain Aliases (Optional)</CardTitle>
                     <CardDescription>
-                      Extra hostnames that automatically redirect to your canonical domain.
+                      Extra hostnames that redirect to your canonical domain — except{" "}
+                      <code>dashboard.</code> and <code>clients.</code>, which serve their own app instead.
                     </CardDescription>
                   </div>
                   <Button
@@ -591,20 +592,32 @@ export default function WLCustomDomain() {
                 )}
                 {canonical && aliases.length === 0 && (
                   <p className="text-sm text-muted-foreground">
-                    No aliases yet. Add one to redirect e.g. <code>clients.yourdomain.com</code>{" "}
-                    to your canonical hostname.
+                    No aliases yet. Add <code>dashboard.yourdomain.com</code> for your staff
+                    dashboard or <code>clients.yourdomain.com</code> for your client portal — or
+                    any other hostname to redirect to your canonical domain.
                   </p>
                 )}
                 {aliases.map((alias) => {
                   const verified =
                     alias.cname_status === "active" || alias.cname_status === "verified";
+                  const isAppSubdomain =
+                    alias.alias_hostname.startsWith("dashboard.") ||
+                    alias.alias_hostname.startsWith("clients.");
                   return (
                     <div key={alias.id} className="rounded-lg border p-4 space-y-3">
                       <div className="flex items-center justify-between gap-4 flex-wrap">
                         <div>
                           <div className="font-mono text-sm font-medium">{alias.alias_hostname}</div>
                           <div className="text-xs text-muted-foreground mt-0.5">
-                            Redirects to <span className="font-mono">{canonical}</span>
+                            {isAppSubdomain ? (
+                              alias.alias_hostname.startsWith("dashboard.") ? (
+                                "Serves your staff dashboard"
+                              ) : (
+                                "Serves your client portal"
+                              )
+                            ) : (
+                              <>Redirects to <span className="font-mono">{canonical}</span></>
+                            )}
                           </div>
                           {alias.cname_last_checked_at && (
                             <div className="text-xs text-muted-foreground mt-0.5">
@@ -683,7 +696,48 @@ export default function WLCustomDomain() {
                     <AccordionContent className="text-sm text-muted-foreground space-y-2">
                       The <strong>canonical</strong> domain is the main address clients use. Any
                       <strong> alias</strong> automatically issues a 301 redirect to the canonical
-                      domain, so links keep working if you change branding or migrate.
+                      domain, so links keep working if you change branding or migrate. The one
+                      exception is <code>dashboard.</code> and <code>clients.</code> subdomains
+                      (see below) — those serve different apps and are never redirected.
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="dashboard-vs-clients">
+                    <AccordionTrigger>Separate domain for your staff dashboard vs. your clients' portal</AccordionTrigger>
+                    <AccordionContent className="text-sm text-muted-foreground space-y-3">
+                      <p>
+                        You can point two subdomains of the same domain at two different apps —
+                        one for your own team, one for your clients. Add each as an alias below,
+                        then set this DNS record for each at your provider:
+                      </p>
+                      <div className="overflow-hidden rounded-lg border">
+                        <table className="w-full text-sm">
+                          <thead className="bg-muted/50 text-muted-foreground">
+                            <tr>
+                              <th className="text-left px-3 py-2 font-medium">Hostname</th>
+                              <th className="text-left px-3 py-2 font-medium">Type</th>
+                              <th className="text-left px-3 py-2 font-medium">Value</th>
+                              <th className="text-left px-3 py-2 font-medium">Purpose</th>
+                            </tr>
+                          </thead>
+                          <tbody className="font-mono text-xs">
+                            <tr className="border-t">
+                              <td className="px-3 py-2">dashboard.yourdomain.com</td>
+                              <td className="px-3 py-2">CNAME</td>
+                              <td className="px-3 py-2 break-all">cname.vercel-dns.com</td>
+                              <td className="px-3 py-2 font-sans">Your team's staff dashboard</td>
+                            </tr>
+                            <tr className="border-t">
+                              <td className="px-3 py-2">clients.yourdomain.com</td>
+                              <td className="px-3 py-2">CNAME</td>
+                              <td className="px-3 py-2 break-all">cname.vercel-dns.com</td>
+                              <td className="px-3 py-2 font-sans">Your clients' portal</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <p className="text-xs">
+                        Note the host is <code>dashboard</code>, singular — not <code>dashboards</code>.
+                      </p>
                     </AccordionContent>
                   </AccordionItem>
                   <AccordionItem value="pitfalls">
