@@ -93,21 +93,23 @@ export function BreakTimer({ breakType, durationMinutes, startedAt, onEndBreak, 
   const progress = totalSeconds > 0 ? Math.min(100, (elapsedSeconds / totalSeconds) * 100) : 100;
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
+    <div className="flex flex-col items-center gap-3 text-center">
+      <div className="flex items-center justify-center gap-2">
         <span className="h-2 w-2 rounded-full bg-orange-500 animate-pulse shrink-0" />
         <span className="text-sm font-medium text-muted-foreground">{BREAK_LABELS[breakType]}</span>
       </div>
       {isOvertime ? (
-        <p className="text-2xl font-mono font-bold text-red-600 text-center">
-          ⚠️ {overtimeMinutes} min overtime
+        <p className="flex items-baseline justify-center gap-1.5 whitespace-nowrap font-mono font-bold text-red-600">
+          <span className="text-2xl">⚠️ {overtimeMinutes} min</span>
+          <span className="text-sm font-medium">overtime</span>
         </p>
       ) : (
-        <p className="text-3xl font-mono font-bold text-orange-600 text-center">
-          {String(mm).padStart(2, '0')}:{String(ss).padStart(2, '0')} remaining
+        <p className="flex items-baseline justify-center gap-1.5 whitespace-nowrap font-mono font-bold text-orange-600">
+          <span className="text-2xl">{String(mm).padStart(2, '0')}:{String(ss).padStart(2, '0')}</span>
+          <span className="text-sm font-medium">remaining</span>
         </p>
       )}
-      <Progress value={progress} className={isOvertime ? '[&>div]:bg-red-500 h-2' : 'h-2'} />
+      <Progress value={progress} className={isOvertime ? '[&>div]:bg-red-500 h-2 w-full' : 'h-2 w-full'} />
       <Button
         variant="outline"
         size="sm"
