@@ -20354,6 +20354,7 @@ export type Database = {
           status: string
           title: string
           updated_at: string
+          wl_client_id: string | null
         }
         Insert: {
           client_id: string
@@ -20370,6 +20371,7 @@ export type Database = {
           status?: string
           title: string
           updated_at?: string
+          wl_client_id?: string | null
         }
         Update: {
           client_id?: string
@@ -20386,6 +20388,7 @@ export type Database = {
           status?: string
           title?: string
           updated_at?: string
+          wl_client_id?: string | null
         }
         Relationships: [
           {
@@ -20393,6 +20396,34 @@ export type Database = {
             columns: ["script_id"]
             isOneToOne: false
             referencedRelation: "client_scripts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "script_change_requests_wl_client_id_fkey"
+            columns: ["wl_client_id"]
+            isOneToOne: false
+            referencedRelation: "v_bi_wl_partner_export"
+            referencedColumns: ["wl_client_id"]
+          },
+          {
+            foreignKeyName: "script_change_requests_wl_client_id_fkey"
+            columns: ["wl_client_id"]
+            isOneToOne: false
+            referencedRelation: "v_wl_client_directory_for_partner"
+            referencedColumns: ["wl_client_id"]
+          },
+          {
+            foreignKeyName: "script_change_requests_wl_client_id_fkey"
+            columns: ["wl_client_id"]
+            isOneToOne: false
+            referencedRelation: "v_wl_client_service_status"
+            referencedColumns: ["wl_client_id"]
+          },
+          {
+            foreignKeyName: "script_change_requests_wl_client_id_fkey"
+            columns: ["wl_client_id"]
+            isOneToOne: false
+            referencedRelation: "white_label_clients"
             referencedColumns: ["id"]
           },
         ]

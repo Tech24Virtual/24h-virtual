@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, CalendarClock, CheckCircle2, Circle, ExternalLink, Star } from 'lucide-react';
+import { ArrowLeft, CalendarClock, CheckCircle2, Circle, ExternalLink, Star, Forward, XCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,13 +20,24 @@ import {
 } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { useWLPartnerId } from '@/hooks/wl/useWLPartnerId';
 import { ClientCoverageCard } from '@/components/coverage/ClientCoverageCard';
 import { SendBookingLinkDialog } from '@/components/bookii/SendBookingLinkDialog';
+import { changeTypeLabel } from '@/components/wl-portal/ScriptChangeRequestDialog';
+
+const SCRIPT_REQUEST_STATUS_STYLES: Record<string, string> = {
+  pending: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
+  in_review: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+  needs_info: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+  approved: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+  rejected: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+};
 
 export default function WLClientDetail() {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const [slugInput, setSlugInput] = useState('');
@@ -207,6 +218,49 @@ export default function WLClientDetail() {
       return data;
     },
     enabled: !!id,
+  });
+
+  // Fetch script change requests submitted by this client
+  const { data: scriptRequests, isLoading: scriptRequestsLoading } = useQuery({
+    queryKey: ['wl-client-script-requests', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('script_change_requests')
+        .select('id, request_type, title, description, status, reviewer_notes, created_at')
+        .eq('wl_client_id', id!)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
+  const scriptRequestActionMutation = useMutation({
+    mutationFn: async ({ requestId, action }: { requestId: string; action: 'approved' | 'in_review' | 'rejected' }) => {
+      const notesByAction: Record<typeof action, string> = {
+        approved: 'Approved by partner.',
+        in_review: 'Forwarded to 24H Virtual for review.',
+        rejected: 'Rejected by partner.',
+      };
+      const updates: Record<string, unknown> = {
+        status: action,
+        reviewed_by: user?.id ?? null,
+        reviewer_notes: notesByAction[action],
+      };
+      if (action === 'approved' || action === 'rejected') {
+        updates.resolved_at = new Date().toISOString();
+      }
+      const { error } = await supabase.from('script_change_requests').update(updates).eq('id', requestId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wl-client-script-requests', id] });
+      toast({ title: 'Request updated' });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Update failed', description: err.message, variant: 'destructive' });
+    },
   });
 
   const isLoading = clientLoading || configLoading || !partnerId;
@@ -591,6 +645,87 @@ export default function WLClientDetail() {
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Script change requests */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Script Change Requests</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {scriptRequestsLoading ? (
+              <Skeleton className="h-24 w-full" />
+            ) : !scriptRequests || scriptRequests.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No script change requests from this client yet.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {scriptRequests.map((req) => {
+                  const isActionable = ['pending', 'needs_info'].includes(req.status);
+                  const isPending = scriptRequestActionMutation.isPending && scriptRequestActionMutation.variables?.requestId === req.id;
+                  return (
+                    <div key={req.id} className="p-4 border rounded-lg">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <Badge variant="outline">{changeTypeLabel(req.request_type)}</Badge>
+                            <Badge className={SCRIPT_REQUEST_STATUS_STYLES[req.status] ?? 'bg-muted text-muted-foreground'}>
+                              {req.status.replace('_', ' ')}
+                            </Badge>
+                          </div>
+                          <p className="font-medium">{req.title}</p>
+                          {req.description && (
+                            <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{req.description}</p>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground shrink-0">
+                          {new Date(req.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      {req.reviewer_notes && (
+                        <p className="text-xs text-muted-foreground mt-2 border-t pt-2">{req.reviewer_notes}</p>
+                      )}
+                      {isActionable && (
+                        <div className="flex gap-2 mt-3">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-green-700 border-green-200 hover:bg-green-50 dark:text-green-400"
+                            disabled={isPending}
+                            onClick={() => scriptRequestActionMutation.mutate({ requestId: req.id, action: 'approved' })}
+                          >
+                            <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-blue-700 border-blue-200 hover:bg-blue-50 dark:text-blue-400"
+                            disabled={isPending}
+                            onClick={() => scriptRequestActionMutation.mutate({ requestId: req.id, action: 'in_review' })}
+                          >
+                            <Forward className="w-4 h-4 mr-1.5" />
+                            Forward to 24H
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                            disabled={isPending}
+                            onClick={() => scriptRequestActionMutation.mutate({ requestId: req.id, action: 'rejected' })}
+                          >
+                            <XCircle className="w-4 h-4 mr-1.5" />
+                            Reject
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </CardContent>
