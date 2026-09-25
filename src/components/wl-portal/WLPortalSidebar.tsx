@@ -12,7 +12,6 @@ import {
   Users,
   Star,
   Megaphone,
-  MessageSquare,
 } from 'lucide-react';
 import { DrilldownSidebar } from '@/components/navigation/DrilldownSidebar';
 import { useWLPortal } from '@/contexts/WLPortalContext';
@@ -64,8 +63,7 @@ export function WLPortalSidebar() {
     if (enabled('support')) {
       groups.push({ name: 'Support', icon: LifeBuoy, basePath: wlClientUrl(slug, 'support'), children: [{ name: 'Support', href: wlClientUrl(slug, 'support') }] });
     }
-    groups.push({ name: 'Feedback', icon: MessageSquare, basePath: wlClientUrl(slug, 'feedback'), children: [{ name: 'Feedback', href: wlClientUrl(slug, 'feedback') }] });
-    
+
     if (enabled('settings')) {
       groups.push({ name: 'Settings', icon: Settings, basePath: wlClientUrl(slug, 'settings'), children: [{ name: 'Settings', href: wlClientUrl(slug, 'settings') }] });
     }

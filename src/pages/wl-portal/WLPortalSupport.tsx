@@ -24,12 +24,22 @@ const statusColors: Record<string, string> = {
   closed: 'bg-muted text-muted-foreground',
 };
 
+const TICKET_TYPES: Array<{ value: string; label: string; badgeClass: string }> = [
+  { value: 'feedback', label: 'Feedback', badgeClass: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
+  { value: 'bug_report', label: 'Bug Report', badgeClass: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' },
+  { value: 'assistance', label: 'Need Assistance', badgeClass: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' },
+];
+
+function ticketTypeMeta(type: string | null) {
+  return TICKET_TYPES.find(t => t.value === type) ?? TICKET_TYPES[2];
+}
+
 export default function WLPortalSupport() {
   const { clientInfo, branding, partnerId } = useWLPortal();
   const [tickets, setTickets] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [newTicket, setNewTicket] = useState({ subject: '', description: '', priority: 'medium' });
+  const [newTicket, setNewTicket] = useState({ ticket_type: 'assistance', subject: '', description: '', priority: 'medium' });
   const [submitting, setSubmitting] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [replies, setReplies] = useState<any[]>([]);
@@ -59,6 +69,7 @@ export default function WLPortalSupport() {
       const { error } = await supabase.from('wl_client_tickets').insert({
         partner_id: clientInfo.partner_id,
         wl_client_id: clientInfo.id,
+        ticket_type: newTicket.ticket_type,
         subject: newTicket.subject,
         description: newTicket.description,
         priority: newTicket.priority,
@@ -70,7 +81,7 @@ export default function WLPortalSupport() {
       if (error) throw error;
       toast.success('Ticket submitted');
       setDialogOpen(false);
-      setNewTicket({ subject: '', description: '', priority: 'medium' });
+      setNewTicket({ ticket_type: 'assistance', subject: '', description: '', priority: 'medium' });
       fetchTickets();
     } catch (err) {
       console.error(err);
@@ -145,6 +156,17 @@ export default function WLPortalSupport() {
                   <DialogHeader><DialogTitle>Submit Support Ticket</DialogTitle></DialogHeader>
                   <div className="space-y-4 mt-4">
                     <div className="space-y-2">
+                      <Label>Type</Label>
+                      <Select value={newTicket.ticket_type} onValueChange={(v) => setNewTicket(p => ({ ...p, ticket_type: v }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {TICKET_TYPES.map(t => (
+                            <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
                       <Label>Subject *</Label>
                       <Input value={newTicket.subject} onChange={(e) => setNewTicket(p => ({ ...p, subject: e.target.value }))} />
                     </div>
@@ -187,6 +209,9 @@ export default function WLPortalSupport() {
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-sm text-muted-foreground">#{ticket.ticket_number}</span>
                           <h4 className="font-medium">{ticket.subject}</h4>
+                          <Badge variant="outline" className={ticketTypeMeta(ticket.ticket_type).badgeClass}>
+                            {ticketTypeMeta(ticket.ticket_type).label}
+                          </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground">
                           {format(new Date(ticket.created_at), 'MMM d, yyyy h:mm a')}
@@ -210,6 +235,11 @@ export default function WLPortalSupport() {
             <SheetTitle>{selectedTicket?.subject}</SheetTitle>
           </SheetHeader>
           <div className="mt-4 space-y-3">
+            {selectedTicket && (
+              <Badge variant="outline" className={ticketTypeMeta(selectedTicket.ticket_type).badgeClass}>
+                {ticketTypeMeta(selectedTicket.ticket_type).label}
+              </Badge>
+            )}
             <p className="text-sm text-muted-foreground">
               Status: {selectedTicket?.status}
             </p>

@@ -24962,6 +24962,7 @@ export type Database = {
           submitted_by_name: string | null
           submitted_by_type: string
           ticket_number: number
+          ticket_type: string
           updated_at: string
           wl_client_id: string
         }
@@ -24982,6 +24983,7 @@ export type Database = {
           submitted_by_name?: string | null
           submitted_by_type?: string
           ticket_number?: number
+          ticket_type?: string
           updated_at?: string
           wl_client_id: string
         }
@@ -25002,6 +25004,7 @@ export type Database = {
           submitted_by_name?: string | null
           submitted_by_type?: string
           ticket_number?: number
+          ticket_type?: string
           updated_at?: string
           wl_client_id?: string
         }

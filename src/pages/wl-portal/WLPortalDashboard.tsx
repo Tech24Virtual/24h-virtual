@@ -21,7 +21,7 @@ import { usePageView } from '@/lib/analytics';
 export default function WLPortalDashboard() {
   usePageView('wl_portal_dashboard', 'wl_partner');
   const { slug, clientInfo } = useWLPortal();
-  const [stats, setStats] = useState({ callsThisMonth: 0, totalMinutes: 0, missedCalls: 0, activeScripts: 0 });
+  const [stats, setStats] = useState({ callsThisMonth: 0, totalMinutes: 0, activeScripts: 0 });
   const [recentCalls, setRecentCalls] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [outboundDialogOpen, setOutboundDialogOpen] = useState(false);
@@ -54,7 +54,6 @@ export default function WLPortalDashboard() {
         setStats({
           callsThisMonth: calls.length,
           totalMinutes: Math.round(totalMinutes),
-          missedCalls: calls.filter((c: any) => c.status === 'missed').length,
           activeScripts: scriptsData.count || 0,
         });
 
@@ -80,7 +79,6 @@ export default function WLPortalDashboard() {
   const statCards = [
     { label: 'Calls This Month', value: stats.callsThisMonth.toString(), icon: Phone, color: 'text-primary', bgColor: 'bg-primary/10' },
     { label: 'Total Minutes', value: stats.totalMinutes.toString(), icon: Clock, color: 'text-cta', bgColor: 'bg-cta/10' },
-    { label: 'Missed Calls', value: stats.missedCalls.toString(), icon: TrendingUp, color: 'text-primary', bgColor: 'bg-brand-rose' },
     { label: 'Active Scripts', value: stats.activeScripts.toString(), icon: FileText, color: 'text-secondary', bgColor: 'bg-secondary/10' },
   ];
 
@@ -90,7 +88,7 @@ export default function WLPortalDashboard() {
       description="Here's an overview of your call activity"
     >
       <ClientWelcomeModal />
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid sm:grid-cols-3 gap-4 mb-8">
         {statCards.map((stat) => (
           <Card key={stat.label}>
             <CardContent className="p-6">

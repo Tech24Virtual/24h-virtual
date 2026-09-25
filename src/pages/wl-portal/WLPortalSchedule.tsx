@@ -62,39 +62,23 @@ export default function WLPortalSchedule() {
     if (!clientInfo) return;
     setIsSaving(true);
     try {
-      // No unique constraint on (wl_client_id, day_of_week) to upsert against, so
-      // update existing rows in place and insert only genuinely new ones —
-      // never delete, so a failed write can't wipe already-saved data.
-      const toUpdate = schedules.filter((s): s is ScheduleRow & { id: string } => !!s.id);
-      const toInsert = schedules.filter(s => !s.id);
-
-      const updateResults = await Promise.all(
-        toUpdate.map(s =>
-          supabase
-            .from('wl_client_schedules')
-            .update({
-              start_time: s.start_time,
-              end_time: s.end_time,
-              is_enabled: s.is_enabled,
-            })
-            .eq('id', s.id)
-        )
-      );
-      const updateError = updateResults.find(r => r.error)?.error;
-      if (updateError) throw updateError;
-
-      if (toInsert.length > 0) {
-        const rows = toInsert.map(s => ({
-          partner_id: clientInfo.partner_id,
-          wl_client_id: clientInfo.id,
-          day_of_week: s.day_of_week,
-          start_time: s.start_time,
-          end_time: s.end_time,
-          is_enabled: s.is_enabled,
-        }));
-        const { error } = await supabase.from('wl_client_schedules').insert(rows);
-        if (error) throw error;
-      }
+      // wl_client_schedules has a unique constraint on (wl_client_id, day_of_week),
+      // so a single upsert keeps existing rows in place and inserts only
+      // genuinely new ones — no separate update/insert branching needed, and no
+      // way to end up with duplicate day rows.
+      const rows = schedules.map(s => ({
+        id: s.id,
+        partner_id: clientInfo.partner_id,
+        wl_client_id: clientInfo.id,
+        day_of_week: s.day_of_week,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        is_enabled: s.is_enabled,
+      }));
+      const { error } = await supabase
+        .from('wl_client_schedules')
+        .upsert(rows, { onConflict: 'wl_client_id,day_of_week' });
+      if (error) throw error;
 
       toast.success('Schedule saved');
     } catch (err) {
