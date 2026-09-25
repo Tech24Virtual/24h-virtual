@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { StaffLayout } from '@/components/staff/StaffLayout';
 import { ClientDetailDialog } from '@/components/staff/ClientDetailDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,10 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Search, Users, Phone, Activity } from 'lucide-react';
+import { toast } from 'sonner';
+import { Search, Users, Phone, Activity, ShieldAlert, ShieldCheck } from 'lucide-react';
 
 interface ClientProfile {
   id: string;
@@ -35,6 +37,7 @@ const STAGE_COLORS: Record<string, string> = {
 
 export default function AgentClients() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClient, setSelectedClient] = useState<ClientProfile | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -97,6 +100,39 @@ export default function AgentClients() {
         created_at: lead.created_at,
       })) as ClientProfile[];
     },
+  });
+
+  // Step 3: fetch pending/reviewed signoffs for this agent's assignments.
+  const { data: signoffs = [] } = useQuery({
+    queryKey: ['agent-client-signoffs', user?.id],
+    enabled: !!user?.id,
+    refetchInterval: 30_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('client_assignment_signoffs')
+        .select('client_id, status')
+        .eq('agent_id', user!.id);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const signoffMap = new Map(signoffs.map((s) => [s.client_id, s.status]));
+
+  const markReviewed = useMutation({
+    mutationFn: async (clientId: string) => {
+      const { error } = await supabase
+        .from('client_assignment_signoffs')
+        .update({ status: 'reviewed', reviewed_at: new Date().toISOString() })
+        .eq('agent_id', user!.id)
+        .eq('client_id', clientId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agent-client-signoffs', user?.id] });
+      toast.success('Marked as reviewed');
+    },
+    onError: (err: Error) => toast.error(err.message),
   });
 
   const isLoading = assignmentsLoading || clientsLoading;
@@ -188,6 +224,7 @@ export default function AgentClients() {
                   <TableHead>Status</TableHead>
                   <TableHead>Last Call</TableHead>
                   <TableHead>Phone</TableHead>
+                  <TableHead>Review</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -207,11 +244,12 @@ export default function AgentClients() {
                       <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-28 rounded-full" /></TableCell>
                     </TableRow>
                   ))
                 ) : clients.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="py-14 text-center">
+                    <TableCell colSpan={6} className="py-14 text-center">
                       <Users className="h-9 w-9 mx-auto mb-3 text-muted-foreground/40" />
                       <p className="font-medium text-foreground">No clients assigned yet</p>
                       <p className="text-sm text-muted-foreground mt-1">
@@ -221,13 +259,14 @@ export default function AgentClients() {
                   </TableRow>
                 ) : filteredClients.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
                       No clients match &ldquo;{searchQuery}&rdquo;.
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredClients.map(client => {
                     const stageColor = STAGE_COLORS[client.pipeline_stage ?? ''] ?? 'bg-gray-100 text-gray-600 border-gray-200';
+                    const signoffStatus = signoffMap.get(client.id);
                     return (
                       <TableRow
                         key={client.id}
@@ -269,6 +308,31 @@ export default function AgentClients() {
                             : '—'}
                         </TableCell>
                         <TableCell className="text-sm">{client.phone || '—'}</TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          {signoffStatus === 'pending' ? (
+                            <div className="flex items-center gap-2">
+                              <Badge className="gap-1 bg-amber-500 text-white hover:bg-amber-500">
+                                <ShieldAlert className="h-3 w-3" />
+                                Review Required
+                              </Badge>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={markReviewed.isPending}
+                                onClick={() => markReviewed.mutate(client.id)}
+                              >
+                                Mark as Reviewed
+                              </Button>
+                            </div>
+                          ) : signoffStatus === 'reviewed' ? (
+                            <Badge className="gap-1 bg-green-600 text-white hover:bg-green-600">
+                              <ShieldCheck className="h-3 w-3" />
+                              Reviewed
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
                       </TableRow>
                     );
                   })

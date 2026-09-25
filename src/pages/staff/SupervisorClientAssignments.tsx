@@ -259,14 +259,37 @@ export default function SupervisorClientAssignments() {
 
   const createAssignment = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from('client_agent_assignments').insert({
-        client_id:   selectedClientId,
-        agent_id:    selectedAgentId,
-        assigned_by: user?.id,
-        is_primary:  isPrimary,
-        notes:       notes || null,
-      });
+      const { data: assignment, error } = await supabase
+        .from('client_agent_assignments')
+        .insert({
+          client_id:   selectedClientId,
+          agent_id:    selectedAgentId,
+          assigned_by: user?.id,
+          is_primary:  isPrimary,
+          notes:       notes || null,
+        })
+        .select('id')
+        .single();
       if (error) throw error;
+
+      const clientName = leadMap.get(selectedClientId)?.name ?? 'A client';
+
+      const { error: notifError } = await supabase.from('notifications').insert({
+        user_id: selectedAgentId,
+        title: 'New Client Assigned',
+        message: `${clientName} has been assigned to you. Please review their materials and sign off.`,
+        type: 'client_assignment',
+        action_url: '/staff/agent/clients',
+      });
+      if (notifError) throw notifError;
+
+      const { error: signoffError } = await supabase.from('client_assignment_signoffs').insert({
+        agent_id: selectedAgentId,
+        client_id: selectedClientId,
+        assignment_id: assignment.id,
+        status: 'pending',
+      });
+      if (signoffError) throw signoffError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['client-agent-assignments'] });
