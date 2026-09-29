@@ -8,21 +8,23 @@ import { WhiteLabelSidebar } from './WhiteLabelSidebar';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useWLPartnerId } from '@/hooks/wl/useWLPartnerId';
 
 export function WhiteLabelHeader() {
-  const { user } = useAuth();
+  const { data: partnerId } = useWLPartnerId();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
+    if (!partnerId) return;
+    // Resolved via the canonical profiles.wl_partner_id (useWLPartnerId),
+    // not a direct user_id match — works for any user tied to the partner.
     supabase
       .from('white_label_partners')
       .select('id, company_name')
-      .eq('user_id', user.id)
+      .eq('id', partnerId)
       .maybeSingle()
       .then(({ data: partner }) => {
         if (!partner) {
@@ -40,7 +42,7 @@ export function WhiteLabelHeader() {
             setIsLoading(false);
           });
       });
-  }, [user]);
+  }, [partnerId]);
 
   return (
     <header className="sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">

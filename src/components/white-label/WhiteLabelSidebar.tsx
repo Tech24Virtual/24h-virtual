@@ -3,21 +3,23 @@ import { ExternalLink } from 'lucide-react';
 import { DrilldownSidebar } from '@/components/navigation/DrilldownSidebar';
 import { whiteLabelNavGroups, whiteLabelRoot } from '@/config/whiteLabelNav';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useWLPartnerId } from '@/hooks/wl/useWLPartnerId';
 
 export function WhiteLabelSidebar() {
-  const { user } = useAuth();
+  const { data: partnerId } = useWLPartnerId();
   const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
   const [companyName, setCompanyName] = useState<string | undefined>(undefined);
   const [portalSlug, setPortalSlug] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
+    if (!partnerId) return;
+    // Resolved via the canonical profiles.wl_partner_id (useWLPartnerId),
+    // not a direct user_id match — works for any user tied to the partner.
     supabase
       .from('white_label_partners')
       .select('id, company_name, partner_slug')
-      .eq('user_id', user.id)
+      .eq('id', partnerId)
       .maybeSingle()
       .then(({ data: partner }) => {
         if (!partner) {
@@ -36,7 +38,7 @@ export function WhiteLabelSidebar() {
             setIsLoading(false);
           });
       });
-  }, [user]);
+  }, [partnerId]);
 
   return (
     <DrilldownSidebar

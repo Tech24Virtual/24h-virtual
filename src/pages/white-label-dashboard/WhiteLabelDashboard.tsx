@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useWLPartnerId } from "@/hooks/wl/useWLPartnerId";
 import { Link } from "react-router-dom";
 import { WLFulfillmentStatusCard } from "@/components/wl/WLFulfillmentStatusCard";
 import { WLPartnerReadinessCard } from "@/components/white-label/WLPartnerReadinessCard";
@@ -36,7 +36,7 @@ interface StatsData {
 }
 
 export default function WhiteLabelDashboard() {
-  const { user } = useAuth();
+  const { data: partnerId } = useWLPartnerId();
   const [stats, setStats] = useState<StatsData>({
     totalClients: 0,
     activeClients: 0,
@@ -50,17 +50,20 @@ export default function WhiteLabelDashboard() {
 
   useEffect(() => {
     fetchPartnerData();
-  }, [user]);
+  }, [partnerId]);
 
   const fetchPartnerData = async () => {
-    if (!user) return;
-    
+    if (!partnerId) return;
+
     try {
-      // Fetch partner info
+      // Fetch partner info — resolved via the canonical profiles.wl_partner_id
+      // (useWLPartnerId), not a direct user_id match, so this works for any
+      // user tied to the partner (owner or team member), not just whichever
+      // single auth user happens to be white_label_partners.user_id.
       const { data: partner } = await supabase
         .from('white_label_partners')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('id', partnerId)
         .maybeSingle();
 
       if (partner) {
