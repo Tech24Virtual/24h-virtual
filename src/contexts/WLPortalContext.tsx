@@ -72,6 +72,15 @@ export function WLPortalProvider({ children, partnerIdOverride }: WLPortalProvid
   const [clientLoading, setClientLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Immediately hide 24H branding on portal pages, before the branding
+  // fetch (a network round trip) resolves. The branding effect below
+  // overrides this with the partner's company name once it loads.
+  useEffect(() => {
+    const prev = document.title;
+    document.title = 'Client Portal';
+    return () => { document.title = prev; };
+  }, []);
+
   useEffect(() => {
     // If partner ID provided via hostname, skip slug-based resolution
     if (partnerIdOverride) {
