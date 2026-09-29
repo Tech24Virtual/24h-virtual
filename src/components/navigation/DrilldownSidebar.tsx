@@ -36,7 +36,7 @@ interface DrilldownSidebarProps {
 
 function BrandHeader({
   compact = false,
-  logoSrc = logoBlue,
+  logoSrc,
   logoAlt = '24H Virtual',
   logoHref = '/',
   badge,
