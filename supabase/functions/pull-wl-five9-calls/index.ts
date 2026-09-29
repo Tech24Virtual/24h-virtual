@@ -297,81 +297,24 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 3. Process each WL client mapping
+    // 3. Pull one report per day (Five9 caps a report at 50k records / 30MB, so a
+    // multi-week window fails), then route each day's rows to every WL client mapping.
     let hasErrors = false;
     let totalNewRows = 0;
-    const processedClients: string[] = [];
+    const processedClients = new Set<string>();
 
-    for (const cm of clientMappings) {
+    const days: string[] = [];
+    for (let d = new Date(`${period_start}T00:00:00Z`); d.toISOString().slice(0, 10) <= period_end!; d.setUTCDate(d.getUTCDate() + 1)) {
+      days.push(d.toISOString().slice(0, 10));
+    }
+
+    for (const day of days) {
+      let dayRows: Array<Record<string, string>>;
       try {
-        await supabase.from("mission_control_events").insert({
-          mission_id: mission.id,
-          agent_name: "WLFive9ReportAgent",
-          event_type: "step",
-          message: `Pulling report for WL client ${cm.wl_client_id} (campaign: ${cm.match_value})`,
-        });
-
-        const { identifier, sessionCookie } = await runReport("Campaign Reports", "Campaign Activity", period_start!, period_end!);
+        // Single-day window: start = day 00:00:00, end = day 23:59:59
+        const { identifier, sessionCookie } = await runReport("Campaign Reports", "Campaign Activity", day, day);
         await pollUntilReady(identifier, sessionCookie);
-        const csv = await getReportCsv(identifier, sessionCookie);
-
-        const csvRows = parseCsv(csv);
-        const mapped = csvRows
-          .map((r) => mapCsvRowToWlCallLog(r, cm.partner_id, cm.wl_client_id))
-          .filter(Boolean) as NonNullable<ReturnType<typeof mapCsvRowToWlCallLog>>[];
-        // Only keep rows whose CSV "Campaign" column matches this mapping's
-        // Five9 campaign name — the report itself isn't filtered server-side.
-        const records = mapped.filter((r) => !r._campaignName || r._campaignName === cm.match_value);
-
-        if (records.length === 0) {
-          await supabase.from("mission_control_events").insert({
-            mission_id: mission.id,
-            agent_name: "WLFive9ReportAgent",
-            event_type: "step",
-            message: `${cm.match_value}: CSV contained no matching rows for this campaign`,
-          });
-          processedClients.push(cm.wl_client_id);
-          continue;
-        }
-
-        // Skip records already captured (webhook or a previous pull)
-        const externalIds = records.map((r) => r.external_call_id).filter(Boolean) as string[];
-        const { data: existing } = await supabase
-          .from("wl_call_logs")
-          .select("external_call_id")
-          .in("external_call_id", externalIds);
-        const existingSet = new Set((existing || []).map((r: any) => r.external_call_id));
-        const newRecords = records
-          .filter((r) => !existingSet.has(r.external_call_id))
-          .map(({ _campaignName, ...insertable }) => insertable);
-
-        if (newRecords.length > 0) {
-          const { error: insertErr } = await supabase.from("wl_call_logs").insert(newRecords);
-          if (insertErr) throw insertErr;
-          totalNewRows += newRecords.length;
-        }
-
-        await supabase.from("mission_control_events").insert({
-          mission_id: mission.id,
-          agent_name: "WLFive9ReportAgent",
-          event_type: "step",
-          message: `${cm.match_value}: ${records.length} matching CSV rows, ${newRecords.length} new, ${records.length - newRecords.length} already in DB`,
-        });
-
-        await supabase.from("agent_runs").insert({
-          mission_id: mission.id,
-          agent_name: "WLFive9ReportAgent",
-          step_name: "pull_wl_report",
-          input_snapshot: { wl_client_id: cm.wl_client_id, campaign: cm.match_value, period_start, period_end },
-          output_snapshot: {
-            csv_rows: records.length,
-            new_rows: newRecords.length,
-            skipped: records.length - newRecords.length,
-          },
-          success: true,
-        });
-
-        processedClients.push(cm.wl_client_id);
+        dayRows = parseCsv(await getReportCsv(identifier, sessionCookie));
       } catch (err) {
         hasErrors = true;
         await Promise.all([
@@ -379,7 +322,7 @@ Deno.serve(async (req) => {
             mission_id: mission.id,
             agent_name: "WLFive9ReportAgent",
             step_name: "pull_wl_report",
-            input_snapshot: { wl_client_id: cm.wl_client_id, campaign: cm.match_value },
+            input_snapshot: { day },
             success: false,
             error_message: String(err),
           }),
@@ -387,32 +330,106 @@ Deno.serve(async (req) => {
             mission_id: mission.id,
             agent_name: "WLFive9ReportAgent",
             event_type: "error",
-            message: `Error for ${cm.match_value}: ${String(err).substring(0, 200)}`,
+            message: `Error pulling ${day}: ${String(err).substring(0, 200)}`,
           }),
         ]);
+        continue;
+      }
+
+      for (const cm of clientMappings) {
+        try {
+          const mapped = dayRows
+            .map((r) => mapCsvRowToWlCallLog(r, cm.partner_id, cm.wl_client_id))
+            .filter(Boolean) as NonNullable<ReturnType<typeof mapCsvRowToWlCallLog>>[];
+          // Only keep rows whose CSV "Campaign" column matches this mapping's
+          // Five9 campaign name — the report itself isn't filtered server-side.
+          const records = mapped.filter((r) => !r._campaignName || r._campaignName === cm.match_value);
+
+          if (records.length === 0) {
+            processedClients.add(cm.wl_client_id);
+            continue;
+          }
+
+          // Skip records already captured (webhook or a previous pull)
+          const externalIds = records.map((r) => r.external_call_id).filter(Boolean) as string[];
+          const { data: existing } = await supabase
+            .from("wl_call_logs")
+            .select("external_call_id")
+            .in("external_call_id", externalIds);
+          const existingSet = new Set((existing || []).map((r: any) => r.external_call_id));
+          const newRecords = records
+            .filter((r) => !existingSet.has(r.external_call_id))
+            .map(({ _campaignName, ...insertable }) => insertable);
+
+          if (newRecords.length > 0) {
+            const { error: insertErr } = await supabase.from("wl_call_logs").insert(newRecords);
+            if (insertErr) throw insertErr;
+            totalNewRows += newRecords.length;
+          }
+
+          await supabase.from("mission_control_events").insert({
+            mission_id: mission.id,
+            agent_name: "WLFive9ReportAgent",
+            event_type: "step",
+            message: `${day} ${cm.match_value}: ${records.length} matching CSV rows, ${newRecords.length} new, ${records.length - newRecords.length} already in DB`,
+          });
+
+          await supabase.from("agent_runs").insert({
+            mission_id: mission.id,
+            agent_name: "WLFive9ReportAgent",
+            step_name: "pull_wl_report",
+            input_snapshot: { wl_client_id: cm.wl_client_id, campaign: cm.match_value, day },
+            output_snapshot: {
+              csv_rows: records.length,
+              new_rows: newRecords.length,
+              skipped: records.length - newRecords.length,
+            },
+            success: true,
+          });
+
+          processedClients.add(cm.wl_client_id);
+        } catch (err) {
+          hasErrors = true;
+          await Promise.all([
+            supabase.from("agent_runs").insert({
+              mission_id: mission.id,
+              agent_name: "WLFive9ReportAgent",
+              step_name: "pull_wl_report",
+              input_snapshot: { wl_client_id: cm.wl_client_id, campaign: cm.match_value, day },
+              success: false,
+              error_message: String(err),
+            }),
+            supabase.from("mission_control_events").insert({
+              mission_id: mission.id,
+              agent_name: "WLFive9ReportAgent",
+              event_type: "error",
+              message: `Error for ${day} ${cm.match_value}: ${String(err).substring(0, 200)}`,
+            }),
+          ]);
+        }
       }
     }
 
     const finalStatus = hasErrors
-      ? processedClients.length > 0 ? "needs_review" : "error"
+      ? processedClients.size > 0 ? "needs_review" : "error"
       : "completed";
 
     await supabase.from("missions").update({
       status: finalStatus,
       error_flag: hasErrors,
       completed_at: new Date().toISOString(),
-      summary: `Pulled WL Five9 reports for ${processedClients.length}/${clientMappings.length} clients. ${totalNewRows} new call log rows added.`,
+      summary: `Pulled WL Five9 reports for ${processedClients.size}/${clientMappings.length} clients. ${totalNewRows} new call log rows added.`,
     }).eq("id", mission.id);
 
     await supabase.from("mission_control_events").insert({
       mission_id: mission.id,
       agent_name: "WLFive9ReportAgent",
       event_type: "finished",
-      message: `Pull ${finalStatus}. ${processedClients.length} clients processed, ${totalNewRows} new rows.`,
+      message: `Pull ${finalStatus}. ${processedClients.size} clients processed, ${totalNewRows} new rows.`,
     });
 
     return new Response(
-      JSON.stringify({ status: finalStatus, mission_id: mission.id, clients_processed: processedClients.length, new_rows: totalNewRows }),
+      JSON.stringify({ status: finalStatus, mission_id: mission.id, clients_processed: processedClients.size, new_rows: totalNewRows }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
