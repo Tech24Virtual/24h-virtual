@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileText, MessageSquarePlus, Clock } from 'lucide-react';
+import { FileText, MessageSquarePlus, MessageSquare, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { LegacyMigratedBanner } from '@/components/campaign-os/LegacyMigratedBanner';
 import { WLScriptChangeRequestDialog, changeTypeLabel } from '@/components/wl-portal/ScriptChangeRequestDialog';
+import { ScriptChangeRequestMessages } from '@/components/wl-portal/ScriptChangeRequestMessages';
 import { format } from 'date-fns';
 
 const REQUEST_STATUS_STYLES: Record<string, string> = {
@@ -25,13 +26,14 @@ function requestStatusLabel(status: string): string {
 }
 
 export default function WLPortalScripts() {
-  const { clientInfo, partnerId } = useWLPortal();
+  const { clientInfo, partnerId, branding } = useWLPortal();
   const { user } = useAuth();
   const [scripts, setScripts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [requests, setRequests] = useState<any[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(true);
   const [requestDialogScript, setRequestDialogScript] = useState<{ id: string; title: string } | null>(null);
+  const [messageThreadRequest, setMessageThreadRequest] = useState<{ id: string; title: string; forwardedTo24h: boolean } | null>(null);
 
   useEffect(() => {
     if (!clientInfo) return;
@@ -170,6 +172,16 @@ export default function WLPortalScripts() {
                             Reviewer note: {r.reviewer_notes}
                           </p>
                         )}
+                        <div className="mt-3">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setMessageThreadRequest({ id: r.id, title: r.title, forwardedTo24h: !!r.forwarded_to_24h })}
+                          >
+                            <MessageSquare className="w-4 h-4 mr-1.5" />
+                            Message Partner
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -191,6 +203,18 @@ export default function WLPortalScripts() {
         partnerId={partnerId}
         clientName={clientInfo?.contact_name || clientInfo?.client_name || 'A client'}
       />
+
+      {messageThreadRequest && (
+        <ScriptChangeRequestMessages
+          open={!!messageThreadRequest}
+          onOpenChange={(o) => { if (!o) setMessageThreadRequest(null); }}
+          requestId={messageThreadRequest.id}
+          requestTitle={messageThreadRequest.title}
+          viewerRole="wl_client"
+          forwardedTo24h={messageThreadRequest.forwardedTo24h}
+          otherPartyLabel={branding?.company_name || 'Partner'}
+        />
+      )}
     </WLPortalLayout>
   );
 }

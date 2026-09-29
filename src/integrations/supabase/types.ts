@@ -20338,11 +20338,47 @@ export type Database = {
           },
         ]
       }
+      script_change_request_messages: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          request_id: string
+          sender_id: string
+          visible_to: string[]
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          request_id: string
+          sender_id: string
+          visible_to?: string[]
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          request_id?: string
+          sender_id?: string
+          visible_to?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "script_change_request_messages_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "script_change_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       script_change_requests: {
         Row: {
           client_id: string
           created_at: string
           description: string | null
+          forwarded_to_24h: boolean
           id: string
           proposed_changes: Json | null
           request_type: string
@@ -20360,6 +20396,7 @@ export type Database = {
           client_id: string
           created_at?: string
           description?: string | null
+          forwarded_to_24h?: boolean
           id?: string
           proposed_changes?: Json | null
           request_type?: string
@@ -20377,6 +20414,7 @@ export type Database = {
           client_id?: string
           created_at?: string
           description?: string | null
+          forwarded_to_24h?: boolean
           id?: string
           proposed_changes?: Json | null
           request_type?: string

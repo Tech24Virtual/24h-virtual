@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, CalendarClock, CheckCircle2, Circle, ExternalLink, Star, Forward, XCircle } from 'lucide-react';
+import { ArrowLeft, CalendarClock, CheckCircle2, Circle, ExternalLink, Forward, MessageSquare, XCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,7 @@ import { useWLPartnerId } from '@/hooks/wl/useWLPartnerId';
 import { ClientCoverageCard } from '@/components/coverage/ClientCoverageCard';
 import { SendBookingLinkDialog } from '@/components/bookii/SendBookingLinkDialog';
 import { changeTypeLabel } from '@/components/wl-portal/ScriptChangeRequestDialog';
+import { ScriptChangeRequestMessages } from '@/components/wl-portal/ScriptChangeRequestMessages';
 
 const SCRIPT_REQUEST_STATUS_STYLES: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
@@ -43,6 +44,7 @@ export default function WLClientDetail() {
   const [slugInput, setSlugInput] = useState('');
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [bookingLinkOpen, setBookingLinkOpen] = useState(false);
+  const [messageThreadRequest, setMessageThreadRequest] = useState<{ id: string; title: string; forwardedTo24h: boolean } | null>(null);
 
   const { data: partnerId } = useWLPartnerId();
 
@@ -189,22 +191,6 @@ export default function WLClientDetail() {
     enabled: !!id,
   });
 
-  // Fetch reviews submitted for this client
-  const { data: clientReviews, isLoading: reviewsLoading } = useQuery({
-    queryKey: ['wl-client-reviews', id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('wl_client_reviews')
-        .select('id, reviewer_name, rating, title, content, is_public, created_at')
-        .eq('wl_client_id', id!)
-        .order('created_at', { ascending: false })
-        .limit(10);
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!id,
-  });
-
   // Fetch business hours schedule for this client
   const { data: clientSchedule, isLoading: scheduleLoading } = useQuery({
     queryKey: ['wl-client-schedule', id],
@@ -226,7 +212,7 @@ export default function WLClientDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('script_change_requests')
-        .select('id, request_type, title, description, status, reviewer_notes, created_at')
+        .select('id, request_type, title, description, status, reviewer_notes, created_at, forwarded_to_24h')
         .eq('wl_client_id', id!)
         .order('created_at', { ascending: false })
         .limit(20);
@@ -236,10 +222,11 @@ export default function WLClientDetail() {
     enabled: !!id,
   });
 
+  // WL Partners cannot approve script changes themselves — approval requires
+  // 24H Virtual to be notified first via "Forward to 24H".
   const scriptRequestActionMutation = useMutation({
-    mutationFn: async ({ requestId, action }: { requestId: string; action: 'approved' | 'in_review' | 'rejected' }) => {
+    mutationFn: async ({ requestId, action }: { requestId: string; action: 'in_review' | 'rejected' }) => {
       const notesByAction: Record<typeof action, string> = {
-        approved: 'Approved by partner.',
         in_review: 'Forwarded to 24H Virtual for review.',
         rejected: 'Rejected by partner.',
       };
@@ -248,11 +235,33 @@ export default function WLClientDetail() {
         reviewed_by: user?.id ?? null,
         reviewer_notes: notesByAction[action],
       };
-      if (action === 'approved' || action === 'rejected') {
+      if (action === 'in_review') {
+        updates.forwarded_to_24h = true;
+      }
+      if (action === 'rejected') {
         updates.resolved_at = new Date().toISOString();
       }
       const { error } = await supabase.from('script_change_requests').update(updates).eq('id', requestId);
       if (error) throw error;
+
+      // Forwarding exposes the full private thread history to 24H Virtual —
+      // update every existing message's visible_to so nothing is missed.
+      if (action === 'in_review') {
+        const { data: existingMessages } = await supabase
+          .from('script_change_request_messages')
+          .select('id')
+          .eq('request_id', requestId);
+        if (existingMessages?.length) {
+          await Promise.all(
+            existingMessages.map((m) =>
+              supabase
+                .from('script_change_request_messages')
+                .update({ visible_to: ['wl_client', 'white_label', '24h'] })
+                .eq('id', m.id)
+            )
+          );
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['wl-client-script-requests', id] });
@@ -352,17 +361,6 @@ export default function WLClientDetail() {
   };
 
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-  const reviewStars = (rating: number) => (
-    <div className="flex gap-0.5">
-      {[1, 2, 3, 4, 5].map((n) => (
-        <Star
-          key={n}
-          className={`w-4 h-4 ${n <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`}
-        />
-      ))}
-    </div>
-  );
 
   return (
     <>
@@ -603,53 +601,6 @@ export default function WLClientDetail() {
           </CardContent>
         </Card>
 
-        {/* Client reviews */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Client Reviews</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {reviewsLoading ? (
-              <Skeleton className="h-24 w-full" />
-            ) : !clientReviews || clientReviews.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No reviews from this client yet.
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {clientReviews.map((review) => (
-                  <div key={review.id} className="py-3 border-b last:border-0">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          {reviewStars(review.rating)}
-                          {review.is_public ? (
-                            <Badge variant="secondary" className="text-xs">Public</Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-xs">Private</Badge>
-                          )}
-                        </div>
-                        {review.title && (
-                          <p className="font-medium mt-1">{review.title}</p>
-                        )}
-                        <p className="text-sm text-muted-foreground mt-0.5">
-                          {review.reviewer_name || 'Anonymous'}
-                        </p>
-                      </div>
-                      <p className="text-xs text-muted-foreground shrink-0">
-                        {new Date(review.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    {review.content && (
-                      <p className="text-sm mt-2 line-clamp-2">{review.content}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Script change requests */}
         <Card>
           <CardHeader>
@@ -689,40 +640,40 @@ export default function WLClientDetail() {
                       {req.reviewer_notes && (
                         <p className="text-xs text-muted-foreground mt-2 border-t pt-2">{req.reviewer_notes}</p>
                       )}
-                      {isActionable && (
-                        <div className="flex gap-2 mt-3">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-green-700 border-green-200 hover:bg-green-50 dark:text-green-400"
-                            disabled={isPending}
-                            onClick={() => scriptRequestActionMutation.mutate({ requestId: req.id, action: 'approved' })}
-                          >
-                            <CheckCircle2 className="w-4 h-4 mr-1.5" />
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-blue-700 border-blue-200 hover:bg-blue-50 dark:text-blue-400"
-                            disabled={isPending}
-                            onClick={() => scriptRequestActionMutation.mutate({ requestId: req.id, action: 'in_review' })}
-                          >
-                            <Forward className="w-4 h-4 mr-1.5" />
-                            Forward to 24H
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-destructive border-destructive/30 hover:bg-destructive/10"
-                            disabled={isPending}
-                            onClick={() => scriptRequestActionMutation.mutate({ requestId: req.id, action: 'rejected' })}
-                          >
-                            <XCircle className="w-4 h-4 mr-1.5" />
-                            Reject
-                          </Button>
-                        </div>
-                      )}
+                      <div className="flex gap-2 mt-3 flex-wrap">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setMessageThreadRequest({ id: req.id, title: req.title, forwardedTo24h: !!req.forwarded_to_24h })}
+                        >
+                          <MessageSquare className="w-4 h-4 mr-1.5" />
+                          Message Client
+                        </Button>
+                        {isActionable && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-blue-700 border-blue-200 hover:bg-blue-50 dark:text-blue-400"
+                              disabled={isPending}
+                              onClick={() => scriptRequestActionMutation.mutate({ requestId: req.id, action: 'in_review' })}
+                            >
+                              <Forward className="w-4 h-4 mr-1.5" />
+                              Forward to 24H
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                              disabled={isPending}
+                              onClick={() => scriptRequestActionMutation.mutate({ requestId: req.id, action: 'rejected' })}
+                            >
+                              <XCircle className="w-4 h-4 mr-1.5" />
+                              Reject
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -810,6 +761,18 @@ export default function WLClientDetail() {
         recipientName={client.contact_name || client.client_name}
         wlClientId={client.id}
       />
+
+      {messageThreadRequest && (
+        <ScriptChangeRequestMessages
+          open={!!messageThreadRequest}
+          onOpenChange={(o) => { if (!o) setMessageThreadRequest(null); }}
+          requestId={messageThreadRequest.id}
+          requestTitle={messageThreadRequest.title}
+          viewerRole="white_label"
+          forwardedTo24h={messageThreadRequest.forwardedTo24h}
+          otherPartyLabel={client.contact_name || client.client_name}
+        />
+      )}
     </>
   );
 }

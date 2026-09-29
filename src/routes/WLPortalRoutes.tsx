@@ -17,7 +17,6 @@ const WLPortalSettings = lazy(() => import("@/pages/wl-portal/WLPortalSettings")
 const WLPortalOutboundRequests = lazy(() => import("@/pages/wl-portal/WLPortalOutboundRequests"));
 const WLPortalActivity = lazy(() => import("@/pages/wl-portal/WLPortalActivity"));
 const WLPortalLeads = lazy(() => import("@/pages/wl-portal/WLPortalLeads"));
-const WLPortalReviews = lazy(() => import("@/pages/wl-portal/WLPortalReviews"));
 const WLPortalCampaigns = lazy(() => import("@/pages/wl-portal/WLPortalCampaigns"));
 const WLPortalAdminCampaigns = lazy(() => import("@/pages/wl-portal/WLPortalAdminCampaigns"));
 const WLPortalAdminCampaignDetail = lazy(() => import("@/pages/wl-portal/WLPortalAdminCampaignDetail"));
@@ -73,7 +72,6 @@ export const WLPortalRoutes = (
     <Route path="/portal/:slug/outbound-requests" element={wrap(<WLPortalOutboundRequests />, 'outbound-requests')} />
     <Route path="/portal/:slug/activity" element={wrap(<WLPortalActivity />, 'activity')} />
     <Route path="/portal/:slug/leads" element={wrap(<WLPortalLeads />, 'leads')} />
-    <Route path="/portal/:slug/reviews" element={wrap(<WLPortalReviews />, 'reviews')} />
     <Route path="/portal/:slug/campaigns" element={wrap(<WLPortalCampaigns />, 'campaigns')} />
     <Route path="/portal/:slug/script" element={wrap(<WLPortalCampaignScript />, 'scripts')} />
     <Route path="/portal/:slug/admin/campaigns" element={wrap(<WLPortalAdminCampaigns />)} />

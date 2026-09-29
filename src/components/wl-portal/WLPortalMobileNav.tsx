@@ -10,7 +10,6 @@ import {
   Settings,
   Activity,
   Users,
-  Star,
   Megaphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -37,7 +36,6 @@ export function WLPortalMobileNav({ onClose }: WLPortalMobileNavProps) {
     { name: 'My Campaign', href: wlClientUrl(slug, 'script'), icon: Megaphone, module: 'scripts' },
     { name: 'Schedule', href: wlClientUrl(slug, 'schedule'), icon: Calendar, module: 'schedule' },
     { name: 'Outbound Calls', href: wlClientUrl(slug, 'outbound-requests'), icon: PhoneOutgoing, module: 'outbound-requests' },
-    { name: 'Reviews', href: wlClientUrl(slug, 'reviews'), icon: Star, module: 'reviews' },
     { name: 'Campaigns', href: wlClientUrl(slug, 'campaigns'), icon: Megaphone, module: 'campaigns' },
     { name: 'Billing', href: wlClientUrl(slug, 'billing'), icon: CreditCard, module: 'billing' },
     { name: 'Support', href: wlClientUrl(slug, 'support'), icon: LifeBuoy, module: 'support' },

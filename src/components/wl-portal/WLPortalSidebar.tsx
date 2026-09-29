@@ -10,7 +10,6 @@ import {
   LifeBuoy,
   Settings,
   Users,
-  Star,
   Megaphone,
 } from 'lucide-react';
 import { DrilldownSidebar } from '@/components/navigation/DrilldownSidebar';
@@ -38,7 +37,6 @@ export function WLPortalSidebar() {
 
     const billingChildren: NavChild[] = [];
     if (enabled('billing')) billingChildren.push({ name: 'Billing', href: wlClientUrl(slug, 'billing') });
-    if (enabled('reviews')) billingChildren.push({ name: 'Reviews', href: wlClientUrl(slug, 'reviews') });
 
     const groups: NavGroup[] = [];
 
