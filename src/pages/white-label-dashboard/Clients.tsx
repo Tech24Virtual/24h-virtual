@@ -60,7 +60,8 @@ export default function WhiteLabelClients() {
   const [newClient, setNewClient] = useState({
     client_name: "", contact_name: "", email: "", phone: "",
     service_type: "virtual_receptionist", language_support: "english_only",
-    monthly_value: "",
+    monthly_value: "", overage_fee_per_minute: "", setup_fee: "",
+    timezone: "America/Toronto", hours_of_service: "24/7",
   });
 
   useEffect(() => { fetchPartnerAndClients(); }, [user]);
@@ -90,6 +91,10 @@ export default function WhiteLabelClients() {
         service_type: newClient.service_type,
         language_support: newClient.language_support,
         monthly_value: Number(newClient.monthly_value) || 0,
+        overage_fee_per_minute: Number(newClient.overage_fee_per_minute) || 0,
+        setup_fee: Number(newClient.setup_fee) || 0,
+        timezone: newClient.timezone,
+        hours_of_service: newClient.hours_of_service,
         status: 'pending_setup',
       }).select('id').single();
       if (error || !inserted) throw error ?? new Error('Failed to create client');
@@ -109,7 +114,12 @@ export default function WhiteLabelClients() {
         toast({ title: "Client Added", description: "New client has been successfully added." });
       }
       setIsAddDialogOpen(false);
-      setNewClient({ client_name: "", contact_name: "", email: "", phone: "", service_type: "virtual_receptionist", language_support: "english_only", monthly_value: "" });
+      setNewClient({
+        client_name: "", contact_name: "", email: "", phone: "",
+        service_type: "virtual_receptionist", language_support: "english_only",
+        monthly_value: "", overage_fee_per_minute: "", setup_fee: "",
+        timezone: "America/Toronto", hours_of_service: "24/7",
+      });
       fetchPartnerAndClients();
     } catch (error) {
       console.error("Error adding client:", error);
@@ -197,6 +207,48 @@ export default function WhiteLabelClients() {
                   <Label>Your Monthly Rate to Client ($)</Label>
                   <Input type="number" placeholder="What you charge this client" value={newClient.monthly_value}
                     onChange={e => setNewClient(p => ({ ...p, monthly_value: e.target.value }))} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Overage Fee</Label>
+                    <Input type="number" step="0.01" min="0" placeholder="$/min overage rate" value={newClient.overage_fee_per_minute}
+                      onChange={e => setNewClient(p => ({ ...p, overage_fee_per_minute: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Setup Fee</Label>
+                    <Input type="number" step="0.01" min="0" placeholder="One-time setup fee ($)" value={newClient.setup_fee}
+                      onChange={e => setNewClient(p => ({ ...p, setup_fee: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Timezone</Label>
+                    <Select value={newClient.timezone} onValueChange={v => setNewClient(p => ({ ...p, timezone: v }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="America/Toronto">America/Toronto</SelectItem>
+                        <SelectItem value="America/New_York">America/New_York</SelectItem>
+                        <SelectItem value="America/Chicago">America/Chicago</SelectItem>
+                        <SelectItem value="America/Denver">America/Denver</SelectItem>
+                        <SelectItem value="America/Los_Angeles">America/Los_Angeles</SelectItem>
+                        <SelectItem value="America/Vancouver">America/Vancouver</SelectItem>
+                        <SelectItem value="America/Edmonton">America/Edmonton</SelectItem>
+                        <SelectItem value="Pacific/Honolulu">Pacific/Honolulu</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Hours of Service</Label>
+                    <Select value={newClient.hours_of_service} onValueChange={v => setNewClient(p => ({ ...p, hours_of_service: v }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="24/7">24/7</SelectItem>
+                        <SelectItem value="Business Hours (9am-5pm)">Business Hours (9am-5pm)</SelectItem>
+                        <SelectItem value="Extended Hours (8am-8pm)">Extended Hours (8am-8pm)</SelectItem>
+                        <SelectItem value="Custom">Custom</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <Button onClick={handleAddClient} className="w-full">Add Client</Button>
               </div>

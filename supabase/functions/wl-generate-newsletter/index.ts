@@ -30,7 +30,7 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
     if (authError || !user) throw new Error("Unauthorized");
 
-    const { partner_id, draft_month } = await req.json();
+    const { partner_id, draft_month, context } = await req.json();
     if (!partner_id || !draft_month) throw new Error("partner_id and draft_month are required");
 
     // Get partner info
@@ -78,6 +78,7 @@ ${postSummaries}
 Company: ${companyName}
 Services: ${partner?.services_offered || "virtual receptionist services"}
 Brand voice: ${partner?.brand_voice_notes || "professional and helpful"}
+${context ? `\nContext from the sender — key topics, promotions, audience, and tone to prioritize:\n${context}\n` : ""}
 
 Return valid JSON (no markdown fences):
 {

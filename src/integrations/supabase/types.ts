@@ -22568,6 +22568,7 @@ export type Database = {
       white_label_branding: {
         Row: {
           accent_color: string | null
+          bookii_booking_url: string | null
           cname_last_checked_at: string | null
           cname_status: string | null
           cname_verified_at: string | null
@@ -22598,6 +22599,7 @@ export type Database = {
         }
         Insert: {
           accent_color?: string | null
+          bookii_booking_url?: string | null
           cname_last_checked_at?: string | null
           cname_status?: string | null
           cname_verified_at?: string | null
@@ -22628,6 +22630,7 @@ export type Database = {
         }
         Update: {
           accent_color?: string | null
+          bookii_booking_url?: string | null
           cname_last_checked_at?: string | null
           cname_status?: string | null
           cname_verified_at?: string | null
@@ -22766,16 +22769,20 @@ export type Database = {
           created_at: string | null
           email: string
           enabled_modules: Json | null
+          hours_of_service: string | null
           id: string
           language_support: string
           monthly_value: number | null
           num_campaigns: number
+          overage_fee_per_minute: number | null
           partner_id: string
           phone: string | null
           plan: string | null
           plan_id: string | null
           service_type: string
+          setup_fee: number | null
           status: string | null
+          timezone: string | null
           updated_at: string | null
           user_id: string | null
           verified_by: string | null
@@ -22789,16 +22796,20 @@ export type Database = {
           created_at?: string | null
           email: string
           enabled_modules?: Json | null
+          hours_of_service?: string | null
           id?: string
           language_support?: string
           monthly_value?: number | null
           num_campaigns?: number
+          overage_fee_per_minute?: number | null
           partner_id: string
           phone?: string | null
           plan?: string | null
           plan_id?: string | null
           service_type?: string
+          setup_fee?: number | null
           status?: string | null
+          timezone?: string | null
           updated_at?: string | null
           user_id?: string | null
           verified_by?: string | null
@@ -22812,16 +22823,20 @@ export type Database = {
           created_at?: string | null
           email?: string
           enabled_modules?: Json | null
+          hours_of_service?: string | null
           id?: string
           language_support?: string
           monthly_value?: number | null
           num_campaigns?: number
+          overage_fee_per_minute?: number | null
           partner_id?: string
           phone?: string | null
           plan?: string | null
           plan_id?: string | null
           service_type?: string
+          setup_fee?: number | null
           status?: string | null
+          timezone?: string | null
           updated_at?: string | null
           user_id?: string | null
           verified_by?: string | null

@@ -155,7 +155,7 @@ export default function WLTasks() {
   return (
     <>
       <SEO title="Tasks — White Label Dashboard" description="Partner tasks and reminders" suppressBranding />
-      <div className="space-y-6 max-w-6xl">
+      <div className="space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-bold">Tasks</h1>

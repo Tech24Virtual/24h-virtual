@@ -1,6 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -88,6 +90,8 @@ export default function GrowthHubNewsletter() {
   const [selectedMonth, setSelectedMonth] = useState(monthOptions[0]?.value || "");
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"preview" | "html">("preview");
+  const [context, setContext] = useState("");
+  const MIN_CONTEXT_LENGTH = 20;
 
   const { data: partner } = useQuery({
     queryKey: ["wl-partner", user?.id],
@@ -115,7 +119,7 @@ export default function GrowthHubNewsletter() {
   const generateMutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("wl-generate-newsletter", {
-        body: { partner_id: partner!.id, draft_month: selectedMonth },
+        body: { partner_id: partner!.id, draft_month: selectedMonth, context: context.trim() },
       });
       if (error) throw error;
       if (data?.error) throw new Error(typeof data.error === 'string' ? data.error : data.error?.message ?? 'Unknown error');
@@ -158,24 +162,44 @@ export default function GrowthHubNewsletter() {
             <CardTitle className="text-lg">Generate Newsletter</CardTitle>
             <CardDescription>Select a month to create a newsletter from that month's blog posts.</CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-3">
-            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-              <SelectTrigger className="w-[220px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {monthOptions.map(m => (
-                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending}>
-              {generateMutation.isPending ? (
-                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating...</>
-              ) : (
-                <><Mail className="w-4 h-4 mr-2" /> Generate Newsletter</>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="newsletter-context">Context *</Label>
+              <Textarea
+                id="newsletter-context"
+                value={context}
+                onChange={(e) => setContext(e.target.value)}
+                placeholder="Describe what this newsletter should cover — key topics, promotions, audience, tone..."
+                rows={3}
+              />
+              {context.trim().length > 0 && context.trim().length < MIN_CONTEXT_LENGTH && (
+                <p className="text-xs text-muted-foreground">
+                  {MIN_CONTEXT_LENGTH - context.trim().length} more characters needed
+                </p>
               )}
-            </Button>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {monthOptions.map(m => (
+                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                onClick={() => generateMutation.mutate()}
+                disabled={generateMutation.isPending || context.trim().length < MIN_CONTEXT_LENGTH}
+              >
+                {generateMutation.isPending ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating...</>
+                ) : (
+                  <><Mail className="w-4 h-4 mr-2" /> Generate Newsletter</>
+                )}
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

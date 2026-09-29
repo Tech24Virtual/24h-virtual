@@ -373,7 +373,7 @@ export default function WLCustomDomain() {
 
   return (
     <>
-      <div className="space-y-6 max-w-4xl">
+      <div className="space-y-6">
         {/* Header */}
         <div className="space-y-2">
           <Button variant="ghost" size="sm" asChild className="-ml-2 h-8">

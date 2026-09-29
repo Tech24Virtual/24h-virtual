@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Palette, Save, Globe, Upload, Building, Mail, Phone, CheckCircle, AlertCircle, Clock, RefreshCw, Eye, Type, Monitor, ImageIcon, X, LayoutDashboard, FileText, Calendar, CreditCard, LifeBuoy, Settings as SettingsIcon, User, LogOut } from "lucide-react";
+import { Palette, Save, Globe, Upload, Building, Mail, Phone, CheckCircle, AlertCircle, Clock, RefreshCw, Eye, Type, Monitor, ImageIcon, X, LayoutDashboard, FileText, Calendar, CreditCard, LifeBuoy, Settings as SettingsIcon, User, LogOut, CalendarClock, Copy, Check } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,7 @@ interface BrandingData {
   portal_footer_text: string;
   powered_by_visible: boolean;
   cname_status: string;
+  bookii_booking_url: string;
 }
 
 const HEX_COLOR_RE = /^#[0-9A-Fa-f]{6}$/;
@@ -65,7 +66,9 @@ export default function WhiteLabelBranding() {
     favicon_url: "", login_page_title: "Client Portal", welcome_message: "",
     sidebar_style: "light", font_heading: "", font_body: "",
     portal_footer_text: "", powered_by_visible: true, cname_status: "pending",
+    bookii_booking_url: "",
   });
+  const [bookingUrlCopied, setBookingUrlCopied] = useState(false);
 
   useEffect(() => { fetchBranding(); }, [user]);
 
@@ -90,6 +93,7 @@ export default function WhiteLabelBranding() {
             font_heading: d.font_heading || "", font_body: d.font_body || "",
             portal_footer_text: d.portal_footer_text || "", powered_by_visible: d.powered_by_visible ?? true,
             cname_status: d.cname_status || "pending",
+            bookii_booking_url: d.bookii_booking_url || "",
           });
         }
       }
@@ -445,6 +449,37 @@ export default function WhiteLabelBranding() {
                   </div>
                   <Switch checked={branding.powered_by_visible} onCheckedChange={v => handleChange("powered_by_visible", v)} />
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Booking (Bookii) */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><CalendarClock className="w-5 h-5 text-primary" />Client Booking</CardTitle>
+                <CardDescription>Share your Bookii booking link so clients can schedule time with you directly</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Booking Page URL</Label>
+                  <Input
+                    value={branding.bookii_booking_url}
+                    onChange={e => handleChange("bookii_booking_url", e.target.value)}
+                    placeholder="https://bookii.example.com/your-page"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!branding.bookii_booking_url}
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(branding.bookii_booking_url);
+                    setBookingUrlCopied(true);
+                    setTimeout(() => setBookingUrlCopied(false), 2000);
+                  }}
+                >
+                  {bookingUrlCopied ? <><Check className="w-3.5 h-3.5 mr-1.5" />Copied</> : <><Copy className="w-3.5 h-3.5 mr-1.5" />Share Booking Link</>}
+                </Button>
               </CardContent>
             </Card>
 
