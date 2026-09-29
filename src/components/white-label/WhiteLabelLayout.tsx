@@ -100,6 +100,17 @@ export function WhiteLabelLayout({ children }: { children?: React.ReactNode }) {
     },
   });
 
+  // Set the tab title imperatively (in addition to the Helmet tag below) so
+  // it can't be left showing a stale value if something else mutates
+  // document.title directly outside Helmet's own tracking (e.g. a WL Portal
+  // page's cleanup effect running earlier in the same browser session).
+  useEffect(() => {
+    if (!branding?.company_name) return;
+    const prev = document.title;
+    document.title = branding.company_name;
+    return () => { document.title = prev; };
+  }, [branding?.company_name]);
+
   useEffect(() => {
     if (!branding?.favicon_url) return;
     const existing = document.querySelectorAll("link[rel*='icon']");
