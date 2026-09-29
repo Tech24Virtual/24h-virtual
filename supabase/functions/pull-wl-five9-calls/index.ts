@@ -225,18 +225,18 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    let body: { period_start?: string; period_end?: string; match_value?: string; partner_id?: string } = {};
+    let body: { period_start?: string; period_end?: string; match_value?: string; partner_id?: string; days_back?: number } = {};
     try { body = await req.json(); } catch { /* no body */ }
 
     let { period_start, period_end } = body;
-    const { match_value: filterMatchValue, partner_id: filterPartnerId } = body;
+    const { match_value: filterMatchValue, partner_id: filterPartnerId, days_back } = body;
 
     if (!period_start || !period_end) {
-      // Default: last 30 days
+      // Default: last 30 days, or days_back if provided (e.g. a 90-day backfill)
       const now = new Date();
       period_end = now.toISOString().slice(0, 10);
       const start = new Date(now);
-      start.setUTCDate(start.getUTCDate() - 30);
+      start.setUTCDate(start.getUTCDate() - (days_back && days_back > 0 ? days_back : 30));
       period_start = start.toISOString().slice(0, 10);
     }
 
