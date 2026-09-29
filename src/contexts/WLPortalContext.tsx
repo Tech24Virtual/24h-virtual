@@ -52,7 +52,7 @@ const WLPortalContext = createContext<WLPortalContextType | undefined>(undefined
 // Deduplicates concurrent fetches for the same key (handles React StrictMode double-invocation).
 // Without this, both in-flight fetches complete with separate object references, causing
 // the branding effect to re-run a second time (cleanup → setup) which briefly resets
-// document.title to 'Client Portal' before re-applying the partner name.
+// document.title to '24H Virtual' before re-applying the partner name.
 // Keyed 'slug:<slug>' or 'id:<partnerId>'. Entry removed after the request settles.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const _inflight = new Map<string, Promise<any>>();
@@ -193,7 +193,6 @@ export function WLPortalProvider({ children, partnerIdOverride }: WLPortalProvid
     const root = document.documentElement;
 
     // document.title
-    const previousTitle = document.title;
     document.title = branding.company_name || 'Client Portal';
 
     // Favicon (with restore)
@@ -256,7 +255,14 @@ export function WLPortalProvider({ children, partnerIdOverride }: WLPortalProvid
     if (branding.font_body) root.style.setProperty('--wl-font-body', `'${branding.font_body}', sans-serif`);
 
     return () => {
-      document.title = previousTitle;
+      // Note: every /portal/:slug/* route wraps its own WLPortalProvider
+      // instance (WLPortalRoutes.tsx has no shared layout route), so this
+      // cleanup fires on every in-portal navigation, not just when truly
+      // leaving the portal. Resetting to a fixed fallback here (rather than
+      // a stale "previousTitle" captured before branding first loaded)
+      // avoids the title getting stuck on whatever the very first page's
+      // pre-branding title happened to be.
+      document.title = '24H Virtual';
 
       if (faviconCreated) faviconLink?.remove();
       else if (faviconLink && previousFaviconHref !== null) faviconLink.href = previousFaviconHref;
