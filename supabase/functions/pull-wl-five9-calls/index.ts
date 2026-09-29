@@ -232,11 +232,13 @@ Deno.serve(async (req) => {
     const { match_value: filterMatchValue, partner_id: filterPartnerId, days_back } = body;
 
     if (!period_start || !period_end) {
-      // Default: last 30 days, or days_back if provided (e.g. a 90-day backfill)
+      // Default: last 30 days. Capped at 60 — Five9 only retains 60 days of
+      // rolling history, so requesting further back 500s on their end.
       const now = new Date();
       period_end = now.toISOString().slice(0, 10);
       const start = new Date(now);
-      start.setUTCDate(start.getUTCDate() - (days_back && days_back > 0 ? days_back : 30));
+      const effectiveDaysBack = Math.min(days_back && days_back > 0 ? days_back : 30, 60);
+      start.setUTCDate(start.getUTCDate() - effectiveDaysBack);
       period_start = start.toISOString().slice(0, 10);
     }
 
