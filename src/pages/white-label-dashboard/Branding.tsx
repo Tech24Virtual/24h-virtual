@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -48,6 +49,7 @@ const GOOGLE_FONTS = [
 export default function WhiteLabelBranding() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -121,6 +123,7 @@ export default function WhiteLabelBranding() {
         const { error } = await supabase.from('white_label_branding').insert({ ...payload, partner_id: partnerId });
         if (error) throw error;
       }
+      queryClient.invalidateQueries({ queryKey: ['wl-partner-branding', partnerId] });
       toast({ title: "Branding Saved" });
     } catch (error) {
       toast({ title: "Error", description: "Failed to save branding.", variant: "destructive" });

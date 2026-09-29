@@ -217,6 +217,16 @@ export default function SupervisorAgentDetail() {
 
   const assignClient = useMutation({
     mutationFn: async (clientId: string) => {
+      const { data: existing } = await supabase
+        .from('client_agent_assignments')
+        .select('id')
+        .eq('agent_id', userId!)
+        .eq('client_id', clientId)
+        .maybeSingle();
+      if (existing) {
+        throw new Error('This client is already assigned to this agent.');
+      }
+
       const { data: assignment, error } = await supabase
         .from('client_agent_assignments')
         .insert({ client_id: clientId, agent_id: userId!, assigned_by: user?.id })
@@ -235,12 +245,12 @@ export default function SupervisorAgentDetail() {
       });
       if (notifError) throw notifError;
 
-      const { error: signoffError } = await supabase.from('client_assignment_signoffs').insert({
+      const { error: signoffError } = await supabase.from('client_assignment_signoffs').upsert({
         agent_id: userId!,
         client_id: clientId,
         assignment_id: assignment.id,
         status: 'pending',
-      });
+      }, { onConflict: 'agent_id,client_id', ignoreDuplicates: true });
       if (signoffError) throw signoffError;
     },
     onSuccess: () => {
@@ -250,7 +260,7 @@ export default function SupervisorAgentDetail() {
       setSelectedLead('');
       toast.success('Client assigned');
     },
-    onError: () => toast.error('Failed to assign client'),
+    onError: (err: Error) => toast.error(err.message || 'Failed to assign client'),
   });
 
   // ── Render ─────────────────────────────────────────────────────────────────

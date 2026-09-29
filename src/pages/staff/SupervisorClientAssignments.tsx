@@ -259,6 +259,16 @@ export default function SupervisorClientAssignments() {
 
   const createAssignment = useMutation({
     mutationFn: async () => {
+      const { data: existing } = await supabase
+        .from('client_agent_assignments')
+        .select('id')
+        .eq('agent_id', selectedAgentId)
+        .eq('client_id', selectedClientId)
+        .maybeSingle();
+      if (existing) {
+        throw new Error('This client is already assigned to this agent.');
+      }
+
       const { data: assignment, error } = await supabase
         .from('client_agent_assignments')
         .insert({
@@ -283,12 +293,12 @@ export default function SupervisorClientAssignments() {
       });
       if (notifError) throw notifError;
 
-      const { error: signoffError } = await supabase.from('client_assignment_signoffs').insert({
+      const { error: signoffError } = await supabase.from('client_assignment_signoffs').upsert({
         agent_id: selectedAgentId,
         client_id: selectedClientId,
         assignment_id: assignment.id,
         status: 'pending',
-      });
+      }, { onConflict: 'agent_id,client_id', ignoreDuplicates: true });
       if (signoffError) throw signoffError;
     },
     onSuccess: () => {
