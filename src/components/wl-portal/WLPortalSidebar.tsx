@@ -74,7 +74,7 @@ export function WLPortalSidebar() {
       groups={groups}
       rootPath={wlClientUrl(slug)}
       brandTag={branding?.company_name || 'Client Portal'}
-      roleLabel="Client"
+      roleLabel=""
       logoSrc={branding?.logo_url || undefined}
       logoAlt={branding?.company_name || 'Client Portal'}
       suppressDefaultLogo

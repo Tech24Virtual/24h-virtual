@@ -37,7 +37,7 @@ export function UtilityTray({ roleLabel = 'Admin', className, compact = false, e
           </div>
           <div className="min-w-0 opacity-0 group-hover/rail:opacity-100 transition-opacity duration-150">
             <p className="truncate text-xs font-medium leading-none">{displayName}</p>
-            <p className="mt-0.5 text-[10px] text-muted-foreground">{roleLabel}</p>
+            {roleLabel && <p className="mt-0.5 text-[10px] text-muted-foreground">{roleLabel}</p>}
           </div>
         </div>
 
@@ -69,7 +69,7 @@ export function UtilityTray({ roleLabel = 'Admin', className, compact = false, e
         </div>
         <div className="flex-1 min-w-0">
           <p className="truncate text-xs font-medium leading-none">{displayName}</p>
-          <p className="mt-0.5 text-[10px] text-muted-foreground">{roleLabel}</p>
+          {roleLabel && <p className="mt-0.5 text-[10px] text-muted-foreground">{roleLabel}</p>}
         </div>
         <ThemeToggle />
       </div>

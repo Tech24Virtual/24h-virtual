@@ -43,7 +43,7 @@ export function WhiteLabelSidebar() {
       groups={whiteLabelNavGroups}
       rootPath={whiteLabelRoot}
       brandTag="Partner Portal"
-      roleLabel="White Label Partner"
+      roleLabel=""
       logoSrc={logoUrl}
       logoAlt={companyName ?? 'Partner'}
       suppressDefaultLogo
