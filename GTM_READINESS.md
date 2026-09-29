@@ -364,3 +364,35 @@ Playwright: 173/173 passed (13 skipped, 186 total) ✅
 CI Pipeline:   green ✅
 Total:       192/192 passed (13 skipped, 205 total) ✅
 ```
+
+---
+
+## LIVE ON 24hv.io (2026-09-29)
+
+### Portals Live
+- 24hv.io — Main platform live on Vercel ✅
+- /portal/acme-corp/login — QA WL Client portal ✅
+- /portal/jurist-law-group/login — Jurist Law Group (Veza Reception) ✅
+- dashboard.vezareception.com — Pending Momir's CNAME records
+- clients.vezareception.com — Pending Momir's CNAME records
+
+### Credentials
+- Veza Reception (Momir): billing@vezareception.com — password kept in the team password manager (not stored in repo)
+- Jurist Law Group: jurist@juristlawgroup.com — password kept in the team password manager (not stored in repo)
+
+### Five9 Data Pipeline
+- Hourly cron: five9-call-report-hourly-pull (direct clients, :00)
+- Hourly cron: wl-five9-call-report-hourly-pull (WL clients, :30)
+- Daily chunking implemented to avoid 50k record limit
+- Five9 support case open — getReportResultCsv returning 500 errors (still failing with single-day windows)
+- Error IDs: 20260929-094812-472e0edf, 20260929-101846-49ee4e3e,
+             20260929-115944-adab46f6, 20260929-122151-7b460ea9,
+             20260929-144215-dc879d2, 20260929-144221-fcac35cd
+- Five9 contact: cases@five9.com (Omar Javier, TAC Engineer)
+- Once fixed: run 60-day backfill for Jurist Law Group
+
+### Pending External
+- Five9 API fix (support case open)
+- Momir CNAME records at vezareception.com
+- Live NMI credentials from Ryker
+- Five9 campaign→client mappings from Paul
