@@ -29,6 +29,8 @@ interface SendBookingLinkDialogProps {
   recipientName: string;
   leadId?: string;
   wlClientId?: string;
+  /** Called after the email has been sent successfully (before the dialog closes). */
+  onSent?: () => void;
 }
 
 interface HostOption {
@@ -52,6 +54,7 @@ export function SendBookingLinkDialog({
   recipientName,
   leadId,
   wlClientId,
+  onSent,
 }: SendBookingLinkDialogProps) {
   const [hostAgentId, setHostAgentId] = useState<string>('');
   const [meetingType, setMeetingType] = useState<MeetingTypeSlug>('quick-intro');
@@ -143,6 +146,7 @@ export function SendBookingLinkDialog({
       toast.success('Booking link sent', {
         description: `${recipientName} will receive an email with ${selectedHost?.fullName}'s booking link.`,
       });
+      onSent?.();
       onClose();
     },
     onError: (err: Error) => {

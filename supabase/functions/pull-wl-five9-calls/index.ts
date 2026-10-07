@@ -76,6 +76,7 @@ async function runReport(
   const sessionCookie = cookies.join("; ");
   const match = text.match(/<return[^>]*>([^<]+)<\/return>/);
   if (!match) throw new Error(`Could not parse report identifier: ${text.substring(0, 400)}`);
+  console.log(`[Five9] runReport identifier: ${match[1]}`);
   return { identifier: match[1], sessionCookie };
 }
 
@@ -106,7 +107,13 @@ async function getReportCsv(identifier: string, sessionCookie: string): Promise<
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="${ADMIN_NS}">
   <soapenv:Body><ser:getReportResultCsv><identifier>${identifier}</identifier></ser:getReportResultCsv></soapenv:Body>
 </soapenv:Envelope>`;
-  const response = await soapAdminRequest(xml, "getReportResultCsv", cookieHeader);
+  let response: string;
+  try {
+    response = await soapAdminRequest(xml, "getReportResultCsv", cookieHeader);
+  } catch (err) {
+    const fault = err instanceof Error ? err.message : String(err);
+    throw new Error(`Five9 getReportResultCsv error (identifier: ${identifier}): ${fault}`);
+  }
   const match = response.match(/<return[^>]*>([\s\S]*?)<\/return>/i);
   if (!match) return "";
   return match[1]

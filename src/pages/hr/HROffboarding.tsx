@@ -25,9 +25,9 @@ export default function HROffboarding() {
   const [initDialogOpen, setInitDialogOpen] = useState(false);
   const [form, setForm] = useState({ agent_id: '', reason: 'resignation', reason_details: '', last_working_day: '' });
 
-  const fetchData = async () => {
+  const fetchData = async (showLoading = true) => {
     if (!user) return;
-    setIsLoading(true);
+    if (showLoading) setIsLoading(true);
     const [offRes, empRes, rolesRes] = await Promise.all([
       (supabase as any).from('offboarding').select('*').order('created_at', { ascending: false }),
       (supabase as any).from('profiles').select('id, full_name, employment_status').eq('employment_status', 'active').order('full_name'),
@@ -71,18 +71,27 @@ export default function HROffboarding() {
 
   useEffect(() => { fetchData(); }, [user]);
 
+  // Tech updates the deprovisioning items from their own dashboard; poll so HR sees progress without reloading
+  useEffect(() => {
+    if (!user) return;
+    const id = setInterval(() => { fetchData(false); }, 30000);
+    return () => clearInterval(id);
+  }, [user]);
+
   const handleInitiate = async () => {
     if (!form.agent_id) { toast.error('Select an employee'); return; }
     const { error } = await supabase.from('offboarding').insert({
       agent_id: form.agent_id,
       initiated_by: user!.id,
+      requested_by: user!.id,
+      assigned_to: 'tech',
       reason: form.reason,
       reason_details: form.reason_details || null,
       last_working_day: form.last_working_day || null,
       status: 'initiated',
     });
     if (error) { toast.error('Failed to initiate offboarding'); return; }
-    toast.success('Offboarding initiated');
+    toast.success('Offboarding initiated — Tech has been notified to deprovision accounts');
     setInitDialogOpen(false);
     setForm({ agent_id: '', reason: 'resignation', reason_details: '', last_working_day: '' });
     fetchData();
@@ -104,11 +113,11 @@ export default function HROffboarding() {
   };
 
   const checklistItems = [
-    { field: 'google_deprovisioned', label: 'Deactivate Google Workspace' },
-    { field: 'five9_deprovisioned', label: 'Remove Five9 Access' },
-    { field: 'slack_removed', label: 'Remove from Slack' },
-    { field: 'final_payout_processed', label: 'Process Final Payout' },
-    { field: 'equipment_returned', label: 'Collect Equipment' },
+    { field: 'google_deprovisioned', label: 'Deactivate Google Workspace', tech: true },
+    { field: 'five9_deprovisioned', label: 'Remove Five9 Access', tech: true },
+    { field: 'slack_removed', label: 'Remove from Slack', tech: true },
+    { field: 'final_payout_processed', label: 'Process Final Payout', tech: false },
+    { field: 'equipment_returned', label: 'Collect Equipment', tech: false },
   ];
 
   const statusColors: Record<string, string> = {
@@ -160,11 +169,27 @@ export default function HROffboarding() {
                       <p className="text-sm font-medium">Checklist</p>
                       {checklistItems.map(item => (
                         <div key={item.field} className="flex items-center gap-2">
-                          <Checkbox checked={ob[item.field]} onCheckedChange={(v) => handleChecklistToggle(ob, item.field, !!v)} />
+                          <Checkbox
+                            checked={!!ob[item.field]}
+                            disabled={item.tech}
+                            onCheckedChange={(v) => handleChecklistToggle(ob, item.field, !!v)}
+                          />
                           <span className={`text-sm ${ob[item.field] ? 'line-through text-muted-foreground' : ''}`}>{item.label}</span>
+                          {item.tech && <Badge variant="secondary" className="text-xs">Tech</Badge>}
                         </div>
                       ))}
+                      {ob.tech_completed_at ? (
+                        <p className="text-xs text-green-700">Tech finished deprovisioning {format(new Date(ob.tech_completed_at), 'MMM d, yyyy')}</p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">Waiting on Tech to complete the Google, Five9 and Slack items.</p>
+                      )}
                     </div>
+                    {ob.tech_notes && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">Tech notes</p>
+                        <p className="text-sm">{ob.tech_notes}</p>
+                      </div>
+                    )}
                     {ob.reason_details && (
                       <div>
                         <p className="text-xs text-muted-foreground">Notes</p>

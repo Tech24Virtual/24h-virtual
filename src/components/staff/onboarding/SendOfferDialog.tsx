@@ -54,7 +54,7 @@ export function SendOfferDialog({ open, onOpenChange, onSuccess }: SendOfferDial
         supabase
           .from('job_applications')
           .select('id, name, email, applicant_user_id, job_posting:job_postings(title)')
-          .in('status', ['new', 'reviewing', 'accepted'])
+          .in('status', ['new', 'reviewing', 'interview'])
           .order('applied_at', { ascending: false }),
         supabase
           .from('agent_onboarding')
@@ -121,7 +121,7 @@ export function SendOfferDialog({ open, onOpenChange, onSuccess }: SendOfferDial
       // Update application status
       await supabase
         .from('job_applications')
-        .update({ status: 'accepted' })
+        .update({ status: 'offered' })
         .eq('id', app.id);
 
       return data;

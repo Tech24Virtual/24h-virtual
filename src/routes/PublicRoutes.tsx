@@ -59,6 +59,7 @@ const Trust = lazy(() => import("@/pages/Trust"));
 const ResponsibleDisclosure = lazy(() => import("@/pages/ResponsibleDisclosure"));
 const DPA = lazy(() => import("@/pages/legal/DPA"));
 const JoinUs = lazy(() => import("@/pages/JoinUs"));
+const ApplyJob = lazy(() => import("@/pages/public/ApplyJob"));
 const GPTAdvisor = lazy(() => import("@/pages/GPTAdvisor"));
 const WhyUs = lazy(() => import("@/pages/WhyUs"));
 const LaunchEstimator = lazy(() => import("@/pages/LaunchEstimator"));
@@ -211,6 +212,7 @@ export const PublicRoutes = (
     <Route path="/demo" element={<LazyRoute><Demo /></LazyRoute>} />
     <Route path="/about" element={<LazyRoute><About /></LazyRoute>} />
     <Route path="/join-us" element={<LazyRoute><JoinUs /></LazyRoute>} />
+    <Route path="/apply/:jobId" element={<LazyRoute><ApplyJob /></LazyRoute>} />
     <Route path="/faqs" element={<LazyRoute><FAQs /></LazyRoute>} />
     <Route path="/cost-calculator" element={<LazyRoute><CostCalculator /></LazyRoute>} />
     <Route path="/gpt-advisor" element={<LazyRoute><GPTAdvisor /></LazyRoute>} />

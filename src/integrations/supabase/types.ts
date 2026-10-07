@@ -685,9 +685,13 @@ export type Database = {
           employment_type: string
           home_address: string | null
           hourly_rate: number | null
+          hours_per_month: number | null
           iban: string | null
           id: string
           institution_number: string | null
+          monthly_rate: number | null
+          overtime_hourly_rate: number | null
+          pay_type: string
           payment_method: string | null
           routing_number: string | null
           swift_bic: string | null
@@ -711,9 +715,13 @@ export type Database = {
           employment_type?: string
           home_address?: string | null
           hourly_rate?: number | null
+          hours_per_month?: number | null
           iban?: string | null
           id?: string
           institution_number?: string | null
+          monthly_rate?: number | null
+          overtime_hourly_rate?: number | null
+          pay_type?: string
           payment_method?: string | null
           routing_number?: string | null
           swift_bic?: string | null
@@ -737,9 +745,13 @@ export type Database = {
           employment_type?: string
           home_address?: string | null
           hourly_rate?: number | null
+          hours_per_month?: number | null
           iban?: string | null
           id?: string
           institution_number?: string | null
+          monthly_rate?: number | null
+          overtime_hourly_rate?: number | null
+          pay_type?: string
           payment_method?: string | null
           routing_number?: string | null
           swift_bic?: string | null
@@ -15509,44 +15521,101 @@ export type Database = {
         Row: {
           applicant_user_id: string | null
           applied_at: string | null
+          available_start_date: string | null
+          company_applying_for: string | null
+          contractor_agreement: boolean | null
           cover_letter: string | null
           email: string
+          equipment_checklist: Json | null
+          expected_pay: string | null
+          first_name: string | null
+          hours_wanted: string | null
           id: string
+          interview_invited_at: string | null
+          intro_recording_url: string | null
           job_posting_id: string | null
+          languages: string[] | null
+          last_name: string | null
+          location: string | null
           name: string
+          notes: string | null
           phone: string | null
+          ram_screenshot_url: string | null
+          referral_source: string | null
           resume_url: string | null
+          scheduling_notes: string | null
+          shift_availability: Json | null
+          speed_test_url: string | null
           status: string | null
           updated_at: string | null
           workflow_stage: string | null
+          years_experience: string | null
         }
         Insert: {
           applicant_user_id?: string | null
           applied_at?: string | null
+          available_start_date?: string | null
+          company_applying_for?: string | null
+          contractor_agreement?: boolean | null
           cover_letter?: string | null
           email: string
+          equipment_checklist?: Json | null
+          expected_pay?: string | null
+          first_name?: string | null
+          hours_wanted?: string | null
           id?: string
+          interview_invited_at?: string | null
+          intro_recording_url?: string | null
           job_posting_id?: string | null
+          languages?: string[] | null
+          last_name?: string | null
+          location?: string | null
           name: string
+          notes?: string | null
           phone?: string | null
+          ram_screenshot_url?: string | null
+          referral_source?: string | null
           resume_url?: string | null
+          scheduling_notes?: string | null
+          shift_availability?: Json | null
+          speed_test_url?: string | null
           status?: string | null
           updated_at?: string | null
           workflow_stage?: string | null
+          years_experience?: string | null
         }
         Update: {
           applicant_user_id?: string | null
           applied_at?: string | null
+          available_start_date?: string | null
+          company_applying_for?: string | null
+          contractor_agreement?: boolean | null
           cover_letter?: string | null
           email?: string
+          equipment_checklist?: Json | null
+          expected_pay?: string | null
+          first_name?: string | null
+          hours_wanted?: string | null
           id?: string
+          interview_invited_at?: string | null
+          intro_recording_url?: string | null
           job_posting_id?: string | null
+          languages?: string[] | null
+          last_name?: string | null
+          location?: string | null
           name?: string
+          notes?: string | null
           phone?: string | null
+          ram_screenshot_url?: string | null
+          referral_source?: string | null
           resume_url?: string | null
+          scheduling_notes?: string | null
+          shift_availability?: Json | null
+          speed_test_url?: string | null
           status?: string | null
           updated_at?: string | null
           workflow_stage?: string | null
+          years_experience?: string | null
         }
         Relationships: [
           {
@@ -16752,6 +16821,8 @@ export type Database = {
       offboarding: {
         Row: {
           agent_id: string
+          agent_name: string | null
+          assigned_to: string | null
           completed_at: string | null
           created_at: string
           equipment_returned: boolean
@@ -16764,11 +16835,16 @@ export type Database = {
           last_working_day: string | null
           reason: string
           reason_details: string | null
+          requested_by: string | null
           slack_removed: boolean
           status: string
+          tech_completed_at: string | null
+          tech_notes: string | null
         }
         Insert: {
           agent_id: string
+          agent_name?: string | null
+          assigned_to?: string | null
           completed_at?: string | null
           created_at?: string
           equipment_returned?: boolean
@@ -16781,11 +16857,16 @@ export type Database = {
           last_working_day?: string | null
           reason?: string
           reason_details?: string | null
+          requested_by?: string | null
           slack_removed?: boolean
           status?: string
+          tech_completed_at?: string | null
+          tech_notes?: string | null
         }
         Update: {
           agent_id?: string
+          agent_name?: string | null
+          assigned_to?: string | null
           completed_at?: string | null
           created_at?: string
           equipment_returned?: boolean
@@ -16798,8 +16879,11 @@ export type Database = {
           last_working_day?: string | null
           reason?: string
           reason_details?: string | null
+          requested_by?: string | null
           slack_removed?: boolean
           status?: string
+          tech_completed_at?: string | null
+          tech_notes?: string | null
         }
         Relationships: []
       }

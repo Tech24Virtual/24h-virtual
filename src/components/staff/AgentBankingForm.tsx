@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Landmark, Save } from 'lucide-react';
+import { Landmark, Save, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +14,7 @@ import { COUNTRIES } from '@/lib/countries';
 
 interface AgentBankingFormProps {
   agentId?: string; // If not provided, uses current user
-  showHourlyRate?: boolean; // Only billing/admin should set this
+  showHourlyRate?: boolean; // Pay type + rates: only billing/admin/HR should set these
 }
 
 const IBAN_COUNTRIES = new Set([
@@ -55,7 +55,11 @@ export function AgentBankingForm({ agentId, showHourlyRate = false }: AgentBanki
     iban: '',
     currency: 'CAD',
     country: 'CA',
+    pay_type: 'hourly',
     hourly_rate: '',
+    monthly_rate: '',
+    hours_per_month: '',
+    overtime_hourly_rate: '',
     payment_method: 'bank_transfer',
     e_transfer_email: '',
     home_address: '',
@@ -93,7 +97,11 @@ export function AgentBankingForm({ agentId, showHourlyRate = false }: AgentBanki
         iban: b.iban || '',
         currency: b.currency || 'CAD',
         country: b.country || 'CA',
+        pay_type: b.pay_type === 'monthly' ? 'monthly' : 'hourly',
         hourly_rate: b.hourly_rate?.toString() || '',
+        monthly_rate: b.monthly_rate?.toString() || '',
+        hours_per_month: b.hours_per_month?.toString() || '',
+        overtime_hourly_rate: b.overtime_hourly_rate?.toString() || '',
         payment_method: b.payment_method || 'bank_transfer',
         e_transfer_email: b.e_transfer_email || '',
         home_address: b.home_address || '',
@@ -125,8 +133,15 @@ export function AgentBankingForm({ agentId, showHourlyRate = false }: AgentBanki
         contact_phone: formData.payment_method === 'bank_transfer' ? (formData.contact_phone || null) : null,
         contact_email: formData.payment_method === 'bank_transfer' ? (formData.contact_email || null) : null,
       };
-      if (showHourlyRate && formData.hourly_rate) {
-        payload.hourly_rate = parseFloat(formData.hourly_rate);
+      if (showHourlyRate) {
+        payload.pay_type = formData.pay_type;
+        if (formData.pay_type === 'monthly') {
+          payload.monthly_rate = parseFloat(formData.monthly_rate);
+          payload.hours_per_month = parseInt(formData.hours_per_month, 10);
+          payload.overtime_hourly_rate = formData.overtime_hourly_rate ? parseFloat(formData.overtime_hourly_rate) : null;
+        } else if (formData.hourly_rate) {
+          payload.hourly_rate = parseFloat(formData.hourly_rate);
+        }
       }
 
       if (banking) {
@@ -144,7 +159,8 @@ export function AgentBankingForm({ agentId, showHourlyRate = false }: AgentBanki
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agent-banking', effectiveAgentId] });
-      toast.success('Banking details saved');
+      // HR is notified by a database trigger on agent_banking (see 20261007030000_banking_change_notifications.sql)
+      toast.success(showHourlyRate ? 'Banking details saved' : 'Banking details saved — HR has been notified');
     },
     onError: (err: any) => {
       console.error('Failed to save banking:', err);
@@ -163,6 +179,19 @@ export function AgentBankingForm({ agentId, showHourlyRate = false }: AgentBanki
       // e-Transfer only exists for Canada — fall back if the country changes away from it.
       payment_method: value !== 'CA' && prev.payment_method === 'e_transfer' ? 'bank_transfer' : prev.payment_method,
     }));
+  };
+
+  const handleSave = () => {
+    if (showHourlyRate && formData.pay_type === 'monthly') {
+      const monthly = parseFloat(formData.monthly_rate);
+      const hours = parseInt(formData.hours_per_month, 10);
+      if (!(monthly > 0)) { toast.error('Enter a monthly rate greater than 0'); return; }
+      if (!(hours > 0)) { toast.error('Enter the monthly hours threshold'); return; }
+      if (formData.overtime_hourly_rate && !(parseFloat(formData.overtime_hourly_rate) >= 0)) {
+        toast.error('Overtime rate must be 0 or more'); return;
+      }
+    }
+    saveMutation.mutate();
   };
 
   const isCanada = formData.country === 'CA';
@@ -372,21 +401,81 @@ export function AgentBankingForm({ agentId, showHourlyRate = false }: AgentBanki
         )}
 
         {showHourlyRate && (
-          <div className="space-y-2">
-            <Label>Hourly Rate ($)</Label>
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.hourly_rate}
-              onChange={(e) => update('hourly_rate', e.target.value)}
-              placeholder="e.g. 18.50"
-            />
+          <div className="space-y-4 rounded-md border p-4">
+            <div className="space-y-2">
+              <Label>Pay Type</Label>
+              <Select value={formData.pay_type} onValueChange={(v) => update('pay_type', v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hourly">Hourly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {formData.pay_type === 'monthly' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Monthly Rate ($)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.monthly_rate}
+                    onChange={(e) => update('monthly_rate', e.target.value)}
+                    placeholder="e.g. 1000"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Hours Per Month</Label>
+                  <Input
+                    type="number"
+                    step="1"
+                    min="1"
+                    value={formData.hours_per_month}
+                    onChange={(e) => update('hours_per_month', e.target.value)}
+                    placeholder="e.g. 160"
+                  />
+                  <p className="text-xs text-muted-foreground">Threshold covered by the monthly rate</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Overtime Rate ($/hr)</Label>
+                  <Input
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    value={formData.overtime_hourly_rate}
+                    onChange={(e) => update('overtime_hourly_rate', e.target.value)}
+                    placeholder="e.g. 7.50"
+                  />
+                  <p className="text-xs text-muted-foreground">Paid for hours above the threshold</p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>Hourly Rate ($)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.hourly_rate}
+                  onChange={(e) => update('hourly_rate', e.target.value)}
+                  placeholder="e.g. 18.50"
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {!showHourlyRate && (
+          <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+            <p>Updating your banking details will notify HR. Changes take effect on next payroll.</p>
           </div>
         )}
 
         <Button
-          onClick={() => saveMutation.mutate()}
+          onClick={handleSave}
           disabled={saveMutation.isPending}
           className="w-full sm:w-auto"
         >

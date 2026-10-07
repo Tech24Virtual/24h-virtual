@@ -23,6 +23,7 @@ import {
   GitCompare,
   CheckSquare,
   Briefcase,
+  UserMinus,
 } from 'lucide-react';
 import type { NavGroup } from '@/components/navigation/types';
 
@@ -240,6 +241,7 @@ export function getStaffNav(role: StaffRole): NavGroup[] {
         { name: 'Overview', icon: LayoutDashboard, basePath: root, children: [{ name: 'Overview', href: root }] },
         { name: 'Tickets', icon: MessageSquare, basePath: `${root}/tickets`, children: [{ name: 'Tickets', href: `${root}/tickets` }] },
         { name: 'Issues', icon: ClipboardList, basePath: `${root}/issues`, children: [{ name: 'System Issues', href: `${root}/issues` }] },
+        { name: 'Offboarding', icon: UserMinus, basePath: `${root}/offboarding`, children: [{ name: 'Offboarding', href: `${root}/offboarding` }] },
         { name: 'Knowledge Base', icon: FileText, basePath: `${root}/knowledge-base`, children: [{ name: 'Knowledge Base', href: `${root}/knowledge-base` }] },
         { name: 'Chat Deployments', icon: MessageCircle, basePath: `${root}/chat-deployments`, children: [{ name: 'Chat Deployments', href: `${root}/chat-deployments` }] },
         { name: 'Five9', icon: Phone, basePath: `${root}/five9`, children: [{ name: 'Five9 Management', href: `${root}/five9` }] },

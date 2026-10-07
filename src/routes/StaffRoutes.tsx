@@ -73,6 +73,7 @@ const TechDashboard = lazy(() => import("@/pages/staff/TechDashboard"));
 const TechTickets = lazy(() => import("@/pages/staff/TechTickets"));
 const TechSystemIssues = lazy(() => import("@/pages/staff/TechSystemIssues"));
 const TechKnowledgeBase = lazy(() => import("@/pages/staff/TechKnowledgeBase"));
+const TechOffboarding = lazy(() => import("@/pages/staff/TechOffboarding"));
 const TechChatDeployments = lazy(() => import("@/pages/staff/TechChatDeployments"));
 const TechChatDeploymentDetail = lazy(() => import("@/pages/staff/TechChatDeploymentDetail"));
 const TechFive9 = lazy(() => import("@/pages/staff/TechFive9"));
@@ -202,6 +203,7 @@ export const StaffRoutes = (
     <Route path="/staff/tech/tickets" element={guard("tech", <TechTickets />)} />
     <Route path="/staff/tech/tickets/:id" element={guard("tech", <StaffTicketDetail role="tech" />)} />
     <Route path="/staff/tech/issues" element={guard("tech", <TechSystemIssues />)} />
+    <Route path="/staff/tech/offboarding" element={guard("tech", <TechOffboarding />)} />
     <Route path="/staff/tech/knowledge-base" element={guard("tech", <TechKnowledgeBase />)} />
     <Route path="/staff/tech/chat-deployments" element={guard("tech", <TechChatDeployments />)} />
     <Route path="/staff/tech/chat-deployments/:id" element={guard("tech", <TechChatDeploymentDetail />)} />

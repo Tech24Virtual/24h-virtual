@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
-import { MessageSquare, CheckCircle2, AlertTriangle, Clock, Percent, Wrench, BookOpen, CalendarClock, ArrowRight } from 'lucide-react';
+import { MessageSquare, CheckCircle2, AlertTriangle, Clock, Percent, Wrench, BookOpen, CalendarClock, ArrowRight, UserMinus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { humanizeStatus } from '@/components/ui/StatusBadge';
@@ -83,6 +83,21 @@ export default function TechDashboard() {
     },
   });
 
+  const { data: pendingOffboardings } = useQuery({
+    queryKey: ['tech-offboarding-pending'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('offboarding')
+        .select('id, agent_name, reason, last_working_day, created_at, google_deprovisioned, five9_deprovisioned, slack_removed')
+        .is('tech_completed_at', null)
+        .neq('status', 'completed')
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    refetchInterval: 30000,
+  });
+
   return (
     <StaffLayout role="tech">
       <div className="space-y-6">
@@ -151,8 +166,45 @@ export default function TechDashboard() {
         {/* Quick Actions */}
         <div className="flex flex-wrap gap-3">
           <Button asChild variant="outline"><Link to="/staff/tech/issues"><Wrench className="h-4 w-4 mr-2" />System Issues</Link></Button>
+          <Button asChild variant="outline">
+            <Link to="/staff/tech/offboarding">
+              <UserMinus className="h-4 w-4 mr-2" />Offboarding
+              {(pendingOffboardings?.length || 0) > 0 && <Badge variant="destructive" className="ml-2">{pendingOffboardings?.length}</Badge>}
+            </Link>
+          </Button>
           <Button asChild variant="outline"><Link to="/staff/tech/knowledge-base"><BookOpen className="h-4 w-4 mr-2" />Knowledge Base</Link></Button>
         </div>
+
+        {(pendingOffboardings?.length || 0) > 0 && (
+          <Card className="border-amber-300">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2"><UserMinus className="h-5 w-5 text-amber-600" />Offboarding Queue</CardTitle>
+              <Link to="/staff/tech/offboarding" className="text-sm text-primary hover:underline flex items-center gap-1">
+                Open <ArrowRight className="h-3 w-3" />
+              </Link>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {pendingOffboardings!.slice(0, 5).map((ob) => {
+                const doneCount = [ob.google_deprovisioned, ob.five9_deprovisioned, ob.slack_removed].filter(Boolean).length;
+                return (
+                  <Link
+                    key={ob.id}
+                    to="/staff/tech/offboarding"
+                    className="flex items-center justify-between border rounded-lg p-3 hover:bg-accent transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{ob.agent_name || 'Unknown employee'}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {ob.reason?.replace('_', ' ')}{ob.last_working_day ? ` • last day ${ob.last_working_day}` : ''}
+                      </p>
+                    </div>
+                    <Badge variant="secondary" className="shrink-0 ml-3">{doneCount}/3 done</Badge>
+                  </Link>
+                );
+              })}
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid gap-4 md:grid-cols-2">
           <TrendChart
