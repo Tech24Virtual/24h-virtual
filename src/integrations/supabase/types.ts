@@ -39450,6 +39450,15 @@ export type Database = {
         Args: { p_action_id: string }
         Returns: boolean
       }
+      billing_agent_payout_profiles: {
+        Args: { p_agent_ids: string[] }
+        Returns: Json
+      }
+      billing_client_usage: {
+        Args: { p_client_id: string; p_from: string; p_to: string }
+        Returns: Json
+      }
+      billing_overview: { Args: never; Returns: Json }
       can_mutate_script_document: {
         Args: { p_document_id: string }
         Returns: boolean

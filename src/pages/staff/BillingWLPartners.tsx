@@ -9,10 +9,12 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import { WLClientUsageSheet } from '@/components/billing/WLClientUsageSheet';
 
 export default function BillingWLPartners() {
   const queryClient = useQueryClient();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedClient, setSelectedClient] = useState<{ id: string; client_name: string; service_type: string | null; partnerName: string | null } | null>(null);
 
   const { data: partners = [], isLoading } = useQuery({
     queryKey: ['billing-wl-partners'],
@@ -179,7 +181,11 @@ export default function BillingWLPartners() {
                         {partnerClients.map(client => {
                           const config = partnerConfigs.find(c => c.wl_client_id === client.id);
                           return (
-                            <TableRow key={client.id}>
+                            <TableRow
+                              key={client.id}
+                              className="cursor-pointer hover:bg-muted/50"
+                              onClick={() => setSelectedClient({ id: client.id, client_name: client.client_name, service_type: client.service_type, partnerName: partner.company_name })}
+                            >
                               <TableCell className="font-medium">{client.client_name}</TableCell>
                               <TableCell>{client.service_type}</TableCell>
                               <TableCell>{client.language_support}</TableCell>
@@ -190,7 +196,7 @@ export default function BillingWLPartners() {
                                   <Badge className="bg-orange-500/10 text-orange-600">Unverified</Badge>
                                 )}
                               </TableCell>
-                              <TableCell>
+                              <TableCell onClick={(e) => e.stopPropagation()}>
                                 {config && (
                                   <Button
                                     size="sm"
@@ -214,6 +220,12 @@ export default function BillingWLPartners() {
           })
         )}
       </div>
+
+      <WLClientUsageSheet
+        client={selectedClient}
+        partnerName={selectedClient?.partnerName}
+        onClose={() => setSelectedClient(null)}
+      />
     </StaffLayout>
   );
 }

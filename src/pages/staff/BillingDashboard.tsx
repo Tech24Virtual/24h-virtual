@@ -1,72 +1,122 @@
 import { useQuery } from '@tanstack/react-query';
-import { CreditCard, MessageSquare, AlertTriangle, CheckCircle, DollarSign, Users, TrendingUp, Building2 } from 'lucide-react';
+import { AlertTriangle, Building2, CalendarDays, DollarSign, Hourglass, TrendingUp, Users, Wallet } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { StaffLayout } from '@/components/staff/StaffLayout';
 import { TicketList } from '@/components/tickets/TicketList';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
 import { RunBillingButton } from '@/components/missions/RunBillingButton';
 import { MissionsList } from '@/components/missions/MissionsList';
+import { RevenueTrendChart, type TrendPoint } from '@/components/billing/RevenueTrendChart';
+import { formatMoney } from '@/lib/billing/pricing';
 
-export default function BillingDashboard() {
-  const { data: stats, isLoading } = useQuery({
-    queryKey: ['billing-dashboard-stats'],
-    queryFn: async () => {
-      const [ticketsResult, failuresResult, commissionsResult, subscriptionsResult, wlUnverifiedResult] = await Promise.all([
-        supabase.from('support_tickets').select('id, status, source', { count: 'exact' }).eq('category', 'billing'),
-        supabase.from('payment_failures').select('id, resolved_at', { count: 'exact' }),
-        supabase.from('sales_commissions').select('id, status, commission_amount'),
-        supabase.from('leads').select('id', { count: 'exact' }).eq('pipeline_stage', 'active'),
-        supabase.from('wl_client_service_config').select('id', { count: 'exact' }).eq('billing_verified', false),
-      ]);
+interface BillingOverview {
+  active_clients: number;
+  active_clients_priced: number;
+  mrr: number;
+  ytd_paid: number;
+  outstanding: number;
+  wl_revenue_month: number;
+  unresolved_failures: number;
+  wl_partners: number;
+  monthly_trend: TrendPoint[];
+}
 
-      const tickets = ticketsResult.data || [];
-      const failures = failuresResult.data || [];
-      const commissions = commissionsResult.data || [];
+interface StatCardProps {
+  title: string;
+  value: React.ReactNode;
+  hint?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+  loading: boolean;
+  to?: string;
+}
 
-      return {
-        totalTickets: tickets.length,
-        openTickets: tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length,
-        paymentFailures: failures.filter(f => !f.resolved_at).length,
-        resolvedTickets: tickets.filter(t => t.status === 'resolved' || t.status === 'closed').length,
-        pendingCommissions: commissions.filter((c: any) => c.status === 'pending').length,
-        activeSubscriptions: subscriptionsResult.data?.length || 0,
-        wlUnverified: wlUnverifiedResult.count || 0,
-      };
-    },
-  });
-
-  const StatCard = ({ title, value, icon: Icon, color, loading }: any) => (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
+function StatCard({ title, value, hint, icon: Icon, color, loading, to }: StatCardProps) {
+  const card = (
+    <Card className={to ? 'hover:bg-accent/40 transition-colors h-full' : 'h-full'}>
+      <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
         <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
         <Icon className={`h-4 w-4 ${color}`} />
       </CardHeader>
       <CardContent>
-        {loading ? <Skeleton className="h-8 w-16" /> : <div className="text-2xl font-bold">{value}</div>}
+        {loading ? <Skeleton className="h-8 w-24" /> : <div className="text-2xl font-bold">{value}</div>}
+        {hint && !loading && <p className="text-[11px] text-muted-foreground mt-1">{hint}</p>}
       </CardContent>
     </Card>
   );
+  return to ? <Link to={to} className="block">{card}</Link> : card;
+}
+
+export default function BillingDashboard() {
+  const { data: overview, isLoading, error } = useQuery({
+    queryKey: ['billing-overview'],
+    queryFn: async (): Promise<BillingOverview> => {
+      const { data, error } = await supabase.rpc('billing_overview');
+      if (error) throw error;
+      return data as unknown as BillingOverview;
+    },
+  });
+
+  const o = overview;
+  const money = (n: number | undefined) => formatMoney(n ?? 0);
 
   return (
     <StaffLayout role="billing">
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Billing Dashboard</h1>
-          <p className="text-muted-foreground">Manage billing inquiries, payments, and commissions</p>
+          <p className="text-muted-foreground">Financial health, payments, and commissions</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          <StatCard title="Billing Tickets" value={stats?.totalTickets || 0} icon={MessageSquare} color="text-blue-500" loading={isLoading} />
-          <StatCard title="Open Tickets" value={stats?.openTickets || 0} icon={CreditCard} color="text-orange-500" loading={isLoading} />
-          <StatCard title="Payment Failures" value={stats?.paymentFailures || 0} icon={AlertTriangle} color="text-destructive" loading={isLoading} />
-          <StatCard title="Pending Commissions" value={stats?.pendingCommissions || 0} icon={DollarSign} color="text-primary" loading={isLoading} />
-          <StatCard title="Active Subscriptions" value={stats?.activeSubscriptions || 0} icon={Users} color="text-primary" loading={isLoading} />
-          <StatCard title="Resolved" value={stats?.resolvedTickets || 0} icon={CheckCircle} color="text-green-500" loading={isLoading} />
-          <StatCard title="WL Unverified" value={stats?.wlUnverified || 0} icon={Building2} color="text-orange-500" loading={isLoading} />
+        {error && (
+          <Card className="border-destructive/40">
+            <CardContent className="p-4 text-sm text-destructive">
+              Could not load the financial overview: {(error as Error).message}
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <StatCard
+            title="MRR"
+            value={money(o?.mrr)}
+            hint={o ? `${o.active_clients_priced} of ${o.active_clients} active clients have a priced plan` : undefined}
+            icon={DollarSign} color="text-primary" loading={isLoading}
+          />
+          <StatCard title="ARR (run rate)" value={money((o?.mrr ?? 0) * 12)} hint="MRR × 12" icon={TrendingUp} color="text-primary" loading={isLoading} />
+          <StatCard
+            title="YTD Revenue"
+            value={money(o?.ytd_paid)}
+            hint="Paid overage from billing runs this year"
+            icon={Wallet} color="text-green-600" loading={isLoading}
+          />
+          <StatCard
+            title="WL Revenue This Month"
+            value={money(o?.wl_revenue_month)}
+            hint="Partner retail revenue from WL usage"
+            icon={CalendarDays} color="text-green-600" loading={isLoading}
+          />
+          <StatCard
+            title="Outstanding Balance"
+            value={money(o?.outstanding)}
+            hint="Unpaid billing-run overage"
+            icon={Hourglass} color="text-orange-500" loading={isLoading}
+          />
+          <StatCard
+            title="Payment Failures"
+            value={o?.unresolved_failures ?? 0}
+            hint="Unresolved — click to review"
+            icon={AlertTriangle} color="text-destructive" loading={isLoading}
+            to="/staff/billing/payment-issues"
+          />
+          <StatCard title="Active Clients" value={o?.active_clients ?? 0} icon={Users} color="text-primary" loading={isLoading} to="/staff/billing/client-lookup" />
+          <StatCard title="WL Partners" value={o?.wl_partners ?? 0} icon={Building2} color="text-primary" loading={isLoading} to="/staff/billing/wl-partners" />
         </div>
+
+        <RevenueTrendChart data={o?.monthly_trend ?? []} />
 
         {/* Quick Actions */}
         <div className="flex flex-wrap gap-3">

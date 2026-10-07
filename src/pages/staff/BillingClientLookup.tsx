@@ -12,9 +12,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Plus, StickyNote, CreditCard, AlertTriangle } from 'lucide-react';
+import { Search, Plus, StickyNote, CreditCard } from 'lucide-react';
 import { format } from 'date-fns';
 import { StatusBadge, humanizeStatus } from '@/components/ui/StatusBadge';
+import { ClientBillingDetail } from '@/components/billing/ClientBillingDetail';
 
 export default function BillingClientLookup() {
   const { user } = useAuth();
@@ -51,22 +52,6 @@ export default function BillingClientLookup() {
         .select('*')
         .eq('lead_id', selectedLead.id)
         .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!selectedLead,
-  });
-
-  const { data: paymentFailures } = useQuery({
-    queryKey: ['billing-client-failures', selectedLead?.id],
-    queryFn: async () => {
-      if (!selectedLead) return [];
-      const { data, error } = await supabase
-        .from('payment_failures')
-        .select('*')
-        .eq('lead_id', selectedLead.id)
-        .order('failed_at', { ascending: false })
-        .limit(10);
       if (error) throw error;
       return data;
     },
@@ -140,7 +125,7 @@ export default function BillingClientLookup() {
                     <div className="font-medium">{lead.name}</div>
                     <div className="text-sm text-muted-foreground">{lead.email} {lead.company && `• ${lead.company}`}</div>
                   </div>
-                  <StatusBadge status={lead.status} />
+                  <StatusBadge status={lead.pipeline_stage} />
                 </button>
               ))}
             </CardContent>
@@ -150,11 +135,11 @@ export default function BillingClientLookup() {
         {selectedLead && (
           <div className="grid gap-6 md:grid-cols-2">
             {/* Client Info */}
-            <Card>
+            <Card className="md:col-span-2">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>{selectedLead.name}</CardTitle>
-                  <StatusBadge status={selectedLead.status} />
+                  <StatusBadge status={selectedLead.pipeline_stage} />
                 </div>
                 <CardDescription>{selectedLead.email} {selectedLead.company && `• ${selectedLead.company}`}</CardDescription>
               </CardHeader>
@@ -176,32 +161,10 @@ export default function BillingClientLookup() {
               </CardContent>
             </Card>
 
-            {/* Payment Failures */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <AlertTriangle className="h-4 w-4 text-destructive" />
-                  Payment Failures
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {!paymentFailures?.length ? (
-                  <p className="text-sm text-muted-foreground">No payment failures</p>
-                ) : (
-                  <div className="space-y-2">
-                    {paymentFailures.map((f: any) => (
-                      <div key={f.id} className="flex items-center justify-between text-sm border-b pb-2">
-                        <div>
-                          <Badge variant="destructive" className="text-xs">{f.failure_code || 'unknown'}</Badge>
-                          <span className="ml-2 text-muted-foreground">{format(new Date(f.failed_at), 'MMM d, yyyy')}</span>
-                        </div>
-                        {f.resolved_at ? <Badge variant="secondary">Resolved</Badge> : <Badge variant="outline">Open</Badge>}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            {/* Projected invoice + invoice history / usage / payment info */}
+            <div className="md:col-span-2">
+              <ClientBillingDetail lead={selectedLead} />
+            </div>
 
             {/* Billing Notes */}
             <Card className="md:col-span-2">
