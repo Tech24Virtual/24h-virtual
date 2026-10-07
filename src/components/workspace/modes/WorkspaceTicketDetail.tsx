@@ -17,6 +17,10 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { AttachmentPicker } from '@/components/tickets/AttachmentPicker';
+import { MessageAttachments } from '@/components/tickets/MessageAttachments';
+import { useAttachmentDraft } from '@/hooks/useAttachmentDraft';
+import { parseAttachments, uploadTicketAttachments, type TicketAttachment } from '@/lib/tickets/attachments';
 
 interface Props {
   ticketId: string | null;
@@ -28,6 +32,7 @@ export function WorkspaceTicketDetail({ ticketId }: Props) {
   const { toast } = useToast();
   const [reply, setReply] = useState('');
   const [internal, setInternal] = useState(false);
+  const draft = useAttachmentDraft();
   const endRef = useRef<HTMLDivElement>(null);
 
   useRealtimeTicketReplies({ ticketId: ticketId || '', onNewReply: () => setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 100) });
@@ -60,12 +65,14 @@ export function WorkspaceTicketDetail({ ticketId }: Props) {
 
   const replyMutation = useMutation({
     mutationFn: async () => {
+      const attachments = draft.files.length > 0 ? await uploadTicketAttachments(ticketId!, draft.files) : [];
       const { error } = await supabase.from('ticket_replies').insert({
         ticket_id: ticketId,
         message: reply.trim(),
         author_id: user?.id,
         author_name: profile?.full_name || user?.email,
         is_internal: internal,
+        attachments,
       });
       if (error) throw error;
       if (!internal && ticket?.submitter_email) {
@@ -87,7 +94,7 @@ export function WorkspaceTicketDetail({ ticketId }: Props) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ticket-replies', ticketId] });
-      setReply(''); setInternal(false);
+      setReply(''); setInternal(false); draft.clear();
       toast({ title: 'Reply sent' });
     },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
@@ -152,6 +159,7 @@ export function WorkspaceTicketDetail({ ticketId }: Props) {
               message={r.message}
               isMine={r.author_id === user?.id}
               isInternal={r.is_internal ?? false}
+              attachments={parseAttachments(r.attachments)}
             />
           ))}
           <div ref={endRef} />
@@ -162,10 +170,12 @@ export function WorkspaceTicketDetail({ ticketId }: Props) {
         <Textarea
           value={reply}
           onChange={(e) => setReply(e.target.value)}
+          onPaste={draft.onPaste}
           placeholder="Reply..."
           rows={2}
           className="resize-none text-sm"
         />
+        <AttachmentPicker draft={draft} disabled={replyMutation.isPending} compact />
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5">
             <Checkbox id="ws-int" checked={internal} onCheckedChange={(c) => setInternal(c === true)} />
@@ -185,8 +195,8 @@ export function WorkspaceTicketDetail({ ticketId }: Props) {
   );
 }
 
-function Bubble({ author, createdAt, message, isMine, isInternal }: {
-  author: string; createdAt: string; message: string; isMine?: boolean; isInternal?: boolean;
+function Bubble({ author, createdAt, message, isMine, isInternal, attachments = [] }: {
+  author: string; createdAt: string; message: string; isMine?: boolean; isInternal?: boolean; attachments?: TicketAttachment[];
 }) {
   return (
     <div className={cn('flex', isMine ? 'justify-end' : 'justify-start')}>
@@ -201,6 +211,7 @@ function Bubble({ author, createdAt, message, isMine, isInternal }: {
           <p className="text-[10px] opacity-60">{format(new Date(createdAt), 'MMM d, h:mm a')}</p>
         </div>
         <p className="whitespace-pre-wrap">{message}</p>
+        <MessageAttachments attachments={attachments} className="mt-2" />
       </div>
     </div>
   );

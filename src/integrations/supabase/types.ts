@@ -22070,6 +22070,7 @@ export type Database = {
       }
       ticket_replies: {
         Row: {
+          attachments: Json
           author_id: string | null
           author_name: string | null
           author_role: string | null
@@ -22081,6 +22082,7 @@ export type Database = {
           visible_to_partner: boolean | null
         }
         Insert: {
+          attachments?: Json
           author_id?: string | null
           author_name?: string | null
           author_role?: string | null
@@ -22092,6 +22094,7 @@ export type Database = {
           visible_to_partner?: boolean | null
         }
         Update: {
+          attachments?: Json
           author_id?: string | null
           author_name?: string | null
           author_role?: string | null

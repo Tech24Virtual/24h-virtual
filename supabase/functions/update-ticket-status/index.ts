@@ -13,6 +13,7 @@
 //     action: TicketAction,
 //     assignee_id?: string|null,   // assign
 //     body?: string,               // post_message
+//     attachments?: [{path,name,type,size}],  // post_message on support_tickets; paths must be under <ticket id>/
 //     is_internal?: boolean,       // post_message
 //     forward_summary?: string,    // forward_to_24h; required, 20-2000 chars
 //     target_work_queue?: string,  // forward_to_24h
@@ -53,6 +54,34 @@ export const FORWARD_SUMMARY_MAX = 2000;
 
 // Internal staff roles (excludes client-facing roles like 'client', 'white_label', 'wl_client', etc.)
 const STAFF_ROLES = new Set(["admin", "agent", "supervisor", "tech", "hr", "billing", "sales"]);
+
+const ATTACHMENT_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"]);
+const MAX_ATTACHMENTS = 5;
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+
+type AttachmentResult = { ok: true; value: Array<Record<string, unknown>> } | { ok: false; error: string };
+
+// Returns a clean attachments array, or an error. Paths must live under the ticket's own folder
+// so a reply can never reference another ticket's files.
+function validateAttachments(raw: unknown, ticketId: string): AttachmentResult {
+  if (raw === undefined || raw === null) return { ok: true, value: [] };
+  if (!Array.isArray(raw)) return { ok: false, error: "attachments must be an array" };
+  if (raw.length > MAX_ATTACHMENTS) return { ok: false, error: `At most ${MAX_ATTACHMENTS} attachments per message` };
+  const value: Array<Record<string, unknown>> = [];
+  for (const a of raw) {
+    const path = String(a?.path ?? "");
+    const name = String(a?.name ?? "").slice(0, 200);
+    const type = String(a?.type ?? "");
+    const size = Number(a?.size ?? 0);
+    if (!path.startsWith(`${ticketId}/`) || path.includes("..") || path.length > 300) {
+      return { ok: false, error: "Invalid attachment path" };
+    }
+    if (!ATTACHMENT_TYPES.has(type)) return { ok: false, error: "Unsupported attachment type" };
+    if (!(size >= 0 && size <= MAX_ATTACHMENT_BYTES)) return { ok: false, error: "Attachment too large" };
+    value.push({ path, name: name || "attachment", type, size });
+  }
+  return { ok: true, value };
+}
 
 const ACTION_TO_STATUS: Record<string, string | null> = {
   open: "open",
@@ -221,6 +250,10 @@ Deno.serve(async (req) => {
         if (!msgBody) return jsonResponse({ error: "Message body required" }, 400);
         if (msgBody.length > 4000)
           return jsonResponse({ error: "Message body too long (max 4000 chars)" }, 400);
+        if (table === "support_tickets") {
+          const att = validateAttachments(body.attachments, id);
+          if (!att.ok) return jsonResponse({ error: att.error }, 400);
+        }
         break;
       }
     }
@@ -340,6 +373,7 @@ Deno.serve(async (req) => {
       const isInternal = body.is_internal === true || body.internal_note === true;
 
       if (table === "support_tickets") {
+        const attResult = validateAttachments(body.attachments, id);
         const { data: inserted, error: insErr } = await admin
           .from("ticket_replies")
           .insert({
@@ -350,6 +384,7 @@ Deno.serve(async (req) => {
             is_internal: isInternal,
             author_role: roles[0] ?? null,
             visible_to_partner: !isInternal,
+            attachments: attResult.ok ? attResult.value : [],
           })
           .select("*")
           .single();

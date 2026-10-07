@@ -10,6 +10,9 @@ import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ChatMessage } from './ChatMessage';
+import { AttachmentPicker } from './AttachmentPicker';
+import { useAttachmentDraft } from '@/hooks/useAttachmentDraft';
+import { parseAttachments, uploadTicketAttachments, type TicketAttachment } from '@/lib/tickets/attachments';
 
 export interface TicketThreadProps {
   ticketId: string;
@@ -44,6 +47,7 @@ export function TicketThread({
 
   const [replyText, setReplyText] = useState('');
   const [isInternal, setIsInternal] = useState(false);
+  const draft = useAttachmentDraft();
 
   const isWLLane = sourceTable === 'wl_client_tickets';
   const repliesQueryKey = isWLLane
@@ -69,12 +73,13 @@ export function TicketThread({
           author_type: r.author_type ?? null,
           is_internal: r.is_internal ?? false,
           created_at: r.created_at,
+          attachments: [] as TicketAttachment[],
         }));
       }
 
       let query = supabase
         .from('ticket_replies')
-        .select('id, ticket_id, message, author_name, author_id, author_role, is_internal, created_at')
+        .select('id, ticket_id, message, author_name, author_id, author_role, is_internal, created_at, attachments')
         .eq('ticket_id', ticketId)
         .order('created_at', { ascending: true });
 
@@ -92,6 +97,7 @@ export function TicketThread({
         author_type: null as string | null,
         is_internal: r.is_internal ?? false,
         created_at: r.created_at,
+        attachments: parseAttachments(r.attachments),
       }));
     },
     enabled: !!ticketId,
@@ -133,6 +139,10 @@ export function TicketThread({
   // Post reply via edge function
   const sendMutation = useMutation({
     mutationFn: async () => {
+      // Attachments are supported on the direct (support_tickets) lane only
+      const attachments = !isWLLane && draft.files.length > 0
+        ? await uploadTicketAttachments(ticketId, draft.files)
+        : [];
       console.log('[TicketThread] invoking edge fn:', { table: sourceTable, id: ticketId, action: 'post_message' });
       const { error } = await supabase.functions.invoke('update-ticket-status', {
         body: {
@@ -141,6 +151,7 @@ export function TicketThread({
           action: 'post_message',
           body: replyText.trim(),
           internal_note: showInternalToggle ? isInternal : false,
+          ...(attachments.length > 0 ? { attachments } : {}),
         },
       });
       if (error) throw new Error(error.message);
@@ -149,6 +160,7 @@ export function TicketThread({
       queryClient.invalidateQueries({ queryKey: repliesQueryKey });
       setReplyText('');
       setIsInternal(false);
+      draft.clear();
       toast({ title: 'Reply sent' });
       setTimeout(() => {
         repliesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -198,6 +210,7 @@ export function TicketThread({
               createdAt={reply.created_at}
               isInternal={reply.is_internal}
               isSender={isSenderOf(reply)}
+              attachments={reply.attachments}
             />
           ))}
         </div>
@@ -211,9 +224,11 @@ export function TicketThread({
         <Textarea
           value={replyText}
           onChange={(e) => setReplyText(e.target.value)}
+          onPaste={isWLLane ? undefined : draft.onPaste}
           placeholder="Type a message…"
           rows={3}
         />
+        {!isWLLane && <AttachmentPicker draft={draft} disabled={sendMutation.isPending} />}
         <div className="flex items-center justify-between gap-2 flex-wrap">
           {showInternalToggle && (
             <div className="flex items-center gap-2">

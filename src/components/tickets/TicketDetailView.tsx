@@ -3,6 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ArrowLeft, Send, User } from 'lucide-react';
 import { ChatMessage } from './ChatMessage';
+import { AttachmentPicker } from './AttachmentPicker';
+import { useAttachmentDraft } from '@/hooks/useAttachmentDraft';
+import { parseAttachments, uploadTicketAttachments } from '@/lib/tickets/attachments';
 import { Link, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -47,6 +50,7 @@ export function TicketDetailView({
   const [replyMessage, setReplyMessage] = useState('');
   const [isInternal, setIsInternal] = useState(false);
   const [newStatus, setNewStatus] = useState<string>('');
+  const draft = useAttachmentDraft();
 
   // Enable real-time replies
   useRealtimeTicketReplies({
@@ -117,12 +121,14 @@ export function TicketDetailView({
   // Add reply mutation
   const addReplyMutation = useMutation({
     mutationFn: async () => {
+      const attachments = draft.files.length > 0 ? await uploadTicketAttachments(ticketId!, draft.files) : [];
       const { error } = await supabase.from('ticket_replies').insert({
         ticket_id: ticketId,
         message: replyMessage.trim(),
         author_id: user?.id,
         author_name: profile?.full_name || user?.email,
         is_internal: isInternal,
+        attachments,
       });
       if (error) throw error;
 
@@ -150,6 +156,7 @@ export function TicketDetailView({
       queryClient.invalidateQueries({ queryKey: ['ticket-replies', ticketId] });
       setReplyMessage('');
       setIsInternal(false);
+      draft.clear();
       toast({ title: 'Reply added' });
       // Upsert ticket_views for current context to prevent self-highlighting
       if (user?.id && ticketId) {
@@ -308,6 +315,7 @@ export function TicketDetailView({
                 createdAt={reply.created_at}
                 isInternal={reply.is_internal ?? false}
                 isSender={reply.author_id === user?.id}
+                attachments={parseAttachments(reply.attachments)}
               />
             ))
           )}
@@ -318,9 +326,11 @@ export function TicketDetailView({
             <Textarea
               value={replyMessage}
               onChange={(e) => setReplyMessage(e.target.value)}
+              onPaste={draft.onPaste}
               placeholder="Type your reply..."
               rows={3}
             />
+            <AttachmentPicker draft={draft} disabled={addReplyMutation.isPending} />
             <div className="flex items-center justify-between">
               {(isAdmin || canManage) && (
                 <div className="flex items-center gap-2">

@@ -1,6 +1,8 @@
 import { format } from 'date-fns';
 import { Lock } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { MessageAttachments } from './MessageAttachments';
+import type { TicketAttachment } from '@/lib/tickets/attachments';
 
 interface ChatMessageProps {
   authorName: string | null;
@@ -9,6 +11,7 @@ interface ChatMessageProps {
   createdAt: string;
   isInternal?: boolean;
   isSender: boolean;
+  attachments?: TicketAttachment[];
 }
 
 function getInitials(name: string | null): string {
@@ -26,6 +29,7 @@ export function ChatMessage({
   createdAt,
   isInternal,
   isSender,
+  attachments = [],
 }: ChatMessageProps) {
   // Internal notes: centered, yellow styling
   if (isInternal) {
@@ -47,6 +51,7 @@ export function ChatMessage({
             </span>
           </div>
           <p className="whitespace-pre-wrap text-sm text-yellow-900 dark:text-yellow-100">{message}</p>
+          <MessageAttachments attachments={attachments} className="mt-2" />
         </div>
       </div>
     );
@@ -80,6 +85,7 @@ export function ChatMessage({
           }`}
         >
           {message}
+          <MessageAttachments attachments={attachments} className="mt-2" />
         </div>
 
         {/* Timestamp */}
