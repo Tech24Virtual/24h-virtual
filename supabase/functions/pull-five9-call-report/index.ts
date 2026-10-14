@@ -271,7 +271,8 @@ Deno.serve(async (req) => {
     let initiatedBy = "scheduler";
     const authHeader = req.headers.get("authorization");
     if (authHeader) {
-      const auth = await authenticateAgent(req, ["admin", "billing"]);
+      // pg_cron calls with the service-role key — treated as the scheduler.
+      const auth = await authenticateAgent(req, ["admin", "billing"], { allowServiceRole: true });
       if (auth.error) return auth.error;
       initiatedBy = auth.user.id;
     }

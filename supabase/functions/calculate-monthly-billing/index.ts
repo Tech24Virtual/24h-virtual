@@ -249,21 +249,31 @@ serve(async (req) => {
       end: periodEnd.toISOString() 
     });
 
-    // Get usage from call logs (sum call durations in seconds, convert to minutes)
-    const { data: callLogs, error: callError } = await supabaseClient
-      .from("call_logs")
-      .select("call_duration")
-      .eq("client_id", leadId)
-      .gte("created_at", periodStart.toISOString())
-      .lte("created_at", periodEnd.toISOString());
-
-    if (callError) {
-      logStep("Warning: Could not fetch call logs", { error: callError.message });
+    // Usage = sum of billable_minutes for calls dated within the period.
+    // billable_minutes already applies the shared billing rules (abandoned and
+    // non-billable dispositions = 0, handle time rounded up per call — see
+    // _shared/billing.ts), so raw call_duration must not be used here.
+    // Paged — PostgREST caps a single select at 1000 rows.
+    const periodStartDate = periodStart.toISOString().slice(0, 10);
+    const periodEndDate = periodEnd.toISOString().slice(0, 10);
+    const callLogs: Array<{ billable_minutes: number | string | null }> = [];
+    const PAGE = 1000;
+    for (let from = 0; ; from += PAGE) {
+      const { data: page, error: callError } = await supabaseClient
+        .from("call_logs")
+        .select("id, billable_minutes")
+        .eq("client_id", leadId)
+        .gte("call_date", periodStartDate)
+        .lte("call_date", periodEndDate)
+        .order("id")
+        .range(from, from + PAGE - 1);
+      if (callError) throw new Error(`Could not fetch call logs: ${callError.message}`);
+      callLogs.push(...(page || []));
+      if (!page || page.length < PAGE) break;
     }
 
-    const totalSeconds = callLogs?.reduce((sum, log) => sum + (log.call_duration || 0), 0) || 0;
-    const minutesUsed = Math.ceil(totalSeconds / 60);
-    logStep("Usage calculated", { totalSeconds, minutesUsed, callCount: callLogs?.length || 0 });
+    const minutesUsed = callLogs.reduce((sum, log) => sum + (Number(log.billable_minutes) || 0), 0);
+    logStep("Usage calculated", { periodStartDate, periodEndDate, minutesUsed, callCount: callLogs.length });
 
     // Calculate dynamic billing with annual discount if applicable
     const isAnnualBilling = lead.billing_period === 'annual';
