@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main, develop]
 
+# A new push cancels the previous run on the same ref; overlapping suites
+# against the shared staging DB exhaust its disk IO budget and time out.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
