@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { authenticateAgent } from "../_shared/agent-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -187,17 +188,12 @@ serve(async (req) => {
       throw new Error("Missing Supabase environment variables");
     }
 
-    // Authenticate user
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header");
+    // Returns any lead's billing breakdown — admin/billing staff only.
+    const auth = await authenticateAgent(req, ["admin", "billing"]);
+    if (auth.error) return auth.error;
+    logStep("User authenticated", { userId: auth.user.id });
 
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
-    const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? "");
-    
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await anonClient.auth.getUser(token);
-    if (userError) throw new Error(`Auth error: ${userError.message}`);
-    logStep("User authenticated", { userId: userData.user?.id });
 
     // Parse request
     const { leadId, billingPeriodStart, billingPeriodEnd } = await req.json();
