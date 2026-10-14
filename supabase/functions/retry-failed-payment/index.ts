@@ -101,17 +101,12 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("authorization") || "";
-    const isSchedulerCall =
-      authHeader === `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` ||
-      req.headers.get("x-supabase-scheduled") === "true";
-
-    let callerUserId: string | null = null;
-    if (!isSchedulerCall) {
-      const auth = await authenticateAgent(req, ["admin", "billing"]);
-      if (auth.error) return auth.error;
-      callerUserId = auth.user.id;
-    }
+    // pg_cron calls with the service-role key (treated as the scheduler);
+    // otherwise an admin/billing user. No header-based shortcut — headers are spoofable.
+    const auth = await authenticateAgent(req, ["admin", "billing"], { allowServiceRole: true });
+    if (auth.error) return auth.error;
+    const isSchedulerCall = auth.user.id === "scheduler";
+    const callerUserId: string | null = isSchedulerCall ? null : auth.user.id;
 
     const nmiKey = Deno.env.get("NMI_API_KEY");
     if (!nmiKey) throw new Error("NMI_API_KEY is not configured");

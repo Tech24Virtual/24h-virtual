@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Phone, PhoneOutgoing, Clock, TrendingUp, FileText, ArrowRight } from 'lucide-react';
 import { wlClientUrl } from '@/lib/wlClientUrl';
@@ -12,6 +12,7 @@ import { ClientNudgesCard } from '@/components/client-dashboard/ClientNudgesCard
 import { WLEndClientActivationCard } from '@/components/wl-portal/WLEndClientActivationCard';
 import { ClientWelcomeModal } from '@/components/wl-portal/ClientWelcomeModal';
 import { useWLPortal } from '@/contexts/WLPortalContext';
+import { useWLCallLogsRealtime, fetchAllWLCallLogs } from '@/hooks/useWLCallLogsRealtime';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -26,53 +27,62 @@ export default function WLPortalDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [outboundDialogOpen, setOutboundDialogOpen] = useState(false);
 
+  const clientId = clientInfo?.id;
+
+  // silent = background refresh (realtime / interval) — don't flash the loading state.
+  const fetchData = useCallback(async (silent = false) => {
+    if (!clientId) return;
+    if (!silent) setIsLoading(true);
+    // Filter on call_date (when the call happened), not created_at — report
+    // backfills insert historical calls with a current created_at.
+    const startOfMonth = format(new Date(), 'yyyy-MM-01');
+
+    try {
+      const [monthCalls, scriptsData] = await Promise.all([
+        fetchAllWLCallLogs(clientId, startOfMonth),
+        supabase
+          .from('wl_client_scripts')
+          .select('id', { count: 'exact', head: true })
+          .eq('wl_client_id', clientId)
+          .eq('is_active', true),
+      ]);
+
+      const totalMinutes = monthCalls.reduce((sum, c) => sum + (c.handle_time_seconds || 0), 0) / 60;
+
+      setStats({
+        callsThisMonth: monthCalls.length,
+        totalMinutes: Math.round(totalMinutes),
+        activeScripts: scriptsData.count || 0,
+      });
+
+      const { data: recent } = await supabase
+        .from('wl_call_logs')
+        .select('*')
+        .eq('wl_client_id', clientId)
+        .order('call_date', { ascending: false, nullsFirst: false })
+        .order('call_time', { ascending: false, nullsFirst: false })
+        .limit(5);
+
+      setRecentCalls(recent || []);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      if (!silent) setIsLoading(false);
+    }
+  }, [clientId]);
+
   useEffect(() => {
-    if (!clientInfo) return;
-    const fetchData = async () => {
-      setIsLoading(true);
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
-
-      try {
-        const [callsData, scriptsData] = await Promise.all([
-          supabase
-            .from('wl_call_logs')
-            .select('*')
-            .eq('wl_client_id', clientInfo.id)
-            .gte('created_at', startOfMonth.toISOString()),
-          supabase
-            .from('wl_client_scripts')
-            .select('id', { count: 'exact', head: true })
-            .eq('wl_client_id', clientInfo.id)
-            .eq('is_active', true),
-        ]);
-
-        const calls = callsData.data || [];
-        const totalMinutes = calls.reduce((sum: number, c: any) => sum + (c.handle_time_seconds || 0), 0) / 60;
-
-        setStats({
-          callsThisMonth: calls.length,
-          totalMinutes: Math.round(totalMinutes),
-          activeScripts: scriptsData.count || 0,
-        });
-
-        const { data: recent } = await supabase
-          .from('wl_call_logs')
-          .select('*')
-          .eq('wl_client_id', clientInfo.id)
-          .order('created_at', { ascending: false })
-          .limit(5);
-
-        setRecentCalls(recent || []);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchData();
-  }, [clientInfo]);
+  }, [fetchData]);
+
+  // Live updates: refetch when Five9 inserts a call for this client, with a
+  // 60s poll as a fallback in case the realtime socket drops.
+  useWLCallLogsRealtime(clientId, 'dashboard', () => fetchData(true));
+  useEffect(() => {
+    if (!clientId) return;
+    const interval = setInterval(() => fetchData(true), 60_000);
+    return () => clearInterval(interval);
+  }, [clientId, fetchData]);
 
   const greeting = clientInfo?.contact_name || clientInfo?.client_name || '';
 

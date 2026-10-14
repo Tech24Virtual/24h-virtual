@@ -24,21 +24,15 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Detect scheduler invocation: Supabase sends the service role key as the bearer token.
-    // Also accept the X-Supabase-Scheduled header for forward-compatibility.
-    const authHeader = req.headers.get("authorization") || "";
-    const isSchedulerCall =
-      authHeader === `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` ||
-      req.headers.get("x-supabase-scheduled") === "true";
+    // pg_cron calls with the service-role key (treated as the scheduler);
+    // otherwise an admin/billing user. No header-based shortcut — headers are
+    // spoofable and this function is deployed with verify_jwt = false.
+    const auth = await authenticateAgent(req, ["admin", "billing"], { allowServiceRole: true });
+    if (auth.error) return auth.error;
+    const isSchedulerCall = auth.user.id === "scheduler";
 
     const triggeredBy: "scheduler" | "manual" = isSchedulerCall ? "scheduler" : "manual";
-    let callerUserId: string | null = null;
-
-    if (!isSchedulerCall) {
-      const auth = await authenticateAgent(req, ["admin", "billing"]);
-      if (auth.error) return auth.error;
-      callerUserId = auth.user.id;
-    }
+    const callerUserId: string | null = isSchedulerCall ? null : auth.user.id;
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,

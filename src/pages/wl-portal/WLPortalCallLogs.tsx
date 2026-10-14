@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Search, Phone, Clock, User, Filter, Mail, Hash, Download, BarChart3 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,7 +16,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { WLPortalLayout } from '@/components/wl-portal/WLPortalLayout';
 import { useWLPortal } from '@/contexts/WLPortalContext';
-import { supabase } from '@/integrations/supabase/client';
+import { useWLCallLogsRealtime, fetchAllWLCallLogs } from '@/hooks/useWLCallLogsRealtime';
 import { format } from 'date-fns';
 
 const statusColors: Record<string, string> = {
@@ -75,20 +75,33 @@ export default function WLPortalCallLogs() {
   const [dateTo, setDateTo] = useState('');
   const [summaryOpen, setSummaryOpen] = useState(false);
 
+  const clientId = clientInfo?.id;
+
+  // silent = background refresh (realtime / interval) — don't flash the loading state.
+  const fetchCalls = useCallback(async (silent = false) => {
+    if (!clientId) return;
+    if (!silent) setIsLoading(true);
+    try {
+      setCalls(await fetchAllWLCallLogs(clientId));
+    } catch (error) {
+      console.error('Error fetching call logs:', error);
+    } finally {
+      if (!silent) setIsLoading(false);
+    }
+  }, [clientId]);
+
   useEffect(() => {
-    if (!clientInfo) return;
-    const fetchCalls = async () => {
-      setIsLoading(true);
-      const { data } = await supabase
-        .from('wl_call_logs')
-        .select('*')
-        .eq('wl_client_id', clientInfo.id)
-        .order('created_at', { ascending: false });
-      if (data) setCalls(data);
-      setIsLoading(false);
-    };
     fetchCalls();
-  }, [clientInfo]);
+  }, [fetchCalls]);
+
+  // Live updates when Five9 inserts a call for this client, with a 60s poll
+  // as a fallback in case the realtime socket drops.
+  useWLCallLogsRealtime(clientId, 'call-logs', () => fetchCalls(true));
+  useEffect(() => {
+    if (!clientId) return;
+    const interval = setInterval(() => fetchCalls(true), 60_000);
+    return () => clearInterval(interval);
+  }, [clientId, fetchCalls]);
 
   const formatDuration = (seconds: number | null) => {
     if (!seconds) return '-';
