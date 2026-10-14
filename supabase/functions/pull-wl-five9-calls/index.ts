@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders, authenticateAgent } from "../_shared/agent-auth.ts";
+import { calcBillableMinutes } from "../_shared/billing.ts";
 
 // Same Five9 Admin API pattern as pull-five9-call-report, but routes results
 // through client_report_mappings (match_type = 'wl_campaign') into
@@ -200,19 +201,6 @@ function parseSeconds(raw: string): number {
   return parseInt(raw) || 0;
 }
 
-// Billing rules (confirmed with Paul, 2026-10-14):
-//  1. Abandoned calls (every segment abandoned) are not billed.
-//  2. Bill on handle time = talk + ACW, rounded up to the minute (not Five9 BILL TIME).
-//  3. Dispositions containing any of these terms are not billed.
-const NON_BILLABLE_DISPOSITION_TERMS = ["wrong number", "testing", "marketing", "internal testing"];
-
-function billableMinutesFor(status: string, handleTimeSec: number, disposition: string | null): number {
-  if (status === "missed") return 0;
-  const d = (disposition ?? "").toLowerCase();
-  if (NON_BILLABLE_DISPOSITION_TERMS.some((term) => d.includes(term))) return 0;
-  return handleTimeSec > 0 ? Math.ceil(handleTimeSec / 60) : 0;
-}
-
 // Maps a row from the "Call Log Reports / Call Log" CSV.
 function mapCsvRowToWlCallLog(row: Record<string, string>, partnerId: string, wlClientId: string) {
   const externalId = colGet(row, "CALL ID");
@@ -243,7 +231,7 @@ function mapCsvRowToWlCallLog(row: Record<string, string>, partnerId: string, wl
     call_time: callTime,
     call_direction: direction,
     call_type: direction,
-    status: colGet(row, "ABANDONED") === "1" ? "missed" : "completed",
+    status: (colGet(row, "ABANDONED") === "1" ? "missed" : "completed") as "completed" | "missed",
     _campaignName: campaignName, // stripped before insert — used only for client-side filtering
   };
 }
@@ -271,7 +259,12 @@ function mergeCallSegments(rows: WlCallLogRow[]): WlCallLogRow[] {
   }
   const merged = [...byId.values()];
   for (const call of merged) {
-    call.billable_minutes = billableMinutesFor(call.status, call.handle_time_seconds, call.disposition);
+    call.billable_minutes = calcBillableMinutes({
+      status: call.status,
+      talkTimeSeconds: call.talk_time_seconds,
+      acwSeconds: call.acw_seconds,
+      disposition: call.disposition,
+    });
   }
   return merged;
 }

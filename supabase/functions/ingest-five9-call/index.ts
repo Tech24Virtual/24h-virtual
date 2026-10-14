@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { calcBillableMinutes } from "../_shared/billing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -72,8 +73,15 @@ function extractCallFields(formData: Record<string, string>) {
   }
 
   const handleTimeSeconds = parseTimeToSeconds(handleTimeRaw);
-  const billableMinutes = handleTimeSeconds > 0 ? Math.ceil(handleTimeSeconds / 60) : 0;
-  const status = handleTimeSeconds === 0 ? "missed" : "completed";
+  const status: "completed" | "missed" = handleTimeSeconds === 0 ? "missed" : "completed";
+  // The webhook only sends Five9's combined handle_time (talk + hold + ACW), so
+  // it's passed as talk time with no separate ACW.
+  const billableMinutes = calcBillableMinutes({
+    status,
+    talkTimeSeconds: handleTimeSeconds,
+    acwSeconds: 0,
+    disposition: dispositionName,
+  });
 
   return {
     callId, campaignName, callerName, callerEmail, callerNumber,

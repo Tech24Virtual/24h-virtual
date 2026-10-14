@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders, authenticateAgent } from "../_shared/agent-auth.ts";
+import { calcBillableMinutes } from "../_shared/billing.ts";
 
 const FIVE9_USERNAME = Deno.env.get("FIVE9_USERNAME") ?? "";
 const FIVE9_PASSWORD = Deno.env.get("FIVE9_PASSWORD") ?? "";
@@ -206,7 +207,6 @@ function mapCsvRow(row: Record<string, string>, clientId: string) {
   const talkTimeSec = parseSeconds(colGet(row, "TALK TIME"));
   const acwSec = parseSeconds(colGet(row, "AFTER CALL WORK TIME"));
   const handleTimeSec = talkTimeSec + acwSec;
-  const billSec = parseSeconds(colGet(row, "BILL TIME (ROUNDED)"));
   const direction = colGet(row, "CALL TYPE").toLowerCase().startsWith("outbound") ? "outbound" : "inbound";
 
   return {
@@ -221,13 +221,12 @@ function mapCsvRow(row: Record<string, string>, clientId: string) {
     acw_seconds: acwSec,
     handle_time_seconds: handleTimeSec,
     call_duration: handleTimeSec,
-    billable_minutes: billSec > 0 ? Math.ceil(billSec / 60) : 0,
+    billable_minutes: 0, // set by mergeCallSegments once all segments are combined
     call_date: callDate,
     call_time: callTime,
     call_direction: direction,
     call_type: direction,
-    status: colGet(row, "ABANDONED") === "1" ? "missed" : "completed",
-    _billSec: billSec, // stripped before insert — summed across segments in mergeCallSegments
+    status: (colGet(row, "ABANDONED") === "1" ? "missed" : "completed") as "completed" | "missed",
   };
 }
 
@@ -236,7 +235,8 @@ type CallLogRow = NonNullable<ReturnType<typeof mapCsvRow>>;
 // Call Log emits one row per call segment (transfers, conferences, voicemail),
 // all sharing the same CALL ID. Collapse them into one call: times are summed,
 // first segment wins for timestamp/caller, last non-empty agent/disposition wins,
-// and the call is "missed" only if every segment was abandoned.
+// and the call is "missed" only if every segment was abandoned. Billing rules
+// are applied to the merged call.
 function mergeCallSegments(rows: CallLogRow[]): CallLogRow[] {
   const byId = new Map<string, CallLogRow>();
   for (const r of rows) {
@@ -246,14 +246,21 @@ function mergeCallSegments(rows: CallLogRow[]): CallLogRow[] {
     prev.acw_seconds += r.acw_seconds;
     prev.handle_time_seconds += r.handle_time_seconds;
     prev.call_duration += r.call_duration;
-    prev._billSec += r._billSec;
-    prev.billable_minutes = prev._billSec > 0 ? Math.ceil(prev._billSec / 60) : 0;
     prev.agent_name = r.agent_name ?? prev.agent_name;
     prev.disposition = r.disposition ?? prev.disposition;
     prev.caller_name = prev.caller_name ?? r.caller_name;
     if (r.status === "completed") prev.status = "completed";
   }
-  return [...byId.values()];
+  const merged = [...byId.values()];
+  for (const call of merged) {
+    call.billable_minutes = calcBillableMinutes({
+      status: call.status,
+      talkTimeSeconds: call.talk_time_seconds,
+      acwSeconds: call.acw_seconds,
+      disposition: call.disposition,
+    });
+  }
+  return merged;
 }
 
 Deno.serve(async (req) => {
@@ -421,9 +428,7 @@ Deno.serve(async (req) => {
           .select("external_call_id")
           .in("external_call_id", externalIds);
         const existingSet = new Set((existing || []).map((r: any) => r.external_call_id));
-        const newRecords = records
-          .filter((r) => !existingSet.has(r.external_call_id))
-          .map(({ _billSec, ...insertable }) => insertable);
+        const newRecords = records.filter((r) => !existingSet.has(r.external_call_id));
 
         // Capture pre-insert minutes for variance detection
         const { data: existingLogs } = await supabase

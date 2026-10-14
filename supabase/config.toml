@@ -395,6 +395,10 @@ verify_jwt = false
 [functions.five9-connector-webhook]
 verify_jwt = false
 
+# Five9 webhook — authenticated by its own ?secret= (FIVE9_WEBHOOK_KEY), not a JWT.
+[functions.ingest-five9-call]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
