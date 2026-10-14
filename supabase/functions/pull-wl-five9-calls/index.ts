@@ -124,6 +124,13 @@ async function getReportCsv(identifier: string, sessionCookie: string): Promise<
     .replace(/&#xd;/gi, "");
 }
 
+// PostgREST errors are plain objects, so String(err) yields "[object Object]".
+function errText(err: unknown): string {
+  if (err instanceof Error) return String(err);
+  if (err && typeof err === "object") return JSON.stringify(err);
+  return String(err);
+}
+
 function parseCsvLine(line: string): string[] {
   const result: string[] = [];
   let current = "";
@@ -167,52 +174,93 @@ function colGet(row: Record<string, string>, ...keys: string[]): string {
   return "";
 }
 
-function parseIsoDate(raw: string): string | null {
-  if (!raw) return null;
-  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
-  const m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (m) return `${m[3]}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`;
-  return raw;
+const MONTHS: Record<string, string> = {
+  jan: "01", feb: "02", mar: "03", apr: "04", may: "05", jun: "06",
+  jul: "07", aug: "08", sep: "09", oct: "10", nov: "11", dec: "12",
+};
+
+// Call Log TIMESTAMP looks like "Tue, 13 Oct 2026 00:33:32" — parsed as-is
+// (no Date()) so the Five9 domain's wall-clock time isn't shifted to UTC.
+function parseFive9Timestamp(raw: string): { date: string | null; time: string | null } {
+  const m = raw.match(/(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})\s+(\d{1,2}:\d{2}:\d{2})/);
+  if (!m) return { date: null, time: null };
+  const month = MONTHS[m[2].toLowerCase()];
+  if (!month) return { date: null, time: null };
+  return { date: `${m[3]}-${month}-${m[1].padStart(2, "0")}`, time: m[4].padStart(8, "0") };
 }
 
 function parseSeconds(raw: string): number {
   if (!raw) return 0;
   if (raw.includes(":")) {
     const parts = raw.split(":").map(Number);
-    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    if (parts.some(isNaN)) return 0;
+    if (parts.length === 3) return Math.round(parts[0] * 3600 + parts[1] * 60 + parts[2]);
+    if (parts.length === 2) return Math.round(parts[0] * 60 + parts[1]);
   }
   return parseInt(raw) || 0;
 }
 
+// Maps a row from the "Call Log Reports / Call Log" CSV.
 function mapCsvRowToWlCallLog(row: Record<string, string>, partnerId: string, wlClientId: string) {
-  const externalId = colGet(row, "Call ID", "Session GUID", "GUID", "Call GUID", "ID", "SessionGuid");
+  const externalId = colGet(row, "CALL ID");
   if (!externalId) return null;
 
-  const handleTimeSec = parseSeconds(
-    colGet(row, "Handle Time", "Handling Time", "Total Handle Time", "Handle time")
-  );
-  const billableMinutes = handleTimeSec > 0 ? Math.ceil(handleTimeSec / 60) : 0;
-  const campaignName = colGet(row, "Campaign", "Campaign Name") || null;
+  const { date: callDate, time: callTime } = parseFive9Timestamp(colGet(row, "TIMESTAMP"));
+  const talkTimeSec = parseSeconds(colGet(row, "TALK TIME"));
+  const acwSec = parseSeconds(colGet(row, "AFTER CALL WORK TIME"));
+  const handleTimeSec = talkTimeSec + acwSec;
+  const billSec = parseSeconds(colGet(row, "BILL TIME (ROUNDED)"));
+  const billableMinutes = billSec > 0 ? Math.ceil(billSec / 60) : 0;
+  const campaignName = colGet(row, "CAMPAIGN") || null;
+  const direction = colGet(row, "CALL TYPE").toLowerCase().startsWith("outbound") ? "outbound" : "inbound";
 
   return {
     partner_id: partnerId,
     wl_client_id: wlClientId,
     external_call_id: externalId,
-    caller_phone: colGet(row, "ANI", "Caller ANI", "Caller Phone", "From Number") || null,
+    caller_phone: colGet(row, "ANI") || null,
+    caller_name: colGet(row, "CUSTOMER NAME") || null,
     campaign_name: campaignName,
-    agent_name: colGet(row, "Agent", "Agent Name", "Agent Login") || null,
-    disposition: colGet(row, "Disposition", "Call Disposition") || null,
-    handle_time_seconds: handleTimeSec || null,
-    call_duration: handleTimeSec || null,
-    billable_minutes: billableMinutes || null,
-    call_date: parseIsoDate(colGet(row, "Date", "Call Date", "Start Date")),
-    call_time: colGet(row, "Time", "Call Time", "Start Time") || null,
-    call_direction: "inbound",
-    call_type: "inbound",
-    status: "completed",
+    agent_name: colGet(row, "AGENT NAME") || null,
+    disposition: colGet(row, "DISPOSITION") || null,
+    talk_time_seconds: talkTimeSec,
+    acw_seconds: acwSec,
+    handle_time_seconds: handleTimeSec,
+    call_duration: handleTimeSec,
+    billable_minutes: billableMinutes,
+    call_date: callDate,
+    call_time: callTime,
+    call_direction: direction,
+    call_type: direction,
+    status: colGet(row, "ABANDONED") === "1" ? "missed" : "completed",
     _campaignName: campaignName, // stripped before insert — used only for client-side filtering
+    _billSec: billSec, // stripped before insert — summed across segments in mergeCallSegments
   };
+}
+
+type WlCallLogRow = NonNullable<ReturnType<typeof mapCsvRowToWlCallLog>>;
+
+// Call Log emits one row per call segment (transfers, conferences, voicemail),
+// all sharing the same CALL ID. Collapse them into one call: times are summed,
+// first segment wins for timestamp/caller, last non-empty agent/disposition wins,
+// and the call is "missed" only if every segment was abandoned.
+function mergeCallSegments(rows: WlCallLogRow[]): WlCallLogRow[] {
+  const byId = new Map<string, WlCallLogRow>();
+  for (const r of rows) {
+    const prev = byId.get(r.external_call_id);
+    if (!prev) { byId.set(r.external_call_id, { ...r }); continue; }
+    prev.talk_time_seconds += r.talk_time_seconds;
+    prev.acw_seconds += r.acw_seconds;
+    prev.handle_time_seconds += r.handle_time_seconds;
+    prev.call_duration += r.call_duration;
+    prev._billSec += r._billSec;
+    prev.billable_minutes = prev._billSec > 0 ? Math.ceil(prev._billSec / 60) : 0;
+    prev.agent_name = r.agent_name ?? prev.agent_name;
+    prev.disposition = r.disposition ?? prev.disposition;
+    prev.caller_name = prev.caller_name ?? r.caller_name;
+    if (r.status === "completed") prev.status = "completed";
+  }
+  return [...byId.values()];
 }
 
 Deno.serve(async (req) => {
@@ -319,7 +367,8 @@ Deno.serve(async (req) => {
       let dayRows: Array<Record<string, string>>;
       try {
         // Single-day window: start = day 00:00:00, end = day 23:59:59
-        const { identifier, sessionCookie } = await runReport("Campaign Reports", "Campaign Activity", day, day);
+        // "Campaign Activity" only exports PDF/Excel; Call Log supports CSV.
+        const { identifier, sessionCookie } = await runReport("Call Log Reports", "Call Log", day, day);
         await pollUntilReady(identifier, sessionCookie);
         dayRows = parseCsv(await getReportCsv(identifier, sessionCookie));
       } catch (err) {
@@ -331,13 +380,13 @@ Deno.serve(async (req) => {
             step_name: "pull_wl_report",
             input_snapshot: { day },
             success: false,
-            error_message: String(err),
+            error_message: errText(err),
           }),
           supabase.from("mission_control_events").insert({
             mission_id: mission.id,
             agent_name: "WLFive9ReportAgent",
             event_type: "error",
-            message: `Error pulling ${day}: ${String(err).substring(0, 200)}`,
+            message: `Error pulling ${day}: ${errText(err).substring(0, 200)}`,
           }),
         ]);
         continue;
@@ -347,10 +396,12 @@ Deno.serve(async (req) => {
         try {
           const mapped = dayRows
             .map((r) => mapCsvRowToWlCallLog(r, cm.partner_id, cm.wl_client_id))
-            .filter(Boolean) as NonNullable<ReturnType<typeof mapCsvRowToWlCallLog>>[];
+            .filter(Boolean) as WlCallLogRow[];
           // Only keep rows whose CSV "Campaign" column matches this mapping's
           // Five9 campaign name — the report itself isn't filtered server-side.
-          const records = mapped.filter((r) => !r._campaignName || r._campaignName === cm.match_value);
+          const records = mergeCallSegments(
+            mapped.filter((r) => !r._campaignName || r._campaignName === cm.match_value)
+          );
 
           if (records.length === 0) {
             processedClients.add(cm.wl_client_id);
@@ -366,7 +417,7 @@ Deno.serve(async (req) => {
           const existingSet = new Set((existing || []).map((r: any) => r.external_call_id));
           const newRecords = records
             .filter((r) => !existingSet.has(r.external_call_id))
-            .map(({ _campaignName, ...insertable }) => insertable);
+            .map(({ _campaignName, _billSec, ...insertable }) => insertable);
 
           if (newRecords.length > 0) {
             const { error: insertErr } = await supabase.from("wl_call_logs").insert(newRecords);
@@ -404,13 +455,13 @@ Deno.serve(async (req) => {
               step_name: "pull_wl_report",
               input_snapshot: { wl_client_id: cm.wl_client_id, campaign: cm.match_value, day },
               success: false,
-              error_message: String(err),
+              error_message: errText(err),
             }),
             supabase.from("mission_control_events").insert({
               mission_id: mission.id,
               agent_name: "WLFive9ReportAgent",
               event_type: "error",
-              message: `Error for ${day} ${cm.match_value}: ${String(err).substring(0, 200)}`,
+              message: `Error for ${day} ${cm.match_value}: ${errText(err).substring(0, 200)}`,
             }),
           ]);
         }
