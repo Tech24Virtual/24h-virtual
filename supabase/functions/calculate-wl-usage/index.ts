@@ -31,10 +31,31 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const partnerId = body.partner_id || body.partnerId || null;
 
-    // Determine billing period (current month)
-    const now = new Date();
-    const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-    const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+    // Billing period: explicit billing_period_start/end (for historical
+    // recalculation) or default to the current month.
+    const isoDate = /^\d{4}-\d{2}-\d{2}$/;
+    const hasStart = body.billing_period_start !== undefined;
+    const hasEnd = body.billing_period_end !== undefined;
+    if (hasStart !== hasEnd) {
+      return new Response(JSON.stringify({ error: "Provide both billing_period_start and billing_period_end, or neither" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400,
+      });
+    }
+    let periodStart: string;
+    let periodEnd: string;
+    if (hasStart) {
+      periodStart = String(body.billing_period_start);
+      periodEnd = String(body.billing_period_end);
+      if (!isoDate.test(periodStart) || !isoDate.test(periodEnd) || periodStart > periodEnd) {
+        return new Response(JSON.stringify({ error: "billing_period_start/end must be YYYY-MM-DD with start <= end" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400,
+        });
+      }
+    } else {
+      const now = new Date();
+      periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+      periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+    }
 
     logStep("Calculating usage", { periodStart, periodEnd, partnerId });
 
@@ -75,13 +96,23 @@ serve(async (req) => {
 
       const activeClientCount = clients?.length || 0;
 
-      // Get total minutes for all clients this period
-      const { data: allCalls } = await supabase
-        .from("wl_call_logs")
-        .select("wl_client_id, billable_minutes")
-        .eq("partner_id", partner.id)
-        .gte("call_date", periodStart)
-        .lte("call_date", periodEnd);
+      // Get total minutes for all clients this period. Paged — PostgREST caps a
+      // single select at 1000 rows, which would silently undercount busy months.
+      const allCalls: Array<{ wl_client_id: string; billable_minutes: number | string | null }> = [];
+      const PAGE = 1000;
+      for (let from = 0; ; from += PAGE) {
+        const { data: page, error: pageErr } = await supabase
+          .from("wl_call_logs")
+          .select("id, wl_client_id, billable_minutes")
+          .eq("partner_id", partner.id)
+          .gte("call_date", periodStart)
+          .lte("call_date", periodEnd)
+          .order("id")
+          .range(from, from + PAGE - 1);
+        if (pageErr) throw new Error(`wl_call_logs query failed: ${pageErr.message}`);
+        allCalls.push(...(page || []));
+        if (!page || page.length < PAGE) break;
+      }
 
       // Aggregate minutes per client
       const clientMinutes: Record<string, number> = {};
