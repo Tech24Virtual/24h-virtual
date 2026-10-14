@@ -164,47 +164,96 @@ function colGet(row: Record<string, string>, ...keys: string[]): string {
   return "";
 }
 
-function parseIsoDate(raw: string): string | null {
-  if (!raw) return null;
-  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
-  const m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (m) return `${m[3]}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`;
-  return raw;
+const MONTHS: Record<string, string> = {
+  jan: "01", feb: "02", mar: "03", apr: "04", may: "05", jun: "06",
+  jul: "07", aug: "08", sep: "09", oct: "10", nov: "11", dec: "12",
+};
+
+// Call Log TIMESTAMP looks like "Tue, 13 Oct 2026 00:33:32" — parsed as-is
+// (no Date()) so the Five9 domain's wall-clock time isn't shifted to UTC.
+function parseFive9Timestamp(raw: string): { date: string | null; time: string | null } {
+  const m = raw.match(/(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})\s+(\d{1,2}:\d{2}:\d{2})/);
+  if (!m) return { date: null, time: null };
+  const month = MONTHS[m[2].toLowerCase()];
+  if (!month) return { date: null, time: null };
+  return { date: `${m[3]}-${month}-${m[1].padStart(2, "0")}`, time: m[4].padStart(8, "0") };
 }
 
 function parseSeconds(raw: string): number {
   if (!raw) return 0;
   if (raw.includes(":")) {
     const parts = raw.split(":").map(Number);
-    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    if (parts.some(isNaN)) return 0;
+    if (parts.length === 3) return Math.round(parts[0] * 3600 + parts[1] * 60 + parts[2]);
+    if (parts.length === 2) return Math.round(parts[0] * 60 + parts[1]);
   }
   return parseInt(raw) || 0;
 }
 
+// PostgREST errors are plain objects, so String(err) yields "[object Object]".
+function errText(err: unknown): string {
+  if (err instanceof Error) return String(err);
+  if (err && typeof err === "object") return JSON.stringify(err);
+  return String(err);
+}
+
+// Maps a row from the "Call Log Reports / Call Log" CSV.
 function mapCsvRow(row: Record<string, string>, clientId: string) {
-  const externalId = colGet(row, "Call ID", "Session GUID", "GUID", "Call GUID", "ID", "SessionGuid");
+  const externalId = colGet(row, "CALL ID");
   if (!externalId) return null;
 
-  const handleTimeSec = parseSeconds(
-    colGet(row, "Handle Time", "Handling Time", "Total Handle Time", "Handle time")
-  );
-  const billableMinutes = handleTimeSec > 0 ? Math.ceil(handleTimeSec / 60) : 0;
+  const { date: callDate, time: callTime } = parseFive9Timestamp(colGet(row, "TIMESTAMP"));
+  const talkTimeSec = parseSeconds(colGet(row, "TALK TIME"));
+  const acwSec = parseSeconds(colGet(row, "AFTER CALL WORK TIME"));
+  const handleTimeSec = talkTimeSec + acwSec;
+  const billSec = parseSeconds(colGet(row, "BILL TIME (ROUNDED)"));
+  const direction = colGet(row, "CALL TYPE").toLowerCase().startsWith("outbound") ? "outbound" : "inbound";
 
   return {
     client_id: clientId,
     external_call_id: externalId,
-    caller_phone: colGet(row, "ANI", "Caller ANI", "Caller Phone", "From Number") || null,
-    campaign_name: colGet(row, "Campaign", "Campaign Name") || null,
-    agent_name: colGet(row, "Agent", "Agent Name", "Agent Login") || null,
-    disposition: colGet(row, "Disposition", "Call Disposition") || null,
-    handle_time_seconds: handleTimeSec || null,
-    billable_minutes: billableMinutes || null,
-    call_date: parseIsoDate(colGet(row, "Date", "Call Date", "Start Date")),
-    call_time: colGet(row, "Time", "Call Time", "Start Time") || null,
-    call_type: "inbound",
-    status: "completed",
+    caller_phone: colGet(row, "ANI") || null,
+    caller_name: colGet(row, "CUSTOMER NAME") || null,
+    campaign_name: colGet(row, "CAMPAIGN") || null,
+    agent_name: colGet(row, "AGENT NAME") || null,
+    disposition: colGet(row, "DISPOSITION") || null,
+    talk_time_seconds: talkTimeSec,
+    acw_seconds: acwSec,
+    handle_time_seconds: handleTimeSec,
+    call_duration: handleTimeSec,
+    billable_minutes: billSec > 0 ? Math.ceil(billSec / 60) : 0,
+    call_date: callDate,
+    call_time: callTime,
+    call_direction: direction,
+    call_type: direction,
+    status: colGet(row, "ABANDONED") === "1" ? "missed" : "completed",
+    _billSec: billSec, // stripped before insert — summed across segments in mergeCallSegments
   };
+}
+
+type CallLogRow = NonNullable<ReturnType<typeof mapCsvRow>>;
+
+// Call Log emits one row per call segment (transfers, conferences, voicemail),
+// all sharing the same CALL ID. Collapse them into one call: times are summed,
+// first segment wins for timestamp/caller, last non-empty agent/disposition wins,
+// and the call is "missed" only if every segment was abandoned.
+function mergeCallSegments(rows: CallLogRow[]): CallLogRow[] {
+  const byId = new Map<string, CallLogRow>();
+  for (const r of rows) {
+    const prev = byId.get(r.external_call_id);
+    if (!prev) { byId.set(r.external_call_id, { ...r }); continue; }
+    prev.talk_time_seconds += r.talk_time_seconds;
+    prev.acw_seconds += r.acw_seconds;
+    prev.handle_time_seconds += r.handle_time_seconds;
+    prev.call_duration += r.call_duration;
+    prev._billSec += r._billSec;
+    prev.billable_minutes = prev._billSec > 0 ? Math.ceil(prev._billSec / 60) : 0;
+    prev.agent_name = r.agent_name ?? prev.agent_name;
+    prev.disposition = r.disposition ?? prev.disposition;
+    prev.caller_name = prev.caller_name ?? r.caller_name;
+    if (r.status === "completed") prev.status = "completed";
+  }
+  return [...byId.values()];
 }
 
 Deno.serve(async (req) => {
@@ -281,18 +330,23 @@ Deno.serve(async (req) => {
 
     const activeLeadMap = new Map((activeLeads || []).map((l: any) => [l.id, l]));
 
-    type ClientMapping = { client_id: string; client_name: string; five9_campaign_name: string };
-    const clientMappings: ClientMapping[] = (mappings || [])
-      .filter((m: any) => m.campaign?.client_lead_id && activeLeadMap.has(m.campaign.client_lead_id))
-      .filter((m: any) => !filterClientId || m.campaign.client_lead_id === filterClientId)
-      .map((m: any) => {
-        const lead = activeLeadMap.get(m.campaign.client_lead_id) as any;
-        return {
-          client_id: m.campaign.client_lead_id as string,
-          client_name: (lead.name || lead.company || m.campaign.client_lead_id) as string,
-          five9_campaign_name: m.five9_campaign_name as string,
-        };
-      });
+    // One entry per client — a client can own several Five9 campaigns.
+    type ClientMapping = { client_id: string; client_name: string; five9_campaign_names: string[] };
+    const byClient = new Map<string, ClientMapping>();
+    for (const m of (mappings || []) as any[]) {
+      const clientId = m.campaign?.client_lead_id as string | undefined;
+      if (!clientId || !activeLeadMap.has(clientId)) continue;
+      if (filterClientId && clientId !== filterClientId) continue;
+      const lead = activeLeadMap.get(clientId) as any;
+      const entry = byClient.get(clientId) ?? {
+        client_id: clientId,
+        client_name: (lead.name || lead.company || clientId) as string,
+        five9_campaign_names: [],
+      };
+      entry.five9_campaign_names.push(m.five9_campaign_name as string);
+      byClient.set(clientId, entry);
+    }
+    const clientMappings = [...byClient.values()];
 
     if (clientMappings.length === 0) {
       await supabase.from("missions").update({
@@ -307,28 +361,47 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 3. Process each client
+    // 3. Pull the report once — it covers every campaign — then route rows per client.
+    // "Campaign Activity" only exports PDF/Excel; Call Log supports CSV.
     let hasErrors = false;
     let totalNewRows = 0;
     const processedClients: string[] = [];
 
-    for (const cm of clientMappings) {
-      try {
-        await supabase.from("mission_control_events").insert({
+    let csvRows: Array<Record<string, string>> = [];
+    try {
+      const { identifier, sessionCookie } = await runReport("Call Log Reports", "Call Log", period_start!, period_end!);
+      await pollUntilReady(identifier, sessionCookie);
+      csvRows = parseCsv(await getReportCsv(identifier, sessionCookie));
+    } catch (err) {
+      hasErrors = true;
+      await Promise.all([
+        supabase.from("agent_runs").insert({
           mission_id: mission.id,
           agent_name: "Five9ReportAgent",
-          event_type: "step",
-          message: `Pulling report for ${cm.client_name} (campaign: ${cm.five9_campaign_name})`,
-        });
+          step_name: "pull_report",
+          input_snapshot: { period_start, period_end },
+          success: false,
+          error_message: errText(err),
+        }),
+        supabase.from("mission_control_events").insert({
+          mission_id: mission.id,
+          agent_name: "Five9ReportAgent",
+          event_type: "error",
+          message: `Error pulling Call Log report: ${errText(err).substring(0, 200)}`,
+        }),
+      ]);
+    }
 
-        const { identifier, sessionCookie } = await runReport("Campaign Reports", "Campaign Activity", period_start!, period_end!);
-        await pollUntilReady(identifier, sessionCookie);
-        const csv = await getReportCsv(identifier, sessionCookie);
-
-        const csvRows = parseCsv(csv);
-        const records = csvRows
-          .map((r) => mapCsvRow(r, cm.client_id))
-          .filter(Boolean) as NonNullable<ReturnType<typeof mapCsvRow>>[];
+    for (const cm of hasErrors ? [] : clientMappings) {
+      try {
+        // Only keep rows for this client's Five9 campaigns — the report isn't filtered server-side.
+        const campaigns = new Set(cm.five9_campaign_names);
+        const records = mergeCallSegments(
+          csvRows
+            .filter((r) => campaigns.has(colGet(r, "CAMPAIGN")))
+            .map((r) => mapCsvRow(r, cm.client_id))
+            .filter(Boolean) as CallLogRow[]
+        );
 
         if (records.length === 0) {
           await supabase.from("mission_control_events").insert({
@@ -348,7 +421,9 @@ Deno.serve(async (req) => {
           .select("external_call_id")
           .in("external_call_id", externalIds);
         const existingSet = new Set((existing || []).map((r: any) => r.external_call_id));
-        const newRecords = records.filter((r) => !existingSet.has(r.external_call_id));
+        const newRecords = records
+          .filter((r) => !existingSet.has(r.external_call_id))
+          .map(({ _billSec, ...insertable }) => insertable);
 
         // Capture pre-insert minutes for variance detection
         const { data: existingLogs } = await supabase
@@ -387,7 +462,7 @@ Deno.serve(async (req) => {
             status: "open",
             mission_id: mission.id,
             raw_details: {
-              campaign: cm.five9_campaign_name,
+              campaigns: cm.five9_campaign_names,
               new_rows: newRecords.length,
               skipped_webhook_rows: records.length - newRecords.length,
             },
@@ -405,7 +480,7 @@ Deno.serve(async (req) => {
           mission_id: mission.id,
           agent_name: "Five9ReportAgent",
           step_name: "pull_report",
-          input_snapshot: { client_id: cm.client_id, campaign: cm.five9_campaign_name, period_start, period_end },
+          input_snapshot: { client_id: cm.client_id, campaigns: cm.five9_campaign_names, period_start, period_end },
           output_snapshot: {
             csv_rows: records.length,
             new_rows: newRecords.length,
@@ -423,15 +498,15 @@ Deno.serve(async (req) => {
             mission_id: mission.id,
             agent_name: "Five9ReportAgent",
             step_name: "pull_report",
-            input_snapshot: { client_id: cm.client_id, campaign: cm.five9_campaign_name },
+            input_snapshot: { client_id: cm.client_id, campaigns: cm.five9_campaign_names },
             success: false,
-            error_message: String(err),
+            error_message: errText(err),
           }),
           supabase.from("mission_control_events").insert({
             mission_id: mission.id,
             agent_name: "Five9ReportAgent",
             event_type: "error",
-            message: `Error for ${cm.client_name}: ${String(err).substring(0, 200)}`,
+            message: `Error for ${cm.client_name}: ${errText(err).substring(0, 200)}`,
           }),
         ]);
       }
