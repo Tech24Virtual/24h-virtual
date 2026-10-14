@@ -200,6 +200,19 @@ function parseSeconds(raw: string): number {
   return parseInt(raw) || 0;
 }
 
+// Billing rules (confirmed with Paul, 2026-10-14):
+//  1. Abandoned calls (every segment abandoned) are not billed.
+//  2. Bill on handle time = talk + ACW, rounded up to the minute (not Five9 BILL TIME).
+//  3. Dispositions containing any of these terms are not billed.
+const NON_BILLABLE_DISPOSITION_TERMS = ["wrong number", "testing", "marketing", "internal testing"];
+
+function billableMinutesFor(status: string, handleTimeSec: number, disposition: string | null): number {
+  if (status === "missed") return 0;
+  const d = (disposition ?? "").toLowerCase();
+  if (NON_BILLABLE_DISPOSITION_TERMS.some((term) => d.includes(term))) return 0;
+  return handleTimeSec > 0 ? Math.ceil(handleTimeSec / 60) : 0;
+}
+
 // Maps a row from the "Call Log Reports / Call Log" CSV.
 function mapCsvRowToWlCallLog(row: Record<string, string>, partnerId: string, wlClientId: string) {
   const externalId = colGet(row, "CALL ID");
@@ -209,8 +222,6 @@ function mapCsvRowToWlCallLog(row: Record<string, string>, partnerId: string, wl
   const talkTimeSec = parseSeconds(colGet(row, "TALK TIME"));
   const acwSec = parseSeconds(colGet(row, "AFTER CALL WORK TIME"));
   const handleTimeSec = talkTimeSec + acwSec;
-  const billSec = parseSeconds(colGet(row, "BILL TIME (ROUNDED)"));
-  const billableMinutes = billSec > 0 ? Math.ceil(billSec / 60) : 0;
   const campaignName = colGet(row, "CAMPAIGN") || null;
   const direction = colGet(row, "CALL TYPE").toLowerCase().startsWith("outbound") ? "outbound" : "inbound";
 
@@ -227,14 +238,13 @@ function mapCsvRowToWlCallLog(row: Record<string, string>, partnerId: string, wl
     acw_seconds: acwSec,
     handle_time_seconds: handleTimeSec,
     call_duration: handleTimeSec,
-    billable_minutes: billableMinutes,
+    billable_minutes: 0, // set by mergeCallSegments once all segments are combined
     call_date: callDate,
     call_time: callTime,
     call_direction: direction,
     call_type: direction,
     status: colGet(row, "ABANDONED") === "1" ? "missed" : "completed",
     _campaignName: campaignName, // stripped before insert — used only for client-side filtering
-    _billSec: billSec, // stripped before insert — summed across segments in mergeCallSegments
   };
 }
 
@@ -243,7 +253,8 @@ type WlCallLogRow = NonNullable<ReturnType<typeof mapCsvRowToWlCallLog>>;
 // Call Log emits one row per call segment (transfers, conferences, voicemail),
 // all sharing the same CALL ID. Collapse them into one call: times are summed,
 // first segment wins for timestamp/caller, last non-empty agent/disposition wins,
-// and the call is "missed" only if every segment was abandoned.
+// and the call is "missed" only if every segment was abandoned. Billing rules
+// are applied to the merged call.
 function mergeCallSegments(rows: WlCallLogRow[]): WlCallLogRow[] {
   const byId = new Map<string, WlCallLogRow>();
   for (const r of rows) {
@@ -253,14 +264,16 @@ function mergeCallSegments(rows: WlCallLogRow[]): WlCallLogRow[] {
     prev.acw_seconds += r.acw_seconds;
     prev.handle_time_seconds += r.handle_time_seconds;
     prev.call_duration += r.call_duration;
-    prev._billSec += r._billSec;
-    prev.billable_minutes = prev._billSec > 0 ? Math.ceil(prev._billSec / 60) : 0;
     prev.agent_name = r.agent_name ?? prev.agent_name;
     prev.disposition = r.disposition ?? prev.disposition;
     prev.caller_name = prev.caller_name ?? r.caller_name;
     if (r.status === "completed") prev.status = "completed";
   }
-  return [...byId.values()];
+  const merged = [...byId.values()];
+  for (const call of merged) {
+    call.billable_minutes = billableMinutesFor(call.status, call.handle_time_seconds, call.disposition);
+  }
+  return merged;
 }
 
 Deno.serve(async (req) => {
@@ -417,7 +430,7 @@ Deno.serve(async (req) => {
           const existingSet = new Set((existing || []).map((r: any) => r.external_call_id));
           const newRecords = records
             .filter((r) => !existingSet.has(r.external_call_id))
-            .map(({ _campaignName, _billSec, ...insertable }) => insertable);
+            .map(({ _campaignName, ...insertable }) => insertable);
 
           if (newRecords.length > 0) {
             const { error: insertErr } = await supabase.from("wl_call_logs").insert(newRecords);

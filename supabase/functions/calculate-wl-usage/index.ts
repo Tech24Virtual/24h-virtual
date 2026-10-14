@@ -90,7 +90,7 @@ serve(async (req) => {
       // Get active clients
       const { data: clients } = await supabase
         .from("white_label_clients")
-        .select("id, service_type, language_support, num_campaigns")
+        .select("id, service_type, language_support, num_campaigns, has_integrations, integration_surcharge")
         .eq("partner_id", partner.id)
         .eq("status", "active");
 
@@ -171,7 +171,10 @@ serve(async (req) => {
         else if (lang === "french") languageSurcharge = Number(pricing.french_surcharge) || 0.05;
         else if (lang === "both") languageSurcharge = Number(pricing.both_languages_surcharge) || 0.07;
 
-        const effectiveRate = baseRate + secretarySurcharge + languageSurcharge;
+        // Integration surcharge is set per client (default $0.05 → $1.05/min on a $1.00 base).
+        const integrationSurcharge = client.has_integrations ? Number(client.integration_surcharge ?? 0.05) : 0;
+
+        const effectiveRate = baseRate + secretarySurcharge + languageSurcharge + integrationSurcharge;
         const wholesaleCost = mins * effectiveRate;
         totalWholesaleCost += wholesaleCost;
 
