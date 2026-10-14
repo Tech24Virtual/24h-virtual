@@ -396,3 +396,35 @@ Total:       192/192 passed (13 skipped, 205 total) ✅
 - Momir CNAME records at vezareception.com
 - Live NMI credentials from Ryker
 - Five9 campaign→client mappings from Paul
+
+## BILLING RULES IMPLEMENTED (2026-10-14)
+
+### Five9 Data Pipeline — Fixed
+- Switched from "Campaign Activity" (PDF only) to "Call Log Reports / Call Log" (CSV ✅)
+- All three Five9 paths unified with shared billing rules (_shared/billing.ts)
+- Hourly cron jobs now authenticate correctly (service-role bypass)
+
+### Billing Rules (Paul confirmed)
+- Charge on Handle Time (Talk Time + ACW), NOT Bill Time
+- Abandoned/missed calls = $0
+- Non-billable dispositions = $0 (contains match): wrong number, testing, marketing, internal testing
+- Veza Reception (WL partner, incl. Jurist Law Group) rate: flat $1.00/min — all wl_wholesale_pricing tiers set to 1.00
+- Integration surcharge: +$0.05/min per client (has_integrations flag on white_label_clients)
+
+### Jurist Law Group Real Data
+- 1,985 calls loaded (Aug 15 – Oct 14)
+- Aug: 590 calls, 2,481 billable min, $2,481 (Aug 15 onward — Five9 keeps 60 days)
+- Sep: 988 calls, 3,565 billable min, $3,565
+- Oct (to date): 414 calls, 1,348 billable min, $1,348 (usage record; call logs at 416 / 1,351 — refreshes on next calculate-wl-usage)
+
+### Functions Secured
+- calculate-wl-usage: admin/billing only
+- calculate-monthly-billing: admin/billing only
+- pull-wl-five9-calls: admin/billing + scheduler
+- pull-five9-call-report: admin/billing + scheduler
+- ⚠️ ingest-five9-call (Five9 webhook) must deploy with verify_jwt = false (set in config.toml) — it auths via ?secret=
+
+### Still Open
+- Direct client billing: calculate-monthly-billing needs real clients with plan_minutes set
+- Five9 support case: closed (switched reports, no longer needed)
+- Abandoned call billing for direct clients: matches WL rules now
