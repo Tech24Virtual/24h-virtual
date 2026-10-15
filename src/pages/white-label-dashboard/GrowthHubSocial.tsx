@@ -10,6 +10,7 @@ import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { Share2, Copy, Check, Loader2, Linkedin, Facebook, Twitter, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
+import { functionError } from "@/lib/wl/functionError";
 
 const platformConfig = {
   linkedin: { label: "LinkedIn", icon: Linkedin, color: "bg-blue-600" },
@@ -64,7 +65,7 @@ export default function GrowthHubSocial() {
       const { data, error } = await supabase.functions.invoke("wl-generate-social-snippets", {
         body: { blog_queue_id: selectedPostId },
       });
-      if (error) throw error;
+      if (error) throw await functionError(error);
       if (data?.error) throw new Error(typeof data.error === 'string' ? data.error : data.error?.message ?? 'Unknown error');
       return data;
     },

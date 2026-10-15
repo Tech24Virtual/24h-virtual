@@ -11,6 +11,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, Search, Loader2, Trash2, Sparkles, ArrowLeft, FileText } from "lucide-react";
 import { Link } from "react-router-dom";
+import { functionError } from "@/lib/wl/functionError";
 
 const statusColors: Record<string, string> = {
   not_started: "bg-muted text-muted-foreground",
@@ -109,7 +110,7 @@ export default function GrowthHubKeywords() {
       const { data, error } = await supabase.functions.invoke("wl-suggest-keywords", {
         body: { partner_id: partner!.id, focus_area: focusArea || undefined },
       });
-      if (error) throw error;
+      if (error) throw await functionError(error);
       if (data?.error) throw new Error(typeof data.error === 'string' ? data.error : data.error?.message ?? 'Unknown error');
       return data.suggestions;
     },

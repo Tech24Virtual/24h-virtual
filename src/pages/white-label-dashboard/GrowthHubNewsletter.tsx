@@ -11,6 +11,7 @@ import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { Mail, Copy, Check, Loader2, ArrowLeft, Eye, Code, Send } from "lucide-react";
 import { Link } from "react-router-dom";
+import { functionError } from "@/lib/wl/functionError";
 
 const sanitizeHtml = (html: string) =>
   html
@@ -122,7 +123,7 @@ export default function GrowthHubNewsletter() {
       const { data, error } = await supabase.functions.invoke("wl-generate-newsletter", {
         body: { partner_id: partner!.id, draft_month: selectedMonth, context: context.trim() },
       });
-      if (error) throw error;
+      if (error) throw await functionError(error);
       if (data?.error) throw new Error(typeof data.error === 'string' ? data.error : data.error?.message ?? 'Unknown error');
       return data;
     },

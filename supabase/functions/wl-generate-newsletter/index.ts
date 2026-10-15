@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { forbiddenResponse, hasWLPartnerAccess } from "../_shared/wlPartnerAccess.ts";
+import { chatCompletion } from "../_shared/aiChat.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,9 +14,6 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Missing authorization header");
-
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -60,11 +58,14 @@ serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(5);
 
-    if (!posts || posts.length === 0) {
-      throw new Error("No blog posts found for this month. Generate some blog content first.");
+    // With no blog posts that month the newsletter is written from the sender's
+    // context alone (the Context field is required in the UI).
+    const featuredPosts = posts ?? [];
+    if (featuredPosts.length === 0 && !context?.trim()) {
+      throw new Error("No blog posts found for this month. Add context describing what the newsletter should cover.");
     }
 
-    const postSummaries = posts.map((p, i) => 
+    const postSummaries = featuredPosts.map((p, i) =>
       `${i + 1}. Title: ${p.generated_title || p.keyword_text}
    Excerpt: ${(p.generated_excerpt || (p.generated_content || "").substring(0, 150))}
    URL: ${p.wp_post_url || "(not yet published to WordPress)"}`
@@ -74,8 +75,9 @@ serve(async (req) => {
 
     const prompt = `Create an email newsletter for ${companyName} for ${monthName}.
 
-Blog posts to feature:
-${postSummaries}
+${featuredPosts.length > 0
+  ? `Blog posts to feature:\n${postSummaries}`
+  : "There are no blog posts this month. Build the newsletter around the sender's context below."}
 
 Company: ${companyName}
 Services: ${partner?.services_offered || "virtual receptionist services"}
@@ -85,7 +87,7 @@ ${context ? `\nContext from the sender — key topics, promotions, audience, and
 Return valid JSON (no markdown fences):
 {
   "subject_line": "Compelling email subject line under 60 chars",
-  "html_content": "Complete HTML email with inline styles. Use ${brandColor} as primary color. Include: header with company name, intro paragraph, each blog post as a section with title, excerpt, and 'Read More' link (use the URL if available, otherwise use '#'). End with a CTA and footer.",
+  "html_content": "Complete HTML email with inline styles. Use ${brandColor} as primary color. Include: header with company name, intro paragraph, each blog post (if any) as a section with title, excerpt, and 'Read More' link (use the URL if available, otherwise use '#'), or otherwise sections covering the sender's topics. End with a CTA and footer.",
   "plain_text": "Plain text version of the same newsletter"
 }
 
@@ -96,17 +98,7 @@ HTML requirements:
 - Responsive-friendly tables
 - Include unsubscribe placeholder at bottom`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
+    const response = await chatCompletion([{ role: "user", content: prompt }]);
 
     if (!response.ok) throw new Error("AI generation failed");
 
@@ -131,7 +123,7 @@ HTML requirements:
         subject_line: newsletter.subject_line,
         html_content: newsletter.html_content,
         plain_text: newsletter.plain_text,
-        post_ids: posts.map(p => p.id),
+        post_ids: featuredPosts.map(p => p.id),
       });
 
     if (insertError) throw new Error("Failed to save newsletter: " + insertError.message);

@@ -11,6 +11,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, FileText, Loader2, ExternalLink, Trash2, Send, RefreshCw, ArrowLeft, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
+import { functionError } from "@/lib/wl/functionError";
 
 const statusColors: Record<string, string> = {
   queued: "bg-muted text-muted-foreground",
@@ -87,7 +88,7 @@ export default function GrowthHubBlog() {
       const { data, error } = await supabase.functions.invoke("wl-generate-blog-post", {
         body: { queue_id: queueId },
       });
-      if (error) throw error;
+      if (error) throw await functionError(error);
       if (data?.error) throw new Error(typeof data.error === 'string' ? data.error : data.error?.message ?? 'Unknown error');
       return data;
     },

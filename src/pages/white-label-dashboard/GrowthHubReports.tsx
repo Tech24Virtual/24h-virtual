@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { BarChart3, FileText, Search, TrendingUp, Download, Printer, Loader2, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import jsPDF from "jspdf";
+import { functionError } from "@/lib/wl/functionError";
 
 function getMonthOptions() {
   const options = [];
@@ -57,7 +58,7 @@ export default function GrowthHubReports() {
       const { data, error } = await supabase.functions.invoke("wl-generate-seo-report", {
         body: { partner_id: partner!.id, report_month: selectedMonth },
       });
-      if (error) throw error;
+      if (error) throw await functionError(error);
       if (data?.error) throw new Error(typeof data.error === 'string' ? data.error : data.error?.message ?? 'Unknown error');
       return data;
     },
