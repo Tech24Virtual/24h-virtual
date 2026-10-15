@@ -1,7 +1,7 @@
 /**
  * Flow 27 — Admin Branding Edit
  *
- * Verifies that an admin can navigate to a WL partner's detail page,
+ * Verifies that an admin can navigate to the QA WL partner's detail page,
  * open the Branding tab, view and edit branding fields, and save successfully.
  *
  * Tests:
@@ -19,7 +19,12 @@ import { loginAs } from '../helpers/auth';
 // partners list so serial retries don't depend on prior-test state.
 let partnerDetailUrl: string;
 
-async function navigateToFirstWLPartner(page: Parameters<typeof loginAs>[0]) {
+// Staging is shared with real partners (the list is newest-first, so "first row" was a
+// real partner and this flow overwrote its portal branding). Always edit the QA owner's
+// partner — matched exactly so "QA Test Agency B" isn't picked up.
+const QA_PARTNER_NAME = 'QA Test Agency';
+
+async function navigateToQAWLPartner(page: Parameters<typeof loginAs>[0]) {
   await page.goto('/admin/partners');
   await page.waitForLoadState('networkidle');
 
@@ -28,9 +33,12 @@ async function navigateToFirstWLPartner(page: Parameters<typeof loginAs>[0]) {
   await page.waitForLoadState('networkidle');
 
   // Each partner row has a single ghost icon button (MoreHorizontal) as the action menu
-  const firstRowMenuBtn = page.locator('table tbody tr').first().getByRole('button');
-  await firstRowMenuBtn.waitFor({ timeout: 15000 });
-  await firstRowMenuBtn.click();
+  const qaRow = page
+    .locator('table tbody tr')
+    .filter({ has: page.getByRole('cell', { name: QA_PARTNER_NAME, exact: true }) });
+  const rowMenuBtn = qaRow.getByRole('button');
+  await rowMenuBtn.waitFor({ timeout: 15000 });
+  await rowMenuBtn.click();
 
   // "Manage Partner" is a DropdownMenuItem (role=menuitem)
   await page.getByRole('menuitem', { name: 'Manage Partner' }).click();
@@ -44,7 +52,7 @@ test.describe.serial('Flow 27 — Admin Branding Edit', () => {
   // ── Test 1: Branding tab is visible on partner detail page ──────────────────
   test('admin sees Branding tab on partner detail page', async ({ page }) => {
     await loginAs(page, 'admin');
-    await navigateToFirstWLPartner(page);
+    await navigateToQAWLPartner(page);
 
     partnerDetailUrl = page.url();
 
@@ -60,7 +68,7 @@ test.describe.serial('Flow 27 — Admin Branding Edit', () => {
       await page.goto(partnerDetailUrl);
       await page.waitForLoadState('networkidle');
     } else {
-      await navigateToFirstWLPartner(page);
+      await navigateToQAWLPartner(page);
     }
 
     await page.getByRole('tab', { name: 'Branding' }).click();
@@ -82,7 +90,7 @@ test.describe.serial('Flow 27 — Admin Branding Edit', () => {
       await page.goto(partnerDetailUrl);
       await page.waitForLoadState('networkidle');
     } else {
-      await navigateToFirstWLPartner(page);
+      await navigateToQAWLPartner(page);
     }
 
     await page.getByRole('tab', { name: 'Branding' }).click();
@@ -90,9 +98,7 @@ test.describe.serial('Flow 27 — Admin Branding Edit', () => {
     const companyNameInput = page.getByTestId('input-company-name');
     await companyNameInput.waitFor({ timeout: 10000 });
 
-    // This runs against shared staging data (the first WL partner in the list is a real
-    // partner), so always put the original name back — leaving 'Admin Test Co' behind
-    // overwrote that partner's portal branding on every CI run.
+    // Put the QA partner's name back afterwards so repeated runs stay idempotent.
     const originalName = await companyNameInput.inputValue();
 
     try {
@@ -116,7 +122,7 @@ test.describe.serial('Flow 27 — Admin Branding Edit', () => {
       await page.goto(partnerDetailUrl);
       await page.waitForLoadState('networkidle');
     } else {
-      await navigateToFirstWLPartner(page);
+      await navigateToQAWLPartner(page);
     }
 
     await page.getByRole('tab', { name: 'Branding' }).click();
@@ -137,7 +143,7 @@ test.describe.serial('Flow 27 — Admin Branding Edit', () => {
       await page.goto(partnerDetailUrl);
       await page.waitForLoadState('networkidle');
     } else {
-      await navigateToFirstWLPartner(page);
+      await navigateToQAWLPartner(page);
     }
 
     await page.getByRole('tab', { name: 'Branding' }).click();
