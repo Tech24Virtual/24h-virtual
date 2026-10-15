@@ -25076,6 +25076,7 @@ export type Database = {
       }
       wl_client_ticket_replies: {
         Row: {
+          attachments: Json | null
           author_name: string | null
           author_role: string | null
           author_type: string
@@ -25086,6 +25087,7 @@ export type Database = {
           ticket_id: string
         }
         Insert: {
+          attachments?: Json | null
           author_name?: string | null
           author_role?: string | null
           author_type?: string
@@ -25096,6 +25098,7 @@ export type Database = {
           ticket_id: string
         }
         Update: {
+          attachments?: Json | null
           author_name?: string | null
           author_role?: string | null
           author_type?: string

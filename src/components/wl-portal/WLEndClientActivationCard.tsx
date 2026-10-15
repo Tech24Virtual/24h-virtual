@@ -40,7 +40,7 @@ export function WLEndClientActivationCard({ wlClientId }: Props) {
         if (!mounted) return;
         const built = deriveWLEndClientPath({
           accountStatus: row?.account_status ?? null,
-          hasPublishedCampaign: (row?.published_campaigns ?? 0) > 0,
+          hasPublishedCampaign: (row?.published_campaigns ?? 0) > 0 || (row?.active_scripts ?? 0) > 0,
           hasLiveReceptionist: (row?.live_receptionist_flows ?? 0) > 0,
           hasReceptionistPending: (row?.pending_receptionist_flows ?? 0) > 0,
         });

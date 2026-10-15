@@ -1,8 +1,9 @@
 import { supabase } from '@/integrations/supabase/client';
 
-// Attachments on ticket_replies (support_tickets lane). Files live in the private
-// `ticket-attachments` bucket at <ticket_id>/<uuid>-<filename>; ticket_replies.attachments
-// stores [{ path, name, type, size }] and the UI signs URLs on demand.
+// Attachments on ticket replies. Files live in the private `ticket-attachments` bucket at
+// <ticket_id>/<uuid>-<filename> (support_tickets lane) or wl/<ticket_id>/<uuid>-<filename>
+// (wl_client_tickets lane); the replies' attachments column stores [{ path, name, type, size }]
+// and the UI signs URLs on demand.
 
 export type TicketAttachment = {
   path: string;
@@ -48,12 +49,22 @@ export function validateAttachmentFiles(existing: File[], incoming: File[]) {
   return { accepted, errors };
 }
 
+/** Storage folder for a ticket's attachments — WL tickets live under wl/ (own storage policies). */
+export function ticketAttachmentFolder(ticketId: string, lane: 'support' | 'wl' = 'support'): string {
+  return lane === 'wl' ? `wl/${ticketId}` : ticketId;
+}
+
 /** Upload files for a ticket and return the metadata to store on the reply. */
-export async function uploadTicketAttachments(ticketId: string, files: File[]): Promise<TicketAttachment[]> {
+export async function uploadTicketAttachments(
+  ticketId: string,
+  files: File[],
+  lane: 'support' | 'wl' = 'support',
+): Promise<TicketAttachment[]> {
+  const folder = ticketAttachmentFolder(ticketId, lane);
   const uploaded: TicketAttachment[] = [];
   for (const file of files) {
     const safeName = (file.name || 'pasted-image').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-120);
-    const path = `${ticketId}/${crypto.randomUUID()}-${safeName}`;
+    const path = `${folder}/${crypto.randomUUID()}-${safeName}`;
     const { error } = await supabase.storage
       .from(TICKET_ATTACHMENT_BUCKET)
       .upload(path, file, { contentType: file.type, upsert: false });

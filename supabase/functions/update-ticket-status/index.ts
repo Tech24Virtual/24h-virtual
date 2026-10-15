@@ -13,7 +13,7 @@
 //     action: TicketAction,
 //     assignee_id?: string|null,   // assign
 //     body?: string,               // post_message
-//     attachments?: [{path,name,type,size}],  // post_message on support_tickets; paths must be under <ticket id>/
+//     attachments?: [{path,name,type,size}],  // post_message; paths under <ticket id>/ (support_tickets) or wl/<ticket id>/ (wl_client_tickets)
 //     is_internal?: boolean,       // post_message
 //     forward_summary?: string,    // forward_to_24h; required, 20-2000 chars
 //     target_work_queue?: string,  // forward_to_24h
@@ -63,7 +63,7 @@ type AttachmentResult = { ok: true; value: Array<Record<string, unknown>> } | { 
 
 // Returns a clean attachments array, or an error. Paths must live under the ticket's own folder
 // so a reply can never reference another ticket's files.
-function validateAttachments(raw: unknown, ticketId: string): AttachmentResult {
+function validateAttachments(raw: unknown, folder: string): AttachmentResult {
   if (raw === undefined || raw === null) return { ok: true, value: [] };
   if (!Array.isArray(raw)) return { ok: false, error: "attachments must be an array" };
   if (raw.length > MAX_ATTACHMENTS) return { ok: false, error: `At most ${MAX_ATTACHMENTS} attachments per message` };
@@ -73,7 +73,7 @@ function validateAttachments(raw: unknown, ticketId: string): AttachmentResult {
     const name = String(a?.name ?? "").slice(0, 200);
     const type = String(a?.type ?? "");
     const size = Number(a?.size ?? 0);
-    if (!path.startsWith(`${ticketId}/`) || path.includes("..") || path.length > 300) {
+    if (!path.startsWith(`${folder}/`) || path.includes("..") || path.length > 300) {
       return { ok: false, error: "Invalid attachment path" };
     }
     if (!ATTACHMENT_TYPES.has(type)) return { ok: false, error: "Unsupported attachment type" };
@@ -396,6 +396,7 @@ Deno.serve(async (req) => {
         return jsonResponse({ ok: true, data: inserted });
       } else {
         // wl_client_tickets → wl_client_ticket_replies
+        const attResult = validateAttachments(body.attachments, `wl/${id}`);
         const authorType = isStaff ? "staff" : isWhiteLabel ? "partner" : "client";
         const { data: inserted, error: insErr } = await admin
           .from("wl_client_ticket_replies")
@@ -406,6 +407,7 @@ Deno.serve(async (req) => {
             author_name: user.email ?? null,
             is_internal: isInternal,
             author_role: roles[0] ?? null,
+            attachments: attResult.ok ? attResult.value : [],
           })
           .select("*")
           .single();

@@ -26,73 +26,50 @@ export interface ClientCallTrend {
   weekOverWeekDelta: number; // signed integer
 }
 
-interface RawCall {
-  created_at: string;
-  call_duration: number | null;
-  status?: string | null;
+interface TrendRow {
+  day: string; // YYYY-MM-DD (call_date, client wall-clock)
+  total: number;
+  missed: number;
+  seconds: number;
+  after_hours: number;
 }
 
-const DAY_MS = 86_400_000;
-
-function bucketByDay(rows: RawCall[], days: number): DailyCallPoint[] {
-  const buckets = new Map<string, DailyCallPoint>();
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(today.getTime() - i * DAY_MS);
-    const key = d.toISOString().slice(0, 10);
-    buckets.set(key, { day: key, total: 0, missed: 0 });
-  }
-  for (const r of rows) {
-    const key = r.created_at.slice(0, 10);
-    const b = buckets.get(key);
-    if (!b) continue;
-    b.total += 1;
-    if (r.status === "missed") b.missed += 1;
-  }
-  return Array.from(buckets.values());
-}
-
-function summarize(rows: RawCall[], series: DailyCallPoint[]): Omit<ClientCallTrend, "days"> {
-  const totalCalls = rows.length;
-  const missedCalls = rows.filter((r) => r.status === "missed").length;
-  const totalMinutes = Math.round(
-    rows.reduce((s, r) => s + (r.call_duration || 0), 0) / 60,
-  );
-  const afterHoursCalls = rows.filter((r) => {
-    const h = new Date(r.created_at).getHours();
-    return h < 8 || h >= 18;
-  }).length;
-  const last7 = series.slice(-7).reduce((s, p) => s + p.total, 0);
-  const prev7 = series.slice(-14, -7).reduce((s, p) => s + p.total, 0);
-  return {
-    totalCalls,
-    missedCalls,
-    totalMinutes,
-    afterHoursCalls,
-    weekOverWeekDelta: last7 - prev7,
-  };
-}
-
+/**
+ * Aggregated server-side by public.client_call_trend(): buckets on
+ * call_date/call_time (when the call happened, not the import time), has no
+ * PostgREST row cap, and measures after-hours against the client's saved
+ * business hours (portal default Mon–Fri 09:00–17:00 when none are saved).
+ */
 export async function fetchClientCallTrend(opts: {
   scope: "direct" | "wl";
   clientId: string; // auth.uid for direct, wl_client_id for wl
   days?: number;
 }): Promise<ClientCallTrend> {
   const days = opts.days ?? 30;
-  const since = new Date(Date.now() - days * DAY_MS).toISOString();
-  const table = opts.scope === "wl" ? "wl_call_logs" : "call_logs";
-  const idCol = opts.scope === "wl" ? "wl_client_id" : "client_id";
-  const { data, error } = await (supabase as any)
-    .from(table)
-    .select("created_at, call_duration, status")
-    .eq(idCol, opts.clientId)
-    .gte("created_at", since)
-    .order("created_at", { ascending: true });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any).rpc("client_call_trend", {
+    p_scope: opts.scope,
+    p_client_id: opts.clientId,
+    p_days: days,
+  });
   if (error) throw error;
-  const rows = (data ?? []) as RawCall[];
-  const series = bucketByDay(rows, days);
-  return { days: series, ...summarize(rows, series) };
+  const rows = (data ?? []) as TrendRow[];
+  const series: DailyCallPoint[] = rows.map((r) => ({
+    day: r.day,
+    total: Number(r.total),
+    missed: Number(r.missed),
+  }));
+  const sum = (f: (r: TrendRow) => number) => rows.reduce((s, r) => s + Number(f(r) || 0), 0);
+  const last7 = series.slice(-7).reduce((s, p) => s + p.total, 0);
+  const prev7 = series.slice(-14, -7).reduce((s, p) => s + p.total, 0);
+  return {
+    days: series,
+    totalCalls: sum((r) => r.total),
+    missedCalls: sum((r) => r.missed),
+    totalMinutes: Math.round(sum((r) => r.seconds) / 60),
+    afterHoursCalls: sum((r) => r.after_hours),
+    weekOverWeekDelta: last7 - prev7,
+  };
 }
 
 // ── Nudges ───────────────────────────────────────────────────────

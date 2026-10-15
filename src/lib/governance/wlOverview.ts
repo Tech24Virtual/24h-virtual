@@ -64,6 +64,9 @@ export interface WLClientServiceStatusRow {
   any_receptionist_enabled: boolean;
   open_tickets: number;
   last_call_at: string | null;
+  /** wl_client_scripts — what the client sees on the Scripts page. */
+  total_scripts: number;
+  active_scripts: number;
 }
 
 export async function fetchPartnerReadiness(partnerId: string): Promise<WLPartnerReadinessRow | null> {

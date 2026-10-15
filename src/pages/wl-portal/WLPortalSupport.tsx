@@ -16,6 +16,10 @@ import { PiPAssistant } from '@/components/pip/PiPAssistant';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { AttachmentPicker } from '@/components/tickets/AttachmentPicker';
+import { MessageAttachments } from '@/components/tickets/MessageAttachments';
+import { useAttachmentDraft } from '@/hooks/useAttachmentDraft';
+import { parseAttachments, uploadTicketAttachments } from '@/lib/tickets/attachments';
 
 const statusColors: Record<string, string> = {
   open: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
@@ -45,6 +49,7 @@ export default function WLPortalSupport() {
   const [replies, setReplies] = useState<any[]>([]);
   const [replyText, setReplyText] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
+  const draft = useAttachmentDraft();
 
   useEffect(() => {
     if (clientInfo) fetchTickets();
@@ -104,14 +109,19 @@ export default function WLPortalSupport() {
     if (!selectedTicket || !replyText.trim()) return;
     setSendingReply(true);
     try {
+      const attachments = draft.files.length > 0
+        ? await uploadTicketAttachments(selectedTicket.id, draft.files, 'wl')
+        : [];
       const { error } = await supabase.from('wl_client_ticket_replies').insert({
         ticket_id: selectedTicket.id,
         message: replyText.trim(),
         author_type: 'client',
         author_name: clientInfo?.contact_name || clientInfo?.client_name || 'Client',
+        ...(attachments.length > 0 ? { attachments } : {}),
       });
       if (error) throw error;
       setReplyText('');
+      draft.clear();
       fetchReplies(selectedTicket.id);
     } catch (err) {
       toast.error('Failed to send reply');
@@ -259,6 +269,7 @@ export default function WLPortalSupport() {
                     <div key={r.id} className={`p-3 rounded-lg text-sm ${r.author_type === 'client' ? 'bg-muted ml-4' : 'bg-primary/10 mr-4'}`}>
                       <p className="font-medium text-xs mb-1">{r.author_name}</p>
                       <p>{r.message}</p>
+                      <MessageAttachments attachments={parseAttachments(r.attachments)} className="mt-2" />
                       <p className="text-xs text-muted-foreground mt-1">{format(new Date(r.created_at), 'MMM d, h:mm a')}</p>
                     </div>
                   ))}
@@ -268,6 +279,7 @@ export default function WLPortalSupport() {
                 <Textarea
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
+                  onPaste={draft.onPaste}
                   placeholder="Type a reply..."
                   rows={2}
                   className="flex-1"
@@ -275,6 +287,9 @@ export default function WLPortalSupport() {
                 <Button size="sm" onClick={handleSendReply} disabled={sendingReply || !replyText.trim()}>
                   <Send className="w-4 h-4" />
                 </Button>
+              </div>
+              <div className="mt-2">
+                <AttachmentPicker draft={draft} disabled={sendingReply} compact />
               </div>
             </div>
           </div>

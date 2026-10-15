@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ChatMessage } from './ChatMessage';
 import { AttachmentPicker } from './AttachmentPicker';
 import { useAttachmentDraft } from '@/hooks/useAttachmentDraft';
-import { parseAttachments, uploadTicketAttachments, type TicketAttachment } from '@/lib/tickets/attachments';
+import { parseAttachments, uploadTicketAttachments } from '@/lib/tickets/attachments';
 
 export interface TicketThreadProps {
   ticketId: string;
@@ -61,7 +61,7 @@ export function TicketThread({
       if (isWLLane) {
         const { data, error } = await supabase
           .from('wl_client_ticket_replies')
-          .select('id, ticket_id, message, author_name, author_type, author_role, is_internal, created_at')
+          .select('id, ticket_id, message, author_name, author_type, author_role, is_internal, created_at, attachments')
           .eq('ticket_id', ticketId)
           .order('created_at', { ascending: true });
         if (error) throw error;
@@ -73,7 +73,7 @@ export function TicketThread({
           author_type: r.author_type ?? null,
           is_internal: r.is_internal ?? false,
           created_at: r.created_at,
-          attachments: [] as TicketAttachment[],
+          attachments: parseAttachments(r.attachments),
         }));
       }
 
@@ -139,9 +139,8 @@ export function TicketThread({
   // Post reply via edge function
   const sendMutation = useMutation({
     mutationFn: async () => {
-      // Attachments are supported on the direct (support_tickets) lane only
-      const attachments = !isWLLane && draft.files.length > 0
-        ? await uploadTicketAttachments(ticketId, draft.files)
+      const attachments = draft.files.length > 0
+        ? await uploadTicketAttachments(ticketId, draft.files, isWLLane ? 'wl' : 'support')
         : [];
       console.log('[TicketThread] invoking edge fn:', { table: sourceTable, id: ticketId, action: 'post_message' });
       const { error } = await supabase.functions.invoke('update-ticket-status', {
@@ -224,11 +223,11 @@ export function TicketThread({
         <Textarea
           value={replyText}
           onChange={(e) => setReplyText(e.target.value)}
-          onPaste={isWLLane ? undefined : draft.onPaste}
+          onPaste={draft.onPaste}
           placeholder="Type a message…"
           rows={3}
         />
-        {!isWLLane && <AttachmentPicker draft={draft} disabled={sendMutation.isPending} />}
+        <AttachmentPicker draft={draft} disabled={sendMutation.isPending} />
         <div className="flex items-center justify-between gap-2 flex-wrap">
           {showInternalToggle && (
             <div className="flex items-center gap-2">

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Search, Phone, Clock, User, Filter, Mail, Hash, Download, BarChart3 } from 'lucide-react';
+import { Search, Phone, Clock, User, Filter, Mail, Hash, Download, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,6 +18,7 @@ import { WLPortalLayout } from '@/components/wl-portal/WLPortalLayout';
 import { useWLPortal } from '@/contexts/WLPortalContext';
 import { useWLCallLogsRealtime, fetchAllWLCallLogs } from '@/hooks/useWLCallLogsRealtime';
 import { format } from 'date-fns';
+import { formatCallDateTime, callDateKey } from '@/lib/wl/callTime';
 
 const statusColors: Record<string, string> = {
   // NOTE: --cta and --destructive resolve to the identical HSL value in
@@ -28,37 +29,7 @@ const statusColors: Record<string, string> = {
   voicemail: 'bg-brand-rose text-heading',
 };
 
-const CLIENT_TIME_ZONE = 'America/Toronto';
-
-/**
- * Calls carry a dedicated call_date/call_time pair (the telephony system's
- * recorded wall-clock time) separate from created_at (DB insert time, which
- * can lag behind the actual call and isn't reliable for display). Prefer
- * call_date/call_time — parsed with no timezone suffix so JS treats it as a
- * literal wall-clock value rather than reinterpreting it through the
- * viewer's browser timezone. Fall back to created_at (a true UTC instant)
- * rendered explicitly in the client's America/Toronto timezone.
- */
-function formatCallDateTime(call: any, pattern: string): string {
-  if (call.call_date) {
-    const local = new Date(`${call.call_date}T${call.call_time || '00:00:00'}`);
-    return format(local, pattern);
-  }
-  return new Intl.DateTimeFormat('en-US', {
-    timeZone: CLIENT_TIME_ZONE,
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date(call.created_at));
-}
-
-function callDateKey(call: any): string {
-  if (call.call_date) return call.call_date;
-  // Derive the Toronto calendar date from created_at for calls without call_date.
-  return new Intl.DateTimeFormat('en-CA', { timeZone: CLIENT_TIME_ZONE }).format(new Date(call.created_at));
-}
+const PAGE_SIZE = 50;
 
 function csvEscape(value: string): string {
   if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
@@ -74,6 +45,7 @@ export default function WLPortalCallLogs() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [page, setPage] = useState(0);
 
   const clientId = clientInfo?.id;
 
@@ -130,6 +102,15 @@ export default function WLPortalCallLogs() {
     () => dateFiltered.filter(call => (call.status || 'completed') !== 'missed'),
     [dateFiltered]
   );
+
+  // Stats, summary and CSV export use the full filtered set; only the table is paged.
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount - 1);
+  const pageRows = useMemo(
+    () => filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE),
+    [filtered, currentPage]
+  );
+  useEffect(() => { setPage(0); }, [searchQuery, dateFrom, dateTo]);
 
   const summary = useMemo(() => {
     const total = dateFiltered.length;
@@ -245,7 +226,7 @@ export default function WLPortalCallLogs() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((call) => (
+                  {pageRows.map((call) => (
                     <TableRow
                       key={call.id}
                       onClick={() => setSelectedCall(call)}
@@ -260,6 +241,22 @@ export default function WLPortalCallLogs() {
                   ))}
                 </TableBody>
               </Table>
+              {pageCount > 1 && (
+                <div className="flex items-center justify-between gap-4 pt-4 text-sm text-muted-foreground">
+                  <span>
+                    Showing {currentPage * PAGE_SIZE + 1}–{Math.min((currentPage + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setPage(currentPage - 1)} disabled={currentPage === 0}>
+                      <ChevronLeft className="w-4 h-4 mr-1" />Previous
+                    </Button>
+                    <span>Page {currentPage + 1} of {pageCount}</span>
+                    <Button variant="outline" size="sm" onClick={() => setPage(currentPage + 1)} disabled={currentPage >= pageCount - 1}>
+                      Next<ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>

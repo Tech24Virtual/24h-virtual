@@ -47,7 +47,9 @@ async function buildSystemPrompt(
   let brandName: string | undefined;
   let wlKnowledge: { title: string; content: string }[] = [];
 
-  if (dashboardContext === "white_label" && partnerId) {
+  // Partner dashboard ("white_label") and WL end-client portal ("wl_client")
+  // must both stay on the partner's brand. partnerId is resolved server-side.
+  if ((dashboardContext === "white_label" || dashboardContext === "wl_client") && partnerId) {
     isWL = true;
     const { data: branding } = await supabase
       .from("white_label_branding")
@@ -204,7 +206,23 @@ serve(async (req) => {
       );
     }
 
-    const systemPrompt = await buildSystemPrompt(supabase, dashboardContext, partnerId, userName);
+    // Never trust a client-supplied partnerId: derive it from the caller's
+    // own WL client record, partner ownership, or active team membership.
+    let resolvedPartnerId: string | undefined;
+    if (dashboardContext === "white_label" || dashboardContext === "wl_client") {
+      const uid = userData.user.id;
+      const [{ data: wlClient }, { data: owned }, { data: member }] = await Promise.all([
+        supabase.from("white_label_clients").select("partner_id").eq("user_id", uid).maybeSingle(),
+        supabase.from("white_label_partners").select("id").eq("user_id", uid).maybeSingle(),
+        supabase.from("wl_partner_members").select("partner_id").eq("user_id", uid).eq("status", "active").limit(1).maybeSingle(),
+      ]);
+      resolvedPartnerId = (wlClient?.partner_id ?? owned?.id ?? member?.partner_id) as string | undefined;
+      if (partnerId && resolvedPartnerId && partnerId !== resolvedPartnerId) {
+        logStep("Ignoring mismatched partnerId from client", { partnerId, resolvedPartnerId });
+      }
+    }
+
+    const systemPrompt = await buildSystemPrompt(supabase, dashboardContext, resolvedPartnerId, userName);
 
     const sanitizedIssueType =
       typeof issueType === "string" ? issueType.slice(0, 50) : "general";
@@ -242,7 +260,12 @@ ${description.slice(0, MAX_DESCRIPTION_LENGTH)}`;
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
-      throw new Error(`Anthropic API error: ${aiRes.status}`);
+      // Provider detail (e.g. "credit balance is too low") stays in the logs —
+      // WL end-clients must never see the upstream provider or billing state.
+      return new Response(
+        JSON.stringify({ error: "The assistant is temporarily unavailable. Please try again later or submit a ticket." }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     const aiData = await aiRes.json();

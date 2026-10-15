@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { forbiddenResponse, hasWLPartnerAccess, isPlatformAdmin } from "../_shared/wlPartnerAccess.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,6 +39,12 @@ serve(async (req) => {
     let from_name: string;
     let contacts: any[] = [];
     let sendTable: string;
+
+    // 24H's own list requires a platform admin; a partner list requires access to that partner.
+    if (scope === "admin" && !(await isPlatformAdmin(supabaseAdmin, user.id))) return forbiddenResponse(corsHeaders);
+    if (scope === "partner" && !(await hasWLPartnerAccess(supabaseAdmin, user.id, partner_id))) {
+      return forbiddenResponse(corsHeaders);
+    }
 
     if (scope === "admin") {
       const { data: conn } = await supabaseAdmin

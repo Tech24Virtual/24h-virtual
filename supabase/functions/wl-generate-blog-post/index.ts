@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { forbiddenResponse, hasWLPartnerAccess } from "../_shared/wlPartnerAccess.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -41,6 +42,7 @@ serve(async (req) => {
       .single();
 
     if (queueError || !queueItem) throw new Error("Queue item not found");
+    if (!(await hasWLPartnerAccess(supabaseAdmin, user.id, queueItem.partner_id))) return forbiddenResponse(corsHeaders);
 
     // Get partner info for branding
     const { data: partner } = await supabaseAdmin

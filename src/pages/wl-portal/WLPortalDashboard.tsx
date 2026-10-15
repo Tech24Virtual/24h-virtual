@@ -16,6 +16,7 @@ import { useWLCallLogsRealtime, fetchAllWLCallLogs } from '@/hooks/useWLCallLogs
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { formatCallDateTime } from '@/lib/wl/callTime';
 
 import { usePageView } from '@/lib/analytics';
 
@@ -148,7 +149,7 @@ export default function WLPortalDashboard() {
                       <p className="text-sm text-muted-foreground">{call.caller_phone}</p>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {format(new Date(call.created_at), 'MMM d, h:mm a')}
+                      {formatCallDateTime(call, 'MMM d, h:mm a')}
                     </p>
                   </div>
                 ))}

@@ -21,7 +21,9 @@ export interface WLPartnerBranding {
  */
 export function useWLPartnerBranding(partnerId: string | null | undefined) {
   return useQuery({
-    queryKey: ['wl-partner-branding', partnerId],
+    // Distinct from WhiteLabelLayout's ['wl-partner-branding', partnerId] query (different
+    // shape); shares the prefix so invalidating that key refreshes both.
+    queryKey: ['wl-partner-branding', partnerId, 'full'],
     enabled: !!partnerId,
     queryFn: async () => {
       const [brandingRes, partnerRes] = await Promise.all([

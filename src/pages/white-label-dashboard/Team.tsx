@@ -54,16 +54,19 @@ export default function WLTeam() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<Member | null>(null);
   const [resolvedEmails, setResolvedEmails] = useState<Record<string, string>>({});
+  // The partner's primary owner (white_label_partners.user_id) can't be edited or removed by teammates.
+  const [primaryOwner, setPrimaryOwner] = useState<{ userId: string | null; email: string | null }>({ userId: null, email: null });
 
   useEffect(() => { fetchPartnerAndMembers(); }, [user]);
 
   const fetchPartnerAndMembers = async () => {
     if (!user) return;
     try {
-      const { data: partner } = await fetchMyWLPartner(user.id);
+      const { data: partner } = await fetchMyWLPartner(user.id, 'id, user_id, email');
 
       if (partner) {
         setPartnerId(partner.id);
+        setPrimaryOwner({ userId: partner.user_id ?? null, email: partner.email ?? null });
         const { data: membersData } = await supabase
           .from('wl_partner_members')
           .select('*')
@@ -138,7 +141,16 @@ export default function WLTeam() {
   const displayEmail = (member: Member) =>
     member.invited_email
     ?? (member.user_id && resolvedEmails[member.user_id])
+    ?? (member.user_id && member.user_id === primaryOwner.userId ? primaryOwner.email : null)
     ?? "Email unavailable";
+
+  const viewerIsPrimaryOwner = !!user && user.id === primaryOwner.userId;
+  const viewerMembership = members.find(m => !!user && m.user_id === user.id);
+  // Mirrors wl_is_partner_manager(): owners and managers manage the team.
+  const viewerCanManage = viewerIsPrimaryOwner
+    || (viewerMembership?.status === 'active' && ['owner', 'manager'].includes(viewerMembership.role));
+  // Only the primary owner can hand out the owner role.
+  const assignableRoles = viewerIsPrimaryOwner ? ['owner', 'manager', 'agent'] : ['manager', 'agent'];
 
   const handleChangeRole = async (memberId: string, newRole: string) => {
     try {
@@ -198,9 +210,11 @@ export default function WLTeam() {
             <h1 className="text-2xl lg:text-3xl font-bold text-heading">Team</h1>
             <p className="text-muted-foreground mt-1">Manage your partner team members</p>
           </div>
-          <Button onClick={() => setShowInviteForm(v => !v)}>
-            <Plus className="w-4 h-4 mr-2" />Invite Member
-          </Button>
+          {viewerCanManage && (
+            <Button onClick={() => setShowInviteForm(v => !v)}>
+              <Plus className="w-4 h-4 mr-2" />Invite Member
+            </Button>
+          )}
         </div>
 
         {showInviteForm && (
@@ -224,9 +238,9 @@ export default function WLTeam() {
                   <Select value={inviteRole} onValueChange={setInviteRole}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="owner">Owner</SelectItem>
-                      <SelectItem value="manager">Manager</SelectItem>
-                      <SelectItem value="agent">Agent</SelectItem>
+                      {assignableRoles.map(r => (
+                        <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -252,9 +266,11 @@ export default function WLTeam() {
               <div className="text-center py-12 text-muted-foreground">
                 <Users className="w-16 h-16 mx-auto mb-4 opacity-30" />
                 <p className="text-lg font-medium mb-2">No team members yet</p>
-                <Button onClick={() => setShowInviteForm(true)}>
-                  <Plus className="w-4 h-4 mr-2" />Invite Your First Member
-                </Button>
+                {viewerCanManage && (
+                  <Button onClick={() => setShowInviteForm(true)}>
+                    <Plus className="w-4 h-4 mr-2" />Invite Your First Member
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -271,23 +287,26 @@ export default function WLTeam() {
                   <TableBody>
                     {members.map(member => {
                       const isSelf = !!user && member.user_id === user.id;
+                      const isPrimaryOwner = !!member.user_id && member.user_id === primaryOwner.userId;
+                      const canEdit = viewerCanManage && !isSelf && !isPrimaryOwner
+                        && (viewerIsPrimaryOwner || member.role !== 'owner');
                       return (
                         <TableRow key={member.id}>
                           <TableCell className="font-medium">{displayEmail(member)}</TableCell>
                           <TableCell>
-                            {isSelf ? (
-                              <Badge variant="secondary" className={roleColors[member.role] ?? ''}>
-                                {member.role}
-                              </Badge>
-                            ) : (
+                            {canEdit ? (
                               <Select value={member.role} onValueChange={value => handleChangeRole(member.id, value)}>
                                 <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="owner">Owner</SelectItem>
-                                  <SelectItem value="manager">Manager</SelectItem>
-                                  <SelectItem value="agent">Agent</SelectItem>
+                                  {assignableRoles.map(r => (
+                                    <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>
+                                  ))}
                                 </SelectContent>
                               </Select>
+                            ) : (
+                              <Badge variant="secondary" className={roleColors[member.role] ?? ''}>
+                                {isPrimaryOwner ? 'owner (primary)' : member.role}
+                              </Badge>
                             )}
                           </TableCell>
                           <TableCell>
@@ -299,7 +318,7 @@ export default function WLTeam() {
                             {format(new Date(member.invited_at), 'MMM d, yyyy')}
                           </TableCell>
                           <TableCell className="text-right">
-                            {!isSelf && (
+                            {canEdit && (
                               <Button
                                 variant="ghost"
                                 size="icon"

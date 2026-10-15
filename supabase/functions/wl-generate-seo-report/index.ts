@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { forbiddenResponse, hasWLPartnerAccess } from "../_shared/wlPartnerAccess.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -29,6 +30,7 @@ serve(async (req) => {
 
     const { partner_id, report_month } = await req.json();
     if (!partner_id || !report_month) throw new Error("partner_id and report_month are required");
+    if (!(await hasWLPartnerAccess(supabaseAdmin, user.id, partner_id))) return forbiddenResponse(corsHeaders);
 
     if (!Deno.env.get("ANTHROPIC_API_KEY")) {
       return new Response(JSON.stringify({ success: false, error: "API not configured" }), {

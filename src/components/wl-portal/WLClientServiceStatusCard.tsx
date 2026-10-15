@@ -59,7 +59,7 @@ export function WLClientServiceStatusCard({ wlClientId }: Props) {
             </div>
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-primary" />
-              <span>{row.published_campaigns}/{row.total_campaigns} scripts published</span>
+              <span>{row.active_scripts}/{row.total_scripts} scripts active</span>
             </div>
             <div className="flex items-center gap-2">
               <LifeBuoy className="h-4 w-4 text-primary" />

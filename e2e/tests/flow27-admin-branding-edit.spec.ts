@@ -90,12 +90,22 @@ test.describe.serial('Flow 27 — Admin Branding Edit', () => {
     const companyNameInput = page.getByTestId('input-company-name');
     await companyNameInput.waitFor({ timeout: 10000 });
 
-    await companyNameInput.clear();
-    await companyNameInput.fill('Admin Test Co');
+    // This runs against shared staging data (the first WL partner in the list is a real
+    // partner), so always put the original name back — leaving 'Admin Test Co' behind
+    // overwrote that partner's portal branding on every CI run.
+    const originalName = await companyNameInput.inputValue();
 
-    await page.getByTestId('save-branding-btn').click();
-
-    await expect(page.getByText('Branding saved')).toBeVisible({ timeout: 10000 });
+    try {
+      await companyNameInput.clear();
+      await companyNameInput.fill('Admin Test Co');
+      await page.getByTestId('save-branding-btn').click();
+      await expect(page.getByText('Branding saved')).toBeVisible({ timeout: 10000 });
+    } finally {
+      await companyNameInput.clear();
+      await companyNameInput.fill(originalName);
+      await page.getByTestId('save-branding-btn').click();
+      await expect(page.getByText('Branding saved').last()).toBeVisible({ timeout: 10000 });
+    }
   });
 
   // ── Test 4: Preview Portal link is visible and correct ──────────────────────

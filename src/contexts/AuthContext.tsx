@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
@@ -53,6 +53,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  // Whose profile/roles are loaded — lets token refreshes skip the reload.
+  const loadedUserIdRef = useRef<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
@@ -109,9 +111,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
+
+        // TOKEN_REFRESHED (tab focus, hourly refresh) and repeat SIGNED_IN events
+        // for the same user must not reset roles: that flips ProtectedRoute back to
+        // its full-screen spinner and remounts the page, discarding unsaved edits.
+        // Keep the same user object too, so effects keyed on `user` don't re-run.
+        const sameUser = !!session?.user && session.user.id === loadedUserIdRef.current;
+        if (sameUser && event !== 'USER_UPDATED') {
+          setLoading(false);
+          return;
+        }
         setUser(session?.user ?? null);
 
         if (session?.user) {
+          loadedUserIdRef.current = session.user.id;
           // D-1.1: reset rolesLoaded BEFORE scheduling the fetch so any
           // pending post-login redirect waits until roles are actually
           // fetched for THIS user (not a stale `true` from the prior
@@ -124,6 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (fetchedRoles.includes('affiliate' as AppRole)) fetchAffiliateData(session.user.id);
           }, 0);
         } else {
+          loadedUserIdRef.current = null;
           setProfile(null);
           setRoles([]);
           setRolesLoaded(true);
@@ -140,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
 
       if (session?.user) {
+        loadedUserIdRef.current = session.user.id;
         setRolesLoaded(false);
         await fetchProfile(session.user.id);
         const fetchedRoles = await fetchRoles(session.user.id);
