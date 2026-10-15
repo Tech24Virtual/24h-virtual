@@ -86,7 +86,21 @@ async function buildSystemPrompt(
   const procedures = knowledgeEntries.filter((e) => e.content_type === "procedure");
   const faqs = knowledgeEntries.filter((e) => ["faq", "troubleshooting"].includes(e.content_type));
 
+  // There are no platform_knowledge rows for the WL client portal, so without
+  // this map the assistant invented menus ("Settings → Business Hours").
+  const wlClientPortalMap = dashboardContext === "wl_client" &&
+    `## Client Portal Pages (the left sidebar — these are the ONLY pages; never refer to others)
+- **Overview**: calls this month, total minutes, service and activation status, 30-day call trend, recent calls.
+- **Calls**: call logs with date filter and search, 50 per page, handle time per call.
+- **Scripts**: the client's call scripts and pending changes. To change how calls are answered (including what callers hear after hours), use "Request Change" on a script.
+- **Schedule**: business hours ("Regular Hours") for each day of the week.
+- **Billing**: minutes and calls used this month and the current plan. Plan changes go through ${brandName || "the provider"}.
+- **Support**: this AI assistant, and Tickets for contacting ${brandName || "the provider"}'s support team.
+- **Settings**: profile information (company name, contact name, email, phone) and security (password).
+If something can't be done in these pages, tell the user to open a ticket under Support → Tickets.`;
+
   const knowledgeSection = [
+    wlClientPortalMap,
     features.length > 0 &&
       `## Features\n${features.map((e) => `- **${e.title}**: ${e.description}`).join("\n")}`,
     procedures.length > 0 &&
@@ -105,7 +119,7 @@ async function buildSystemPrompt(
 
   const identity =
     isWL && brandName
-      ? `You are the support assistant for ${brandName}'s partner portal. Never mention "24H Virtual", "PiP", or any parent platform name. You represent ${brandName} exclusively.`
+      ? `You are the support assistant for ${brandName}'s ${dashboardContext === "wl_client" ? "client" : "partner"} portal. Never mention "24H Virtual", "PiP", or any parent platform name. You represent ${brandName} exclusively.`
       : `You are PiP, the support assistant for 24H Virtual — an AI-powered virtual reception and answering service platform.`;
 
   const nameClause = firstName

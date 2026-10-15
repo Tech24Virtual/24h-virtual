@@ -36,6 +36,8 @@ export function SupportAssistant({ onRequestCreated, dashboardContext, defaultDe
   const [aiResponse, setAiResponse] = useState<string | null>(null);
   const [currentRequestId, setCurrentRequestId] = useState<string | null>(null);
   const [autoTriggered, setAutoTriggered] = useState(false);
+  // WL partners and their clients must not see internal "developer" wording.
+  const isWLContext = dashboardContext === 'white_label' || dashboardContext === 'wl_client';
 
   const firstName = profile?.full_name?.split(' ')[0] || '';
 
@@ -159,7 +161,9 @@ export function SupportAssistant({ onRequestCreated, dashboardContext, defaultDe
       .from('support_requests')
       .update({ status: 'escalated' })
       .eq('id', currentRequestId);
-    toast({ title: 'Escalated to Developer', description: 'This issue has been flagged for developer review' });
+    toast(isWLContext
+      ? { title: 'Escalated', description: `This issue has been flagged for ${brandName || 'your provider'}'s team` }
+      : { title: 'Escalated to Developer', description: 'This issue has been flagged for developer review' });
     onRequestCreated?.();
   };
 
@@ -295,7 +299,7 @@ export function SupportAssistant({ onRequestCreated, dashboardContext, defaultDe
               </Button>
               <Button variant="destructive" size="sm" onClick={handleEscalate}>
                 <AlertTriangle className="w-4 h-4 mr-2" />
-                Escalate to Dev
+                {isWLContext ? 'Escalate' : 'Escalate to Dev'}
               </Button>
             </div>
           </CardFooter>

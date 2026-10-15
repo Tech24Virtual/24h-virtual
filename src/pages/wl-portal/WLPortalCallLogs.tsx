@@ -174,7 +174,7 @@ export default function WLPortalCallLogs() {
         <CardHeader>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
-              <CardTitle className="text-lg">All Calls ({filtered.length})</CardTitle>
+              <CardTitle className="text-lg">Answered Calls ({filtered.length})</CardTitle>
               <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input placeholder="Search calls..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
