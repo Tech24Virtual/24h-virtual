@@ -96,8 +96,12 @@ export default function WLPortalLogin() {
             className="text-2xl"
             style={branding?.font_heading ? { fontFamily: `'${branding.font_heading}', sans-serif` } : undefined}
           >
-            {branding?.login_page_title || branding?.company_name || 'Client Portal'}
+            {branding?.company_name || branding?.login_page_title || 'Client Portal'}
           </CardTitle>
+          {/* The partner's login title (default "Client Portal") sits under their name. */}
+          {branding?.company_name && branding.login_page_title && branding.login_page_title !== branding.company_name && (
+            <p className="text-sm font-medium text-muted-foreground">{branding.login_page_title}</p>
+          )}
           {branding?.welcome_message && (
             <CardDescription>{branding.welcome_message}</CardDescription>
           )}

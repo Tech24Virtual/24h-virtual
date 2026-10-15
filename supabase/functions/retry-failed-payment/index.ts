@@ -178,8 +178,11 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
+    // Supabase query errors are plain objects, not Error — String() gave "[object Object]".
+    console.error("retry-failed-payment failed:", err);
+    const message = err instanceof Error ? err.message : (err as { message?: string })?.message ?? String(err);
     return new Response(
-      JSON.stringify({ error: String(err) }),
+      JSON.stringify({ error: message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
