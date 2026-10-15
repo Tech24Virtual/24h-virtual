@@ -15,8 +15,7 @@ export default function WLCampaignOs() {
         <div>
           <h1 className="text-2xl font-semibold">Campaigns</h1>
           <p className="text-sm text-muted-foreground">
-            Active accounts and their approved campaigns. Read-through view; authoring lands in a
-            future phase.
+            Active accounts and their approved campaigns.
           </p>
         </div>
 
@@ -27,7 +26,7 @@ export default function WLCampaignOs() {
                 <Megaphone className="h-5 w-5 text-primary" />
                 <CardTitle>Campaign Operations</CardTitle>
               </div>
-              <Badge variant="secondary">Coming in Phase 7</Badge>
+              <Badge variant="secondary">Coming soon</Badge>
             </div>
             <CardDescription>
               Partner-scoped campaign operations will surface here. Only your tenant data is ever shown.
@@ -56,7 +55,7 @@ export default function WLCampaignOs() {
                   <Eye className="h-4 w-4" /> Branded Preview
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  See exactly what your end clients will see when Phase 8 enables it.
+                  See exactly what your end clients will see.
                 </p>
               </div>
               <div className="rounded-lg border bg-muted/30 p-4">

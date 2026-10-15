@@ -141,7 +141,7 @@ export default function WhiteLabelDashboard() {
     {
       title: "Monthly Revenue",
       value: `$${stats.monthlyRevenue.toLocaleString()}`,
-      change: `+${stats.revenueGrowth}% vs last month`,
+      change: `${stats.revenueGrowth >= 0 ? "+" : ""}${stats.revenueGrowth}% vs last month`,
       icon: DollarSign,
       color: "cta"
     },
@@ -169,7 +169,7 @@ export default function WhiteLabelDashboard() {
             </p>
           </div>
           <Button asChild>
-            <Link to="/white-label-dashboard/clients">
+            <Link to="/white-label-dashboard/clients?add=1">
               <Plus className="w-4 h-4 mr-2" />
               Add Client
             </Link>

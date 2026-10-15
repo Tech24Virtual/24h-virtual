@@ -153,7 +153,7 @@ export function deriveWLPartnerPath(readiness: WLPartnerReadinessRow | null, cli
           ? "in_progress"
           : "pending",
       owner: "user_action",
-      drillRoute: "/white-label-dashboard/domains",
+      drillRoute: "/white-label-dashboard/account/branding/custom-domain",
     },
     {
       key: "first_client_added",

@@ -89,7 +89,7 @@ export function derivePartnerNudges(
       tone: "action",
       title: "Connect your custom domain",
       detail: "A custom domain (e.g., portal.yourbrand.com) is required for clients to log in under your brand.",
-      drillRoute: "/white-label-dashboard/domain",
+      drillRoute: "/white-label-dashboard/account/branding/custom-domain",
     });
   }
   if (readiness.has_custom_domain && !readiness.domain_verified) {
@@ -98,7 +98,7 @@ export function derivePartnerNudges(
       tone: "info",
       title: "Domain pending verification",
       detail: "Your DNS records are being verified. This typically takes minutes but can take up to 24h.",
-      drillRoute: "/white-label-dashboard/domain",
+      drillRoute: "/white-label-dashboard/account/branding/custom-domain",
     });
   }
   if (stage >= 4 && insights.totalClients === 0) {

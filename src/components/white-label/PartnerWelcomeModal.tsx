@@ -22,7 +22,7 @@ const QUICK_ACTIONS = [
     icon: Globe,
     title: "Add a Custom Domain",
     description: "Use your own portal hostname",
-    to: "/white-label-dashboard/domain",
+    to: "/white-label-dashboard/account/branding/custom-domain",
   },
   {
     icon: UserPlus,

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Plus, Search, MoreHorizontal, UserPlus, ShieldCheck, AlertTriangle, SlidersHorizontal } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,7 +55,8 @@ export default function WhiteLabelClients() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [partnerId, setPartnerId] = useState<string | null>(null);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(() => searchParams.get('add') === '1');
   const [modulesDialogClient, setModulesDialogClient] = useState<{ id: string; name: string } | null>(null);
   const [newClient, setNewClient] = useState({
     client_name: "", contact_name: "", email: "", phone: "",
@@ -65,6 +66,15 @@ export default function WhiteLabelClients() {
   });
 
   useEffect(() => { fetchPartnerAndClients(); }, [user]);
+
+  // Overview "Add Client" links here with ?add=1 — open the dialog, then drop the param.
+  useEffect(() => {
+    if (searchParams.get('add') === '1') {
+      setIsAddDialogOpen(true);
+      searchParams.delete('add');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const fetchPartnerAndClients = async () => {
     if (!user) return;

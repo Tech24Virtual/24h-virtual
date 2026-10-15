@@ -1,5 +1,5 @@
 import { lazy } from "react";
-import { Route, Navigate, Outlet } from "react-router-dom";
+import { Route, Navigate, Outlet, useParams } from "react-router-dom";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { LazyRoute } from "./LazyRoute";
 import { WhiteLabelLayout } from "@/components/white-label/WhiteLabelLayout";
@@ -40,6 +40,12 @@ const WLTeam = lazy(() => import("@/pages/white-label-dashboard/Team"));
 const WLTasks = lazy(() => import("@/pages/white-label-dashboard/Tasks"));
 const WLPlans = lazy(() => import("@/pages/white-label-dashboard/Plans"));
 const WLServiceConfig = lazy(() => import("@/pages/white-label-dashboard/ServiceConfig"));
+
+/** <Navigate> does not interpolate params — substitute :id from the current match. */
+function RedirectWithId({ to }: { to: string }) {
+  const { id = "" } = useParams();
+  return <Navigate to={to.replace(":id", encodeURIComponent(id))} replace />;
+}
 
 function WLLayoutWrapper() {
   return (
@@ -106,9 +112,9 @@ export const WhiteLabelRoutes = (
     <Route path="/white-label-dashboard/pipeline" element={<Navigate to="/white-label-dashboard/clients/pipeline" replace />} />
     <Route path="/white-label-dashboard/proposals" element={<Navigate to="/white-label-dashboard/clients/proposals" replace />} />
     <Route path="/white-label-dashboard/proposals/new" element={<Navigate to="/white-label-dashboard/clients/proposals/new" replace />} />
-    <Route path="/white-label-dashboard/proposals/:id" element={<Navigate to="/white-label-dashboard/clients/proposals/:id" replace />} />
+    <Route path="/white-label-dashboard/proposals/:id" element={<RedirectWithId to="/white-label-dashboard/clients/proposals/:id" />} />
     <Route path="/white-label-dashboard/onboarding" element={<Navigate to="/white-label-dashboard/clients/onboarding" replace />} />
-    <Route path="/white-label-dashboard/onboarding/:id" element={<Navigate to="/white-label-dashboard/clients/onboarding/:id" replace />} />
+    <Route path="/white-label-dashboard/onboarding/:id" element={<RedirectWithId to="/white-label-dashboard/clients/onboarding/:id" />} />
     <Route path="/white-label-dashboard/usage" element={<Navigate to="/white-label-dashboard/clients/usage" replace />} />
     <Route path="/white-label-dashboard/tasks" element={<Navigate to="/white-label-dashboard/clients/tasks" replace />} />
     <Route path="/white-label-dashboard/client-tickets" element={<Navigate to="/white-label-dashboard/clients/tickets" replace />} />
@@ -127,9 +133,13 @@ export const WhiteLabelRoutes = (
     <Route path="/white-label-dashboard/agreements" element={<Navigate to="/white-label-dashboard/account/agreements" replace />} />
     <Route path="/white-label-dashboard/branding" element={<Navigate to="/white-label-dashboard/account/branding" replace />} />
     <Route path="/white-label-dashboard/branding/custom-domain" element={<Navigate to="/white-label-dashboard/account/branding/custom-domain" replace />} />
+    <Route path="/white-label-dashboard/account/custom-domain" element={<Navigate to="/white-label-dashboard/account/branding/custom-domain" replace />} />
+    <Route path="/white-label-dashboard/custom-domain" element={<Navigate to="/white-label-dashboard/account/branding/custom-domain" replace />} />
+    <Route path="/white-label-dashboard/domain" element={<Navigate to="/white-label-dashboard/account/branding/custom-domain" replace />} />
+    <Route path="/white-label-dashboard/domains" element={<Navigate to="/white-label-dashboard/account/branding/custom-domain" replace />} />
     <Route path="/white-label-dashboard/team" element={<Navigate to="/white-label-dashboard/account/team" replace />} />
     <Route path="/white-label-dashboard/support" element={<Navigate to="/white-label-dashboard/account/support" replace />} />
-    <Route path="/white-label-dashboard/support/:id" element={<Navigate to="/white-label-dashboard/account/support/:id" replace />} />
+    <Route path="/white-label-dashboard/support/:id" element={<RedirectWithId to="/white-label-dashboard/account/support/:id" />} />
     <Route path="/white-label-dashboard/feedback" element={<Navigate to="/white-label-dashboard/account/feedback" replace />} />
     <Route path="/white-label-dashboard/settings" element={<Navigate to="/white-label-dashboard/account/settings" replace />} />
   </>

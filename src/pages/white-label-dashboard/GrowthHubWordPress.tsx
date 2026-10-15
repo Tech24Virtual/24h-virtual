@@ -158,7 +158,7 @@ export default function GrowthHubWordPress() {
                   <li>Log in to your WordPress admin dashboard</li>
                   <li>Go to <strong>Users → Profile</strong></li>
                   <li>Scroll to <strong>Application Passwords</strong></li>
-                  <li>Enter a name (e.g. "24H Growth Hub") and click <strong>Add New</strong></li>
+                  <li>Enter a name (e.g. "Growth Hub") and click <strong>Add New</strong></li>
                   <li>Copy the generated password and paste it below</li>
                 </ol>
               </div>
