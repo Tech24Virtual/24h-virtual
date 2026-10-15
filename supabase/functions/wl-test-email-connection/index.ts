@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { authenticateAgent } from "../_shared/agent-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,6 +8,10 @@ const corsHeaders = {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  // Only partners (and admins) testing their own Resend key may use this.
+  const auth = await authenticateAgent(req, ["admin", "white_label"]);
+  if (auth.error) return auth.error;
 
   try {
     const { api_key, from_email } = await req.json();
