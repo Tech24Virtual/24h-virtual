@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchMyWLPartner } from "@/lib/wl/resolvePartner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, FileText, Loader2, ExternalLink, Trash2, Send, RefreshCw, ArrowLeft, Zap } from "lucide-react";
@@ -30,7 +31,7 @@ export default function GrowthHubBlog() {
   const { data: partner } = useQuery({
     queryKey: ["wl-partner", user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("white_label_partners").select("id").eq("user_id", user!.id).maybeSingle();
+      const { data } = await fetchMyWLPartner(user!.id);
       return data;
     },
     enabled: !!user,

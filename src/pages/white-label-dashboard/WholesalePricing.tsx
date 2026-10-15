@@ -9,6 +9,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchMyWLPartner } from "@/lib/wl/resolvePartner";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function WLWholesalePricing() {
@@ -28,7 +29,7 @@ export default function WLWholesalePricing() {
   const fetchData = async () => {
     if (!user) return;
     try {
-      const { data: partner } = await supabase.from("white_label_partners").select("id").eq("user_id", user.id).maybeSingle();
+      const { data: partner } = await fetchMyWLPartner(user.id);
       if (!partner) return;
 
       const [pricingRes, addonsRes] = await Promise.all([

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchMyWLPartner } from "@/lib/wl/resolvePartner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
@@ -31,7 +32,7 @@ export default function GrowthHubReports() {
   const { data: partner } = useQuery({
     queryKey: ["wl-partner", user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("white_label_partners").select("id, company_name").eq("user_id", user!.id).maybeSingle();
+      const { data } = await fetchMyWLPartner(user!.id, "id, company_name");
       return data;
     },
     enabled: !!user,

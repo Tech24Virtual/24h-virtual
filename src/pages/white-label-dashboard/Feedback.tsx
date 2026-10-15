@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Inbox, Users, ClipboardList, Send, ArrowUpRight, CheckCircle2, PlayCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchMyWLPartner } from "@/lib/wl/resolvePartner";
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow, isAfter, subDays } from 'date-fns';
 import { needsActionScore } from '@/lib/feedback/needsActionScore';
@@ -82,7 +83,7 @@ export default function WLFeedbackQueue() {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from('white_label_partners').select('id').eq('user_id', user.id).maybeSingle()
+    fetchMyWLPartner(user.id)
       .then(({ data }) => setPartnerId(data?.id ?? null));
   }, [user]);
 

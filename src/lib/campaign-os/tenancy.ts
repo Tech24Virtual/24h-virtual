@@ -48,6 +48,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { resolveWLPartnerId } from '@/lib/wl/resolvePartner';
 import type { CampaignTenantKind, TenantIdentity } from './types';
 
 export interface ResolvedTenant extends TenantIdentity {
@@ -75,7 +76,7 @@ export async function resolveTenant(opts: { userId?: string | null } = {}): Prom
   // Fetch role + tenant identity links in parallel
   const [rolesRes, partnerRes, wlClientRes, leadRes] = await Promise.all([
     supabase.from('user_roles').select('role').eq('user_id', userId),
-    supabase.from('white_label_partners').select('id').eq('user_id', userId).maybeSingle(),
+    resolveWLPartnerId(userId).then((id) => ({ data: id ? { id } : null })),
     supabase.from('white_label_clients').select('id, partner_id').eq('user_id', userId).maybeSingle(),
     supabase.from('leads').select('id').eq('user_id', userId).maybeSingle(),
   ]);
@@ -89,7 +90,7 @@ export async function resolveTenant(opts: { userId?: string | null } = {}): Prom
   const directLead = leadRes.data;
 
   // Precedence for primary identity assignment:
-  // 1. WL partner ownership → wl_partner tenant
+  // 1. WL partner ownership or active team membership → wl_partner tenant
   // 2. WL end-client ownership → wl_partner tenant (with partner inferred)
   // 3. Direct lead ownership → direct_24h tenant
   // 4. Internal staff (admin/supervisor) → no fixed identity (null tuple)

@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchMyWLPartner } from "@/lib/wl/resolvePartner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Globe, Loader2, CheckCircle2, XCircle, ArrowLeft, Info } from "lucide-react";
@@ -24,7 +25,7 @@ export default function GrowthHubWordPress() {
   const { data: partner } = useQuery({
     queryKey: ["wl-partner", user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("white_label_partners").select("id").eq("user_id", user!.id).maybeSingle();
+      const { data } = await fetchMyWLPartner(user!.id);
       return data;
     },
     enabled: !!user,

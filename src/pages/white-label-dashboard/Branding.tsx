@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchMyWLPartner } from "@/lib/wl/resolvePartner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -77,7 +78,7 @@ export default function WhiteLabelBranding() {
   const fetchBranding = async () => {
     if (!user) return;
     try {
-      const { data: partner } = await supabase.from('white_label_partners').select('id').eq('user_id', user.id).maybeSingle();
+      const { data: partner } = await fetchMyWLPartner(user.id);
       if (partner) {
         setPartnerId(partner.id);
         const { data: bd } = await supabase.from('white_label_branding').select('*').eq('partner_id', partner.id).maybeSingle();

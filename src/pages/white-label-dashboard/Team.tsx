@@ -16,6 +16,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchMyWLPartner } from "@/lib/wl/resolvePartner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -59,11 +60,7 @@ export default function WLTeam() {
   const fetchPartnerAndMembers = async () => {
     if (!user) return;
     try {
-      const { data: partner } = await supabase
-        .from('white_label_partners')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const { data: partner } = await fetchMyWLPartner(user.id);
 
       if (partner) {
         setPartnerId(partner.id);

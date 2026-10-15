@@ -7,6 +7,7 @@ import { MyTicketsList, SubmitTicketDialog } from '@/components/tickets';
 import { PiPAssistant } from '@/components/pip/PiPAssistant';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchMyWLPartner } from "@/lib/wl/resolvePartner";
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 
@@ -21,11 +22,7 @@ export default function WhiteLabelSupport() {
   useEffect(() => {
     if (!user) return;
     const fetchPartnerInfo = async () => {
-      const { data: partner } = await supabase
-        .from('white_label_partners')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const { data: partner } = await fetchMyWLPartner(user.id);
       if (partner) {
         setPartnerId(partner.id);
         const { data: branding } = await supabase

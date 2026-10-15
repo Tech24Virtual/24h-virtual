@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchMyWLPartner } from "@/lib/wl/resolvePartner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -64,11 +65,7 @@ export default function WhiteLabelBilling() {
   const { data: partnerData, isLoading: partnerLoading } = useQuery({
     queryKey: ["wl-partner-billing", user?.id],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("white_label_partners")
-        .select("id, tier, monthly_fee, status, created_at")
-        .eq("user_id", user!.id)
-        .maybeSingle();
+      const { data } = await fetchMyWLPartner(user!.id, "id, tier, monthly_fee, status, created_at");
       return data as PartnerData | null;
     },
     enabled: !!user,

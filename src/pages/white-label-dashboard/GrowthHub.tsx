@@ -17,6 +17,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchMyWLPartner } from "@/lib/wl/resolvePartner";
 import { useQuery } from "@tanstack/react-query";
 
 export default function GrowthHub() {
@@ -26,11 +27,7 @@ export default function GrowthHub() {
   const { data: partner } = useQuery({
     queryKey: ["wl-partner", user?.id],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("white_label_partners")
-        .select("id")
-        .eq("user_id", user!.id)
-        .maybeSingle();
+      const { data } = await fetchMyWLPartner(user!.id);
       return data;
     },
     enabled: !!user,

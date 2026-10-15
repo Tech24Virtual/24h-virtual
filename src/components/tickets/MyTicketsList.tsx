@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { MessageSquare, Ticket } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchMyWLPartner } from "@/lib/wl/resolvePartner";
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -34,11 +35,7 @@ export function MyTicketsList({ detailLinkPrefix, sourceTable = 'support_tickets
     queryFn: async (): Promise<NormalizedTicket[]> => {
       if (sourceTable === 'wl_client_tickets') {
         // Resolve the partner_id for the current user first
-        const { data: partner } = await supabase
-          .from('white_label_partners')
-          .select('id')
-          .eq('user_id', user!.id)
-          .maybeSingle();
+        const { data: partner } = await fetchMyWLPartner(user!.id);
         console.log('partner lookup:', partner);
         if (!partner) return [];
 

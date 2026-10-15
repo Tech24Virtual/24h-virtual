@@ -20,6 +20,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchMyWLPartner } from "@/lib/wl/resolvePartner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -124,7 +125,7 @@ export default function WLPlans() {
   const fetchPartnerAndPlans = async () => {
     if (!user) return;
     try {
-      const { data: partner } = await supabase.from("white_label_partners").select("id").eq("user_id", user.id).maybeSingle();
+      const { data: partner } = await fetchMyWLPartner(user.id);
       if (partner) {
         setPartnerId(partner.id);
         const { data: plansData } = await supabase.from("wl_partner_plans").select("*")

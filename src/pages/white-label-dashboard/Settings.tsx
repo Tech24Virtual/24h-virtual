@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchMyWLPartner } from "@/lib/wl/resolvePartner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -40,11 +41,7 @@ export default function WhiteLabelSettings() {
     if (!user) return;
 
     try {
-      const { data } = await supabase
-        .from('white_label_partners')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const { data } = await fetchMyWLPartner(user.id, '*');
 
       if (data) {
         setPartnerId(data.id);
