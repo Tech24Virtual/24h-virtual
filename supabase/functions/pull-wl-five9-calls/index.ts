@@ -223,7 +223,7 @@ function mapCsvRowToWlCallLog(row: Record<string, string>, partnerId: string, wl
     agent_name: colGet(row, "AGENT NAME") || null,
     disposition: colGet(row, "DISPOSITION") || null,
     // Not in the stock Call Log report — populated once a Notes field is added to it in Five9.
-    notes: colGet(row, "NOTES", "CALL NOTES", "AGENT NOTES") || null,
+    notes: colGet(row, "NOTES", "CALL NOTES", "AGENT NOTES", "COMMENTS", "CALL COMMENTS") || null,
     talk_time_seconds: talkTimeSec,
     acw_seconds: acwSec,
     handle_time_seconds: handleTimeSec,
