@@ -62,10 +62,9 @@ export function ClientCallTrendCard({ scope, clientId, title = "30-Day Call Tren
           <p className="text-sm text-muted-foreground">No call activity in the last 30 days yet.</p>
         ) : (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-4">
+            <div className="grid grid-cols-3 gap-3 text-sm mb-4">
               <Tile label="Calls" value={trend.totalCalls} />
               <Tile label="Minutes" value={trend.totalMinutes} />
-              <Tile label="Missed" value={trend.missedCalls} />
               <Tile label="After Hours" value={trend.afterHoursCalls} />
             </div>
             <div className="h-32">

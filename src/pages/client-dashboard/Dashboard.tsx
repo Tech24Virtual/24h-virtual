@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Phone, Clock, AlertTriangle, FileText, ArrowRight,
+  Phone, Clock, FileText, ArrowRight,
   PhoneOutgoing, CheckCircle2, AlertCircle,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -139,7 +139,6 @@ export default function ClientDashboard() {
   const totalMinutes = Math.round(
     (monthCalls?.reduce((s, c) => s + (c.handle_time_seconds ?? 0), 0) ?? 0) / 60,
   );
-  const missedCalls = monthCalls?.filter(c => c.status === 'missed').length ?? 0;
 
   // Account status
   const pipelineStage = lead?.pipeline_stage;
@@ -158,7 +157,6 @@ export default function ClientDashboard() {
   const statCards = [
     { label: 'Calls This Month', value: callsThisMonth, icon: Phone,         iconBg: 'bg-primary/10',      iconColor: 'text-primary' },
     { label: 'Total Minutes',    value: totalMinutes,   icon: Clock,          iconBg: 'bg-blue-50',         iconColor: 'text-blue-600' },
-    { label: 'Missed Calls',     value: missedCalls,    icon: AlertTriangle,  iconBg: 'bg-destructive/10',  iconColor: 'text-destructive' },
     { label: 'Active Scripts',   value: activeScripts,  icon: FileText,       iconBg: 'bg-secondary/10',    iconColor: 'text-secondary' },
   ];
 
@@ -185,7 +183,7 @@ export default function ClientDashboard() {
       </div>
 
       {/* Section 2 — 4 stat cards */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid sm:grid-cols-3 gap-4 mb-6">
         {statCards.map((stat) => (
           <Card key={stat.label}>
             <CardContent className="p-6">

@@ -222,6 +222,8 @@ function mapCsvRowToWlCallLog(row: Record<string, string>, partnerId: string, wl
     campaign_name: campaignName,
     agent_name: colGet(row, "AGENT NAME") || null,
     disposition: colGet(row, "DISPOSITION") || null,
+    // Not in the stock Call Log report — populated once a Notes field is added to it in Five9.
+    notes: colGet(row, "NOTES", "CALL NOTES", "AGENT NOTES") || null,
     talk_time_seconds: talkTimeSec,
     acw_seconds: acwSec,
     handle_time_seconds: handleTimeSec,
@@ -241,6 +243,7 @@ type WlCallLogRow = NonNullable<ReturnType<typeof mapCsvRowToWlCallLog>>;
 // Call Log emits one row per call segment (transfers, conferences, voicemail),
 // all sharing the same CALL ID. Collapse them into one call: times are summed,
 // first segment wins for timestamp/caller, last non-empty agent/disposition wins,
+// notes from every segment are kept,
 // and the call is "missed" only if every segment was abandoned. Billing rules
 // are applied to the merged call.
 function mergeCallSegments(rows: WlCallLogRow[]): WlCallLogRow[] {
@@ -254,6 +257,7 @@ function mergeCallSegments(rows: WlCallLogRow[]): WlCallLogRow[] {
     prev.call_duration += r.call_duration;
     prev.agent_name = r.agent_name ?? prev.agent_name;
     prev.disposition = r.disposition ?? prev.disposition;
+    prev.notes = [prev.notes, r.notes].filter(Boolean).join("\n") || null;
     prev.caller_name = prev.caller_name ?? r.caller_name;
     if (r.status === "completed") prev.status = "completed";
   }
@@ -287,8 +291,28 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    let body: { period_start?: string; period_end?: string; match_value?: string; partner_id?: string; days_back?: number } = {};
+    let body: {
+      period_start?: string; period_end?: string; match_value?: string; partner_id?: string; days_back?: number;
+      action?: string; folder?: string; report?: string; day?: string;
+    } = {};
     try { body = await req.json(); } catch { /* no body */ }
+
+    // Diagnostic: run one report for one day and return its column headers plus
+    // a few sample rows. Read-only — no mission, no inserts.
+    if (body.action === "test_report") {
+      const folder = body.folder || "Call Log Reports";
+      const report = body.report || "Call Log";
+      const day = body.day || new Date().toISOString().slice(0, 10);
+      const { identifier, sessionCookie } = await runReport(folder, report, day, day);
+      await pollUntilReady(identifier, sessionCookie);
+      const csv = await getReportCsv(identifier, sessionCookie);
+      const headerLine = csv.trim().split(/\r?\n/)[0] ?? "";
+      const rows = parseCsv(csv);
+      return new Response(
+        JSON.stringify({ folder, report, day, headers: parseCsvLine(headerLine).map((h) => h.trim()), row_count: rows.length, sample_rows: rows.slice(0, 3) }, null, 2),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     let { period_start, period_end } = body;
     const { match_value: filterMatchValue, partner_id: filterPartnerId, days_back } = body;

@@ -115,7 +115,6 @@ export default function WLPortalCallLogs() {
   const summary = useMemo(() => {
     const total = dateFiltered.length;
     const completed = filtered.length;
-    const missed = total - completed;
     const totalHandleSeconds = filtered.reduce((sum, c) => sum + (c.handle_time_seconds || 0), 0);
     const avgHandleSeconds = completed > 0 ? Math.round(totalHandleSeconds / completed) : 0;
     const byDisposition = filtered.reduce<Record<string, number>>((acc, c) => {
@@ -123,7 +122,7 @@ export default function WLPortalCallLogs() {
       acc[key] = (acc[key] || 0) + 1;
       return acc;
     }, {});
-    return { total, completed, missed, avgHandleSeconds, totalHandleSeconds, byDisposition };
+    return { total, completed, avgHandleSeconds, totalHandleSeconds, byDisposition };
   }, [dateFiltered, filtered]);
 
   const exportCsv = () => {
@@ -329,10 +328,6 @@ export default function WLPortalCallLogs() {
               <div>
                 <p className="text-xs text-muted-foreground">Completed</p>
                 <p className="text-xl font-bold text-heading">{summary.completed}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Missed</p>
-                <p className="text-xl font-bold text-heading">{summary.missed}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Avg Handle Time</p>

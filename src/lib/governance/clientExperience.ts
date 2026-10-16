@@ -14,13 +14,11 @@ import { supabase } from "@/integrations/supabase/client";
 export interface DailyCallPoint {
   day: string; // YYYY-MM-DD
   total: number;
-  missed: number;
 }
 
 export interface ClientCallTrend {
   days: DailyCallPoint[];
   totalCalls: number;
-  missedCalls: number;
   totalMinutes: number;
   afterHoursCalls: number;
   weekOverWeekDelta: number; // signed integer
@@ -57,7 +55,6 @@ export async function fetchClientCallTrend(opts: {
   const series: DailyCallPoint[] = rows.map((r) => ({
     day: r.day,
     total: Number(r.total),
-    missed: Number(r.missed),
   }));
   const sum = (f: (r: TrendRow) => number) => rows.reduce((s, r) => s + Number(f(r) || 0), 0);
   const last7 = series.slice(-7).reduce((s, p) => s + p.total, 0);
@@ -65,7 +62,6 @@ export async function fetchClientCallTrend(opts: {
   return {
     days: series,
     totalCalls: sum((r) => r.total),
-    missedCalls: sum((r) => r.missed),
     totalMinutes: Math.round(sum((r) => r.seconds) / 60),
     afterHoursCalls: sum((r) => r.after_hours),
     weekOverWeekDelta: last7 - prev7,
